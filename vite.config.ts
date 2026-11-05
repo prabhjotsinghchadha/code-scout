@@ -13,6 +13,15 @@ export default defineConfig({
     rollupOptions: {
       // Not named in the manifest (the background opens it), so CRXJS needs to be told about it.
       input: { offscreen: 'src/offscreen/index.html' },
+      // Same file names in every build (no content hashes). Chrome keeps an unpacked extension's
+      // content-script loaders from when it was last reloaded, and they import the code by file name:
+      // with hashed names, every rebuild of dist/ deleted the files they import, and Code Scout stopped
+      // working on new pages (no buttons, no video toolbar) until the extension was reloaded.
+      output: {
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name][extname]',
+      },
     },
   },
   server: {
