@@ -1,5 +1,6 @@
 // Video tools, content-script side (every site, unless turned off): a small toolbar on each video, shown
-// while the pointer is over it or it's paused.
+// while the pointer is over it or it's paused. The page's main video (the biggest on screen) has it up from
+// the start, and keeps a faint ⚡ in the corner while it plays.
 //   ⚡ 1:20      how far ahead the video has loaded (parallel loading, video-boost.iife.ts)
 //   720p ▾       quality menu, when the stream has more than one (just "720p" when it hasn't)
 //   ⬇ Download   save the video as MP4 (video-download.ts)
@@ -220,8 +221,8 @@ class VideoUi {
     }
   }
 
-  /** Every frame: follow the video on screen, show or hide the toolbar. */
-  frame(now: number) {
+  /** Every frame: follow the video on screen, show or hide the toolbar. `main`: the page's main video. */
+  frame(now: number, main: boolean) {
     if (this.subs?.stopped) this.setSubs(null);
     const video = this.video;
     const r = video.getBoundingClientRect();
@@ -241,11 +242,13 @@ class VideoUi {
       Object.assign(this.layer.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       this.subs?.place();
     }
-    // Like the player's own controls: shown while the pointer is over the video, and while it's paused
-    // after playing (not on every not-yet-played video of a page full of them).
-    const pausedAfterPlaying = video.paused && video.played.length > 0;
-    const show = now < this.hoverUntil || pausedAfterPlaying || !this.menu.hidden || this.busy;
+    // Like the player's own controls: shown while the pointer is over the video and while it's paused.
+    // The main video has it from the start, before it's played; others (a page full of previews) once
+    // they've played. While the main video plays, the ⚡ stays, faint, so the tools are seen to be there.
+    const paused = video.paused && (main || video.played.length > 0);
+    const show = now < this.hoverUntil || paused || !this.menu.hidden || this.busy;
     this.bar.classList.toggle('javtr-show', show);
+    this.bar.classList.toggle('javtr-peek', !show && main);
     if (show && (!this.shown || now >= this.overlapCheckAt)) {
       this.overlapCheckAt = now + OVERLAP_CHECK_MS;
       this.avoidOverlays(r);
@@ -460,16 +463,33 @@ function scan(root: ParentNode) {
   root.querySelectorAll?.('video').forEach(attach);
 }
 
+/** The page's main video: the one with the most of it on screen (big enough for a toolbar). */
+function mainVideo(): HTMLVideoElement | null {
+  let main: HTMLVideoElement | null = null;
+  let most = 0;
+  for (const video of uis.keys()) {
+    const r = video.getBoundingClientRect();
+    if (r.width < MIN_WIDTH || r.height < MIN_HEIGHT) continue;
+    const w = Math.min(r.right, innerWidth) - Math.max(r.left, 0);
+    const h = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
+    if (w > 0 && h > 0 && w * h > most) {
+      most = w * h;
+      main = video;
+    }
+  }
+  return main;
+}
+
 function loop() {
   const now = Date.now();
   for (const [video, ui] of uis) {
     if (!video.isConnected && !ui.busy) {
       ui.destroy();
       uis.delete(video);
-      continue;
     }
-    ui.frame(now);
   }
+  const main = mainVideo();
+  for (const [video, ui] of uis) ui.frame(now, video === main);
   raf = requestAnimationFrame(loop);
 }
 

@@ -242,6 +242,14 @@
   visibility: visible;
   pointer-events: auto !important;
 }
+/* The main video while it plays: just the ⚡, faint (pointing at the video brings back the rest). */
+.javtr-video-bar.javtr-peek {
+  opacity: 0.55;
+  visibility: visible;
+}
+.javtr-video-bar.javtr-peek > :not(.javtr-ahead) {
+  display: none !important;
+}
 .javtr-video-bar > button,
 .javtr-video-bar > .javtr-ahead {
   all: unset;
