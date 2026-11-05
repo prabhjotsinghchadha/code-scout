@@ -3,14 +3,19 @@ import assert from 'node:assert/strict';
 import { formatCode, parseCode } from './codes.ts';
 import {
   addFavourite,
+  addPageFavourite,
   favKey,
+  favouriteCodes,
   favouriteError,
+  favouriteFor,
   favouritesFrom,
   FAVOURITES_FULL,
   getFavourites,
   isFavourite,
   makeFavourite,
+  pageKey,
   toggleFavourite,
+  togglePageFavourite,
 } from './favourites.ts';
 
 const nsfs = { prefix: 'nsfs', number: 484 };
@@ -92,4 +97,55 @@ test('add, toggle and list against sync storage', async () => {
   assert.equal(await toggleFavourite(nsfs), false);
   assert.equal('fav:NSFS-484' in data, false);
   assert.deepEqual(Object.keys(data).sort(), ['fav:300MIUM-1234', 'quickLinks']);
+});
+
+test('page keys drop the #fragment and refuse non-web or overlong addresses', () => {
+  assert.equal(pageKey('https://x.example/v?id=1#t=30'), 'favurl:https://x.example/v?id=1');
+  assert.equal(pageKey('chrome://extensions/'), null);
+  assert.equal(pageKey('not a url'), null);
+  assert.equal(pageKey(`https://x.example/${'a'.repeat(3000)}`), null);
+});
+
+test('favouritesFrom lists starred pages next to codes', () => {
+  const favs = favouritesFrom({
+    'favurl:https://x.example/v?id=1': { added: 3, title: 'Some video' },
+    'fav:NSFS-484': { added: 2 },
+    'favurl:https://y.example/': { added: 1 },
+    'favurl:javascript:alert(1)': { added: 4 },
+    'favurl:not a url': { added: 5 },
+    'favurl:https://z.example/': 'broken',
+  });
+  assert.deepEqual(favs, [
+    { url: 'https://x.example/v?id=1', added: 3, title: 'Some video' },
+    { code: nsfs, added: 2 },
+    { url: 'https://y.example/', added: 1 },
+  ]);
+});
+
+test('favouriteFor finds the code in the address, else the page', () => {
+  const favs = favouritesFrom({
+    'fav:MD-273': { added: 2, url: 'https://18jav.tv/videos/MD0273' },
+    'favurl:https://x.example/v?id=1': { added: 1 },
+  });
+  assert.deepEqual(favouriteFor(favs, 'https://other.example/watch/md0273')?.code, { prefix: 'md', number: 273 });
+  assert.equal(favouriteFor(favs, 'https://x.example/v?id=1#t=5')?.url, 'https://x.example/v?id=1');
+  assert.equal(favouriteFor(favs, 'https://x.example/v?id=2'), undefined);
+  assert.equal(favouriteFor(favs, 'chrome://newtab/'), undefined);
+});
+
+test('starring the page you are on', async () => {
+  const data = fakeSync();
+  const page = { url: 'https://x.example/v?id=1#t=30', title: '  Some   video ' };
+  assert.equal(await addPageFavourite(page, 10), true);
+  assert.equal(await addPageFavourite(page, 20), false); // already there
+  assert.deepEqual(data['favurl:https://x.example/v?id=1'], { added: 10, title: 'Some video' });
+  // An address with a code stars the code, with the page, so it gets Open, Search and Sites.
+  const md = { url: 'https://18jav.tv/videos/MD0273', title: 'MD0273 Title' };
+  assert.equal(await togglePageFavourite(md), true);
+  assert.deepEqual(data['fav:MD-273'], { added: (data['fav:MD-273'] as { added: number }).added, ...md });
+  assert.deepEqual([...(await favouriteCodes())], ['MD-273']); // pages aren't codes
+  assert.equal((await getFavourites()).length, 2);
+  assert.equal(await togglePageFavourite(md), false);
+  assert.equal(await togglePageFavourite(page), false);
+  assert.deepEqual(Object.keys(data), ['quickLinks']);
 });

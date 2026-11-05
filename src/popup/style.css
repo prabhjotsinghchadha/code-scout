@@ -255,8 +255,16 @@ button.star {
 li button.star {
   padding-inline: 5px;
 }
-button.star.on {
+button.star.on,
+.link-button.on {
   color: #d97706;
+}
+li .code.host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--muted);
 }
 form button:disabled {
   opacity: 0.45;

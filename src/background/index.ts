@@ -1,7 +1,7 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
 import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
-import { addFavourite, favouriteError } from '../shared/favourites';
+import { addFavourite, addPageFavourite, favouriteError } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
@@ -11,6 +11,7 @@ const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
 const MENU_LINK = 'open-trailer-link';
 const MENU_FAVOURITE = 'favourite-selection';
+const MENU_FAVOURITE_PAGE = 'favourite-page';
 const MENU_SITES = 'open-on';
 const MENU_SITE_PREFIX = 'open-on:';
 const MENU_SITES_ALL = 'open-on:*all';
@@ -38,6 +39,12 @@ function buildMenus(sites: OpenOnSite[]) {
       }
     }
     chrome.contextMenus.create({ id: MENU_LINK, title: 'Open trailer for this link', contexts: ['link'] });
+    chrome.contextMenus.create({
+      id: MENU_FAVOURITE_PAGE,
+      title: 'Add this page to favourites',
+      contexts: ['page'],
+      documentUrlPatterns: ['http://*/*', 'https://*/*'],
+    });
   });
 }
 
@@ -204,6 +211,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     // Selected in a text box means typed, not shown on the page: save no page then.
     const page = !info.editable && info.pageUrl ? { url: info.pageUrl, title: tab?.title } : null;
     if (code) void addFavourite(code, page).catch((err) => console.warn('Favourite not saved:', favouriteError(err)));
+  } else if (id === MENU_FAVOURITE_PAGE && info.pageUrl) {
+    // The code in the page's address if it has one ("/videos/MD0273"), else the page itself.
+    void addPageFavourite({ url: info.pageUrl, title: tab?.title }).catch((err) =>
+      console.warn('Favourite not saved:', favouriteError(err)),
+    );
   } else if (id.startsWith(MENU_SITE_PREFIX) && info.selectionText) {
     const code = parseCode(info.selectionText);
     if (code) void openOn(code, id === MENU_SITES_ALL ? undefined : id.slice(MENU_SITE_PREFIX.length), tab);

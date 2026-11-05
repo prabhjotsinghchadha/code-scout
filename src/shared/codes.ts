@@ -14,7 +14,7 @@ const BASE_URL = 'https://javtrailers.com';
 // Prefixes that look like codes but are common in normal text ("SHA-256", "COVID-19", ...).
 const BLOCKLIST = new Set([
   'aes', 'am', 'ansi', 'atx', 'cve', 'ddr', 'en', 'es', 'gddr', 'gtx', 'hdmi', 'iec', 'ieee',
-  'ip', 'iso', 'lpddr', 'md', 'mp', 'nato', 'pc', 'pcie', 'pm', 'ps', 'rfc', 'rsa', 'rtx', 'rx',
+  'ip', 'iso', 'lpddr', 'mp', 'nato', 'pc', 'pcie', 'pm', 'ps', 'rfc', 'rsa', 'rtx', 'rx',
   'sha', 'tv', 'usb', 'utf', 'win', 'covid', 'sars', 'f', 'mig', 'su', 'boeing', 'airbus', 'top',
   'page', 'part', 'vol', 'no', 'item', 'step', 'room', 'type', 'model', 'version',
 ]);
@@ -42,6 +42,25 @@ export function parseCode(text: string): VideoCode | null {
   }
   const loose = text.match(LOOSE_PATTERN);
   return loose ? toCode(loose[1], loose[2]) : null;
+}
+
+// A whole URL path segment that is a code: "MD0273", "nsfs-484", "nsfs00484", "259LUXU1759.html".
+const SEGMENT_PATTERN = /^(\d{0,4}[A-Za-z]{2,8})[-_]?(\d{3,6})(?:\.html?)?$/;
+
+/**
+ * The code a page's address is about, when its last path segment is exactly a code: "/videos/MD0273",
+ * "/en/nsfs-484". Video pages that never write the code with a hyphen are found this way.
+ */
+export function codeInUrl(url: string): VideoCode | null {
+  let segment: string | undefined;
+  try {
+    segment = new URL(url).pathname.split('/').filter(Boolean).at(-1);
+    segment = segment && decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+  const m = segment?.match(SEGMENT_PATTERN);
+  return m ? toCode(m[1], m[2]) : null;
 }
 
 export interface CodeMatch {
