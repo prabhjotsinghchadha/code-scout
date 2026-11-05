@@ -2,6 +2,7 @@
 import { findCodes, formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
 import { openSiteMenu } from './site-menu';
+import { markUi, onUi } from './ui-events';
 
 const BUTTON_CLASS = 'javtr-open-btn';
 const SKIP_TAGS = new Set([
@@ -22,36 +23,19 @@ function shouldSkip(node: Text): boolean {
 }
 
 function createButton(code: VideoCode): HTMLElement {
-  const btn = document.createElement('span');
+  const btn = markUi(document.createElement('span'));
   btn.className = BUTTON_CLASS;
   btn.textContent = '▶';
   btn.title = `Open trailer for ${formatCode(code)} · right-click for more sites`;
   btn.setAttribute('role', 'button');
   btn.tabIndex = 0;
 
-  const open = (e: Event) => {
-    // The code is often inside a link; don't let the page follow it.
-    e.preventDefault();
-    e.stopPropagation();
-    void sendToBackground({ type: 'OPEN_CODE', code });
-  };
-  btn.addEventListener('click', open, true);
-  btn.addEventListener(
-    'contextmenu',
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      void openSiteMenu(code, btn.getBoundingClientRect());
-    },
-    true,
-  );
-  btn.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') open(e);
-  });
-  // Some sites act on mousedown/pointerdown; keep those from reaching them too.
-  for (const type of ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'auxclick']) {
-    btn.addEventListener(type, (e) => e.stopPropagation(), true);
-  }
+  // Input arrives via the click shield, so the page (and its ad scripts) never sees these
+  // clicks, and the link the code sits in isn't followed.
+  const open = () => void sendToBackground({ type: 'OPEN_CODE', code });
+  onUi(btn, 'click', ({ button }) => button === 0 && open());
+  onUi(btn, 'contextmenu', () => void openSiteMenu(code, btn.getBoundingClientRect(), { anchorEl: btn }));
+  onUi(btn, 'keydown', ({ key }) => (key === 'Enter' || key === ' ') && open());
   return btn;
 }
 
@@ -113,5 +97,14 @@ export function enableInline() {
 export function disableInline() {
   observer?.disconnect();
   observer = null;
-  document.querySelectorAll(`.${BUTTON_CLASS}`).forEach((b) => b.remove());
+  const parents = new Set<Node>();
+  document.querySelectorAll(`.${BUTTON_CLASS}`).forEach((b) => {
+    if (b.parentNode) parents.add(b.parentNode);
+    b.remove();
+  });
+  // Re-join the text we split and forget it, so turning the buttons back on finds the codes again.
+  for (const parent of parents) {
+    parent.normalize();
+    parent.childNodes.forEach((n) => n instanceof Text && processed.delete(n));
+  }
 }

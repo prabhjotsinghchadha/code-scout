@@ -65,6 +65,18 @@
           <input type="checkbox" id="fieldChip" />
           <span>Show an Open / Search chip when I type a code into a text box <small>Search boxes, comment fields, editors — on any site. Press Esc to hide it.</small></span>
         </label>
+        <h3>Turned off on these sites</h3>
+        <p class="hint">
+          No ▶ buttons or chip on these sites (and their subdomains). Right-click and keyboard shortcuts still work.
+          Tip: use <em>Off on this site</em> in the popup.
+        </p>
+        <ul id="off-sites" class="rows"></ul>
+        <p id="off-empty" class="hint" hidden><small>None.</small></p>
+        <form id="add-off-site" class="add-link">
+          <input id="off-site" type="text" placeholder="e.g. javtiful.com" required />
+          <button type="submit">Turn off</button>
+        </form>
+        <p id="off-error" class="error" hidden></p>
       </fieldset>
 
       <fieldset>

@@ -3,6 +3,7 @@ import { formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
 import { codeInEditable, editableFrom, readEditable, type Editable } from './editable';
 import { closeSiteMenu, isSiteMenuOpen, openSiteMenu } from './site-menu';
+import { markUi, onUi } from './ui-events';
 
 let chip: HTMLDivElement | null = null;
 let label: HTMLSpanElement;
@@ -17,16 +18,14 @@ function button(text: string, className: string, onClick: () => void): HTMLButto
   b.type = 'button';
   b.textContent = text;
   b.className = className;
-  b.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onClick();
-  });
+  onUi(b, 'click', ({ button }) => button === 0 && onClick());
   return b;
 }
 
 function build(): HTMLDivElement {
-  const el = document.createElement('div');
+  // Marked as extension UI: the click shield hides its clicks from the page and keeps
+  // focus (and the caret) in the text field.
+  const el = markUi(document.createElement('div'));
   el.id = 'javtr-chip';
   el.hidden = true;
   label = document.createElement('span');
@@ -49,9 +48,6 @@ function build(): HTMLDivElement {
     button('×', 'javtr-close', dismiss),
   );
   el.querySelector('.javtr-close')!.setAttribute('aria-label', 'Dismiss');
-  // Keep focus (and the caret) in the text field when the chip is clicked.
-  el.addEventListener('mousedown', (e) => e.preventDefault());
-  el.addEventListener('pointerdown', (e) => e.stopPropagation());
   document.documentElement.append(el);
   return el;
 }

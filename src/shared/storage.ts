@@ -20,6 +20,8 @@ export interface Settings {
   linkGroups: string[];
   /** Other sites a code can be opened on ("Open on"), in display order. */
   openOnSites: OpenOnSite[];
+  /** Sites (hostnames, see hosts.ts) where the ▶ buttons and chip are turned off. */
+  offSites: string[];
 }
 
 /**
@@ -74,6 +76,7 @@ export const defaultSettings: Settings = {
   quickLinks: [],
   linkGroups: [],
   openOnSites: [],
+  offSites: [],
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */

@@ -25,6 +25,12 @@ export default defineManifest({
   },
   content_scripts: [
     {
+      // Must run before page scripts: a plain IIFE (not the async module loader) at document_start.
+      matches: ['<all_urls>'],
+      js: ['src/content/shield.iife.ts'],
+      run_at: 'document_start',
+    },
+    {
       matches: ['<all_urls>'],
       js: ['src/content/index.ts'],
       css: ['src/content/content.css'],

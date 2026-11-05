@@ -12,6 +12,8 @@ Spot video codes like `NSFS-484` on any website and open their trailer on javtra
 - **Popup** — type a code (Open / Search), see every code on the current page, and your **Quick links**.
 - **Quick links in groups** — save sites or category pages (*+ Add this page* in the popup picks a group, or create a new one), organized into collapsible groups like Cheating / Cuckold / NTR / All Japanese, each with **Open all**. Rename, reorder and regroup in Settings. Comes with a few built-in links (MissAV, JavLibrary, JavMost, Javtiful, JavTrailers categories, Beeg, and Japanese sections of FapHouse, Pornhub, YouPorn) — edit or remove freely.
 - **Settings** — what "Open" does (direct video page by default, or search page), background tabs, turn the chip or ▶ buttons off.
+- **Off on this site** — turn the ▶ buttons and chip off for one site (and its subdomains) from the popup, or manage the list in Settings. Right-click and shortcuts keep working there.
+- **Ad-click shield** — clicks and keys on the extension's own ▶ buttons, chip and menu are hidden from the page, so a site's pop-under ad scripts can't open ad tabs when you use them. (Clicks on the site's own player or links still go to the site — use an ad blocker for those.)
 
 Built with **Vite + TypeScript** and [CRXJS](https://crxjs.dev/) (Manifest V3).
 
@@ -23,7 +25,8 @@ vite.config.ts
 public/icons/          # Extension icons (placeholders)
 src/
   background/          # Service worker
-  content/             # Content script (runs on web pages)
+  content/             # Content scripts (run on web pages)
+  content/shield.iife.ts  # Runs at document_start: hides clicks on our UI from page scripts
   popup/               # Toolbar popup UI
   options/             # Options page
   shared/codes.ts      # Code detection + javtrailers URL building (unit-tested)

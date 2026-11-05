@@ -1,4 +1,5 @@
 import type { OpenMode } from '../shared/codes';
+import { siteKey } from '../shared/hosts';
 import {
   newSiteId,
   PLACEHOLDERS,
@@ -279,6 +280,49 @@ chrome.storage.onChanged.addListener((changes) => {
   const editing = document.activeElement instanceof HTMLInputElement && document.activeElement.closest('#sites');
   if (changes.openOnSites && !editing) void loadSites();
 });
+
+// --- Sites where the ▶ buttons and chip are off ---
+let offSites: string[] = [];
+
+function renderOffSites() {
+  $('off-empty').hidden = offSites.length > 0;
+  $('off-sites').replaceChildren(
+    ...offSites.map((host) => {
+      const li = el('li');
+      li.append(
+        el('span', { textContent: host }),
+        actionButton('Turn back on', `Show ▶ buttons and chip on ${host} again`, () => {
+          offSites = offSites.filter((s) => s !== host);
+          renderOffSites();
+          void save({ offSites });
+        }),
+      );
+      return li;
+    }),
+  );
+}
+
+$('add-off-site').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $<HTMLInputElement>('off-site');
+  const host = siteKey(input.value);
+  const error = $<HTMLParagraphElement>('off-error');
+  if (!host) return showError(error, 'Enter a site like javtiful.com.');
+  if (offSites.includes(host)) return showError(error, `${host} is already turned off.`);
+  showError(error, null);
+  offSites = [...offSites, host];
+  renderOffSites();
+  void save({ offSites });
+  input.value = '';
+});
+
+const loadOffSites = () =>
+  getSettings().then((s) => {
+    offSites = s.offSites;
+    renderOffSites();
+  });
+void loadOffSites();
+chrome.storage.onChanged.addListener((changes) => changes.offSites && void loadOffSites());
 
 // Show the shortcuts actually assigned (the user may have changed or cleared them).
 async function showShortcuts() {

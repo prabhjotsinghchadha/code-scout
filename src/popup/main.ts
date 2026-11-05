@@ -1,4 +1,5 @@
 import { formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
+import { siteKey } from '../shared/hosts';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { addGroup, groupLinks, validateGroupName, type LinkState, type QuickLink } from '../shared/quick-links';
@@ -254,6 +255,21 @@ async function setupAddPage(state: LinkState) {
   });
 }
 
+/** "Off on javtiful.com": turn the ▶ buttons and chip off for the current site. */
+async function setupSiteOff(offSites: string[]) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const host = tab?.url && /^https?:/.test(tab.url) ? siteKey(tab.url) : null;
+  if (!host) return;
+  const box = $<HTMLInputElement>('site-off');
+  $('site-off-host').textContent = host;
+  $('site-off-row').hidden = false;
+  box.checked = offSites.includes(host);
+  box.addEventListener('change', async () => {
+    const current = (await getSettings()).offSites.filter((s) => s !== host);
+    await setSettings({ offSites: box.checked ? [...current, host] : current });
+  });
+}
+
 async function init() {
   const settings = await getSettings();
   sites = settings.openOnSites;
@@ -262,6 +278,7 @@ async function init() {
   chip.checked = settings.fieldChip;
   inline.addEventListener('change', () => setSettings({ inlineButtons: inline.checked }));
   chip.addEventListener('change', () => setSettings({ fieldChip: chip.checked }));
+  await setupSiteOff(settings.offSites);
 
   const linkState: LinkState = { quickLinks: settings.quickLinks, linkGroups: settings.linkGroups };
   renderLinks(linkState);

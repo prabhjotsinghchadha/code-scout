@@ -3,6 +3,7 @@ import { formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
 import { fillTemplate } from '../shared/open-on';
 import { getSettings } from '../shared/storage';
+import { markUi, onUi } from './ui-events';
 
 let menu: HTMLDivElement | null = null;
 let onClose: (() => void) | null = null;
@@ -14,9 +15,8 @@ function item(label: string, onClick: () => void, className = '') {
   b.type = 'button';
   b.textContent = label;
   if (className) b.className = className;
-  b.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  onUi(b, 'click', ({ button }) => {
+    if (button !== 0) return;
     onClick();
     closeSiteMenu();
   });
@@ -30,6 +30,10 @@ const onOutside = (e: Event) => {
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') closeSiteMenu();
 };
+// Keys pressed on our own UI (menu, ▶, chip) reach us only via the shield's javtr:keydown.
+const onUiKey = (e: Event) => {
+  if ((e as CustomEvent<{ key?: string }>).detail?.key === 'Escape') closeSiteMenu();
+};
 
 export function isSiteMenuOpen() {
   return !!menu;
@@ -41,6 +45,7 @@ export function closeSiteMenu() {
   menu = null;
   document.removeEventListener('pointerdown', onOutside, true);
   document.removeEventListener('keydown', onKey, true);
+  document.removeEventListener('javtr:keydown', onUiKey);
   window.removeEventListener('scroll', closeSiteMenu, true);
   onClose?.();
   onClose = null;
@@ -56,7 +61,7 @@ export async function openSiteMenu(
   closeSiteMenu();
   const { openOnSites } = await getSettings();
 
-  const el = document.createElement('div');
+  const el = markUi(document.createElement('div'));
   el.id = 'javtr-menu';
   el.setAttribute('role', 'menu');
   const title = document.createElement('div');
@@ -79,8 +84,6 @@ export async function openSiteMenu(
   } else {
     el.append(item('+ Add sites in Settings…', () => void sendToBackground({ type: 'OPEN_OPTIONS' }), 'javtr-menu-muted'));
   }
-  // Keep focus/caret in a text field the menu was opened from.
-  el.addEventListener('mousedown', (e) => e.preventDefault());
 
   el.style.visibility = 'hidden';
   document.documentElement.append(el);
@@ -97,5 +100,6 @@ export async function openSiteMenu(
   anchorEl = opts.anchorEl ?? null;
   document.addEventListener('pointerdown', onOutside, true);
   document.addEventListener('keydown', onKey, true);
+  document.addEventListener('javtr:keydown', onUiKey);
   window.addEventListener('scroll', closeSiteMenu, { capture: true, passive: true });
 }
