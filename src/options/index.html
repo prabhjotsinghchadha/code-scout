@@ -3,177 +3,183 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JAV Trailer Opener – Settings</title>
-    <style>
-      :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
-      main { max-width: 560px; margin: 40px auto; padding: 0 16px; }
-      fieldset { border: 1px solid color-mix(in srgb, currentColor 20%, transparent); border-radius: 8px; margin: 0 0 16px; padding: 12px 16px; }
-      legend { font-weight: 600; padding: 0 4px; }
-      label { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; }
-      small { display: block; opacity: 0.7; }
-      #status { color: #16a34a; min-height: 1.2em; }
-      .hint { margin: 4px 0; opacity: 0.8; }
-      .shortcuts { margin: 6px 0 10px; padding-left: 0; list-style: none; line-height: 1.9; }
-      h3 { margin: 14px 0 2px; font-size: 14px; }
-      .rows { list-style: none; padding: 0; margin: 6px 0 10px; }
-      .rows li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent); }
-      .rows li > span { flex: 1; min-width: 0; }
-      .rows li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .rows li button { padding: 2px 8px; }
-      .rows input.inline-name { width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: inherit; font: inherit; font-weight: 600; }
-      .rows input.inline-name:hover, .rows input.inline-name:focus { border-color: color-mix(in srgb, currentColor 30%, transparent); }
-      .rows .count { opacity: 0.6; font-size: 12px; white-space: nowrap; }
-      .rows select { max-width: 130px; }
-      .rows input.inline-template { width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: inherit; font: 12px ui-monospace, monospace; opacity: 0.8; }
-      .rows input.inline-template:hover, .rows input.inline-template:focus { border-color: color-mix(in srgb, currentColor 30%, transparent); opacity: 1; }
-      .placeholders { list-style: none; padding: 0; margin: 4px 0 8px; font-size: 13px; line-height: 1.7; }
-      .placeholders code { padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 10%, transparent); }
-      .add-link { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-      .add-link input { flex: 1 1 160px; padding: 5px 8px; font: inherit; }
-      .add-link select { padding: 5px 6px; font: inherit; }
-      .error { color: #dc2626; }
-      kbd { display: inline-block; min-width: 92px; padding: 1px 6px; margin-right: 6px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; font: 12px ui-monospace, monospace; }
-    </style>
+    <title>Code Scout – Settings</title>
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main>
-      <h1>Settings</h1>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <span class="logo" aria-hidden="true"><i data-icon="play" data-size="14"></i></span>
+        <div>
+          <h1>Settings</h1>
+          <p class="sub">Code Scout</p>
+        </div>
+      </div>
+    </header>
 
-      <fieldset>
-        <legend>When opening a code</legend>
-        <label>
-          <input type="radio" name="openMode" value="video" />
-          <span>Video page directly <small>javtrailers.com/video/nsfs00484 — shows “not found” if the code isn’t on the site</small></span>
-        </label>
-        <label>
-          <input type="radio" name="openMode" value="search" />
-          <span>Search page <small>javtrailers.com/search/nsfs-484 — lists close matches too</small></span>
-        </label>
-        <label>
-          <input type="checkbox" id="openInBackground" />
-          <span>Open in a background tab</span>
-        </label>
-      </fieldset>
+    <div class="layout">
+      <nav class="side" aria-label="Sections">
+        <a href="#general"><i data-icon="settings"></i>General</a>
+        <a href="#pages"><i data-icon="play" data-size="14"></i>On pages</a>
+        <a href="#open-on"><i data-icon="globe"></i>Open on sites</a>
+        <a href="#quick-links"><i data-icon="link"></i>Quick links</a>
+        <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
+        <a href="#video"><i data-icon="film"></i>Video tools</a>
+        <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
+      </nav>
 
-      <fieldset>
-        <legend>On web pages</legend>
-        <label>
-          <input type="checkbox" id="inlineButtons" />
-          <span>Show a ▶ button next to codes on pages</span>
-        </label>
-        <label>
-          <input type="checkbox" id="fieldChip" />
-          <span>Show an Open / Search chip when I type a code into a text box <small>Search boxes, comment fields, editors — on any site. Press Esc to hide it.</small></span>
-        </label>
-        <h3>Turned off on these sites</h3>
-        <p class="hint">
-          No ▶ buttons or chip on these sites (and their subdomains). Right-click and keyboard shortcuts still work.
-          Tip: use <em>Off on this site</em> in the popup.
-        </p>
-        <ul id="off-sites" class="rows"></ul>
-        <p id="off-empty" class="hint" hidden><small>None.</small></p>
-        <form id="add-off-site" class="add-link">
-          <input id="off-site" type="text" placeholder="e.g. javtiful.com" required />
-          <button type="submit">Turn off</button>
-        </form>
-        <p id="off-error" class="error" hidden></p>
-      </fieldset>
+      <main>
+        <section class="card" id="general">
+          <h2>General</h2>
+          <p class="desc">What Open does with a code.</p>
+          <div class="options">
+            <label class="option">
+              <input type="radio" name="openMode" value="video" />
+              <span>
+                <strong>Video page</strong>
+                <small>javtrailers.com/video/nsfs00484. Shows “not found” if the code isn’t on the site.</small>
+              </span>
+            </label>
+            <label class="option">
+              <input type="radio" name="openMode" value="search" />
+              <span>
+                <strong>Search page</strong>
+                <small>javtrailers.com/search/nsfs-484. Lists close matches too.</small>
+              </span>
+            </label>
+          </div>
+          <label class="setting">
+            <span><strong>Open in a background tab</strong><small>Stay on the page you’re on.</small></span>
+            <input type="checkbox" class="switch" id="openInBackground" />
+          </label>
+        </section>
 
-      <fieldset>
-        <legend>Pop-up blocker</legend>
-        <p class="hint">
-          On these sites (and their subdomains), stop ad pop-ups and new ad tabs, and stop the page from being sent
-          to another site by a script (the “video opens in a new tab, this tab goes to an ad” trick). Links you
-          click on the same site still open; Ctrl/⌘-click or middle-click always opens a new tab.
-          Tip: use <em>Block pop-ups on this site</em> in the popup, then reload the page.
-        </p>
-        <ul id="popup-sites" class="rows"></ul>
-        <p id="popup-empty" class="hint" hidden><small>None.</small></p>
-        <form id="add-popup-site" class="add-link">
-          <input id="popup-site" type="text" placeholder="e.g. javtiful.com" required />
-          <button type="submit">Block pop-ups</button>
-        </form>
-        <p id="popup-error" class="error" hidden></p>
-      </fieldset>
+        <section class="card" id="pages">
+          <h2>On pages</h2>
+          <p class="desc">What the extension adds to the websites you visit.</p>
+          <label class="setting">
+            <span><strong>▶ buttons next to codes</strong><small>A small button next to every code shown on a page.</small></span>
+            <input type="checkbox" class="switch" id="inlineButtons" />
+          </label>
+          <label class="setting">
+            <span>
+              <strong>Chip when typing a code</strong>
+              <small>Open and Search under search boxes, comment fields and editors on any site. Esc hides it.</small>
+            </span>
+            <input type="checkbox" class="switch" id="fieldChip" />
+          </label>
+          <h3>Turned off on these sites</h3>
+          <p class="hint">
+            No ▶ buttons or chip on these sites and their subdomains. Right-click and keyboard shortcuts still work.
+            Tip: switch off <em>Buttons</em> in the popup while you’re on the site.
+          </p>
+          <ul id="off-sites" class="rows"></ul>
+          <p id="off-empty" class="none" hidden>No sites yet.</p>
+          <form id="add-off-site" class="add">
+            <input id="off-site" type="text" placeholder="javtiful.com" aria-label="Site" required />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Turn off</button>
+          </form>
+          <p id="off-error" class="error" hidden></p>
+        </section>
 
-      <fieldset>
-        <legend>Video tools</legend>
-        <p class="hint">
-          On these sites, videos get a small toolbar (top right, when you point at the video):
-          <strong>⚡ faster loading</strong> (downloads several pieces of the video at once, for servers that send each
-          piece slowly), a <strong>quality</strong> menu when the video has more than one,
-          <strong>⬇ Download</strong> (saves an MP4; keep the tab open while it runs) and
-          <strong>EN subs</strong> (reads burned-in Chinese or Japanese subtitles on this computer and covers them with
-          English, using Chrome’s built-in translator).
-          Tip: use <em>Video tools on this site</em> in the popup, then reload the page.
-        </p>
-        <ul id="video-sites" class="rows"></ul>
-        <p id="video-empty" class="hint" hidden><small>None.</small></p>
-        <form id="add-video-site" class="add-link">
-          <input id="video-site" type="text" placeholder="e.g. 18jav.tv" required />
-          <button type="submit">Add video tools</button>
-        </form>
-        <p id="video-error" class="error" hidden></p>
-        <p class="hint">
-          <button id="setup-translation" type="button">Set up English subtitles</button>
-          <span id="translation-status"></span>
-        </p>
-      </fieldset>
+        <section class="card" id="open-on">
+          <h2>Open on sites</h2>
+          <p class="desc">
+            Sites a code can be opened on: from the chip’s <em>Sites</em>, right-clicking a ▶ button, the right-click
+            menu or the popup. Put a placeholder where the code goes:
+          </p>
+          <ul id="placeholders" class="placeholders"></ul>
+          <ul id="sites" class="rows"></ul>
+          <form id="add-site" class="add">
+            <input id="site-template" type="text" placeholder="https://example.com/search?q={code}" aria-label="URL pattern" required />
+            <input id="site-name" class="narrow" type="text" placeholder="Name (optional)" aria-label="Name" />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add site</button>
+          </form>
+          <p id="site-error" class="error" hidden></p>
+        </section>
 
-      <fieldset>
-        <legend>Open on other sites</legend>
-        <p class="hint">
-          Sites a code can be opened on — from the chip’s <em>Sites ▾</em>, right-clicking a ▶ button, the right-click
-          menu, or the popup. Put a placeholder where the code goes:
-        </p>
-        <ul id="placeholders" class="placeholders"></ul>
-        <ul id="sites" class="rows"></ul>
-        <form id="add-site" class="add-link">
-          <input id="site-template" type="text" placeholder="https://example.com/search?q={code}" required />
-          <input id="site-name" type="text" placeholder="Name (optional)" />
-          <button type="submit">Add site</button>
-        </form>
-        <p id="site-error" class="error" hidden></p>
-      </fieldset>
+        <section class="card" id="quick-links">
+          <h2>Quick links</h2>
+          <p class="desc">
+            Sites or pages one click away in the popup’s Links tab. Tip: use <em>Add this page</em> in the popup while
+            you’re on a page.
+          </p>
 
-      <fieldset>
-        <legend>Always available</legend>
-        <p class="hint">Select a code (or put the caret on one in a text box), then:</p>
-        <ul class="shortcuts">
-          <li><kbd id="key-open">Alt+Shift+J</kbd> Open trailer</li>
-          <li><kbd id="key-search">Alt+Shift+K</kbd> Search javtrailers.com</li>
-          <li><kbd id="key-all">Alt+Shift+L</kbd> Open on all your “Open on” sites</li>
-          <li>Right-click → <em>Open trailer for “…”</em> / <em>Search javtrailers for “…”</em> / <em>Open “…” on ▸</em></li>
-        </ul>
-        <button type="button" id="edit-shortcuts">Change shortcuts</button>
-      </fieldset>
+          <h3>Groups</h3>
+          <p class="hint">Organize links by category, like Cheating, Cuckold or NTR. Deleting a group keeps its links.</p>
+          <ul id="groups" class="rows"></ul>
+          <form id="add-group" class="add">
+            <input id="group-name" type="text" placeholder="Affair" aria-label="New group name" maxlength="30" required />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add group</button>
+          </form>
+          <p id="group-error" class="error" hidden></p>
 
-      <fieldset>
-        <legend>Quick links</legend>
-        <p class="hint">Sites or pages you want one click away in the popup. Tip: use <em>+ Add this page</em> in the popup while you’re on a page.</p>
+          <h3>Links</h3>
+          <ul id="links" class="rows links"></ul>
+          <form id="add-link" class="add">
+            <input id="link-url" type="text" placeholder="https://example.com/category/…" aria-label="Web address" required />
+            <input id="link-name" class="narrow" type="text" placeholder="Name (optional)" aria-label="Name" />
+            <select id="link-group" aria-label="Group"></select>
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add</button>
+          </form>
+          <p id="link-error" class="error" hidden></p>
+        </section>
 
-        <h3>Groups</h3>
-        <p class="hint">Organize links by category, e.g. Cheating, Cuckold, NTR. Deleting a group keeps its links.</p>
-        <ul id="groups" class="rows"></ul>
-        <form id="add-group" class="add-link">
-          <input id="group-name" type="text" placeholder="New group, e.g. Affair" maxlength="30" required />
-          <button type="submit">Add group</button>
-        </form>
-        <p id="group-error" class="error" hidden></p>
+        <section class="card" id="popups">
+          <h2>Pop-up blocker</h2>
+          <p class="desc">
+            On these sites and their subdomains, stop ad pop-ups and new ad tabs, and stop a script from sending the page
+            to another site (the “video opens in a new tab, this tab goes to an ad” trick). Links you click on the same
+            site still open; Ctrl/⌘-click or middle-click always opens a new tab.
+          </p>
+          <p class="hint">Tip: switch on <em>Block pop-ups</em> in the popup, then reload the page.</p>
+          <ul id="popup-sites" class="rows"></ul>
+          <p id="popup-empty" class="none" hidden>No sites yet.</p>
+          <form id="add-popup-site" class="add">
+            <input id="popup-site" type="text" placeholder="javtiful.com" aria-label="Site" required />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Block pop-ups</button>
+          </form>
+          <p id="popup-error" class="error" hidden></p>
+        </section>
 
-        <h3>Links</h3>
-        <ul id="links" class="rows links"></ul>
-        <form id="add-link" class="add-link">
-          <input id="link-url" type="text" placeholder="https://example.com/category/…" required />
-          <input id="link-name" type="text" placeholder="Name (optional)" />
-          <select id="link-group" aria-label="Group"></select>
-          <button type="submit">Add</button>
-        </form>
-        <p id="link-error" class="error" hidden></p>
-      </fieldset>
+        <section class="card" id="video">
+          <h2>Video tools</h2>
+          <p class="desc">On these sites, videos get a small toolbar at the top right when you point at them:</p>
+          <ul class="features">
+            <li><strong>⚡ Faster loading</strong><span>Downloads several pieces of the video at once, for servers that send each piece slowly.</span></li>
+            <li><strong>Quality</strong><span>A menu, when the video has more than one.</span></li>
+            <li><strong>⬇ Download</strong><span>Saves an MP4. Keep the tab open while it runs.</span></li>
+            <li><strong>EN subs</strong><span>Reads burned-in Chinese or Japanese subtitles on this computer and covers them with English.</span></li>
+          </ul>
+          <p class="hint">Tip: switch on <em>Video tools</em> in the popup, then reload the page.</p>
+          <ul id="video-sites" class="rows"></ul>
+          <p id="video-empty" class="none" hidden>No sites yet.</p>
+          <form id="add-video-site" class="add">
+            <input id="video-site" type="text" placeholder="18jav.tv" aria-label="Site" required />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add video tools</button>
+          </form>
+          <p id="video-error" class="error" hidden></p>
+          <div class="translation">
+            <button id="setup-translation" type="button" class="btn">Set up English subtitles</button>
+            <span id="translation-status" class="muted"></span>
+          </div>
+        </section>
 
-      <p id="status"></p>
-    </main>
+        <section class="card" id="shortcuts">
+          <h2>Shortcuts</h2>
+          <p class="desc">Select a code, or put the caret on one in a text box, then:</p>
+          <ul class="shortcuts">
+            <li><kbd id="key-open">Alt+Shift+J</kbd> Open trailer</li>
+            <li><kbd id="key-search">Alt+Shift+K</kbd> Search javtrailers.com</li>
+            <li><kbd id="key-all">Alt+Shift+L</kbd> Open on all your “Open on” sites</li>
+            <li><kbd>Right-click</kbd> <em>Open trailer for “…”</em>, <em>Search trailers for “…”</em> or <em>Open “…” on</em></li>
+          </ul>
+          <button type="button" id="edit-shortcuts" class="btn"><i data-icon="keyboard"></i>Change shortcuts</button>
+        </section>
+      </main>
+    </div>
+
+    <div id="status" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

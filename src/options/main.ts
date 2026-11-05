@@ -1,5 +1,6 @@
 import type { OpenMode } from '../shared/codes';
 import { siteKey } from '../shared/hosts';
+import { hydrateIcons, icon, type IconName } from '../shared/icons';
 import {
   newSiteId,
   PLACEHOLDERS,
@@ -21,7 +22,9 @@ import {
 import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
 import { createTranslators, translatorStatus } from '../shared/translator';
 
-const status = document.getElementById('status') as HTMLParagraphElement;
+hydrateIcons();
+
+const status = document.getElementById('status') as HTMLDivElement;
 const inlineButtons = document.getElementById('inlineButtons') as HTMLInputElement;
 const fieldChip = document.getElementById('fieldChip') as HTMLInputElement;
 const openInBackground = document.getElementById('openInBackground') as HTMLInputElement;
@@ -30,9 +33,10 @@ const modeRadios = document.querySelectorAll<HTMLInputElement>('input[name="open
 let timer: number | undefined;
 async function save(patch: Partial<Settings>) {
   await setSettings(patch);
-  status.textContent = 'Saved.';
+  status.replaceChildren(icon('check', 14), 'Saved');
+  status.classList.add('show');
   clearTimeout(timer);
-  timer = window.setTimeout(() => (status.textContent = ''), 1200);
+  timer = window.setTimeout(() => status.classList.remove('show'), 1200);
 }
 
 async function init() {
@@ -66,8 +70,17 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: object = {}): 
   return Object.assign(document.createElement(tag), props);
 }
 
-function actionButton(label: string, title: string, onClick: () => void, disabled = false) {
-  const b = el('button', { type: 'button', textContent: label, title, disabled });
+/** A square icon button; `title` is its tooltip and accessible name. */
+function iconAction(name: IconName, title: string, onClick: () => void, disabled = false, className = '') {
+  const b = el('button', { type: 'button', className: `icon-btn ${className}`.trim(), title, disabled });
+  b.setAttribute('aria-label', title);
+  b.append(icon(name));
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function textAction(label: string, title: string, onClick: () => void) {
+  const b = el('button', { type: 'button', className: 'btn ghost sm', textContent: label, title });
   b.addEventListener('click', onClick);
   return b;
 }
@@ -104,18 +117,24 @@ function render() {
       li.append(
         el('span', {}),
         el('span', { className: 'count', textContent: `${n} link${n === 1 ? '' : 's'}` }),
-        actionButton('↑', 'Move up', () => commit({ ...state, linkGroups: moveItem(state.linkGroups, i, -1) }), i === 0),
-        actionButton(
-          '↓',
+        iconAction('arrowUp', 'Move up', () => commit({ ...state, linkGroups: moveItem(state.linkGroups, i, -1) }), i === 0),
+        iconAction(
+          'arrowDown',
           'Move down',
           () => commit({ ...state, linkGroups: moveItem(state.linkGroups, i, 1) }),
           i === state.linkGroups.length - 1,
         ),
-        actionButton('Delete', 'Delete group (its links are kept)', () => {
-          if (n === 0 || confirm(`Delete “${group}”? Its ${n} link${n === 1 ? '' : 's'} will be kept without a group.`)) {
-            void commit(deleteGroup(state, group));
-          }
-        }),
+        iconAction(
+          'trash',
+          'Delete group (its links are kept)',
+          () => {
+            if (n === 0 || confirm(`Delete “${group}”? Its ${n} link${n === 1 ? '' : 's'} will be kept without a group.`)) {
+              void commit(deleteGroup(state, group));
+            }
+          },
+          false,
+          'danger',
+        ),
       );
       li.firstElementChild!.append(name);
       return li;
@@ -142,15 +161,19 @@ function render() {
       li.append(
         text,
         select,
-        actionButton('↑', 'Move up', () => commit({ ...state, quickLinks: moveItem(state.quickLinks, i, -1) }), i === 0),
-        actionButton(
-          '↓',
+        iconAction('arrowUp', 'Move up', () => commit({ ...state, quickLinks: moveItem(state.quickLinks, i, -1) }), i === 0),
+        iconAction(
+          'arrowDown',
           'Move down',
           () => commit({ ...state, quickLinks: moveItem(state.quickLinks, i, 1) }),
           i === state.quickLinks.length - 1,
         ),
-        actionButton('Remove', 'Remove link', () =>
-          commit({ ...state, quickLinks: state.quickLinks.filter((_, j) => j !== i) }),
+        iconAction(
+          'trash',
+          'Remove link',
+          () => commit({ ...state, quickLinks: state.quickLinks.filter((_, j) => j !== i) }),
+          false,
+          'danger',
         ),
       );
       return li;
@@ -246,12 +269,12 @@ function renderSites() {
       const li = el('li');
       li.append(
         text,
-        actionButton('Test', 'Open with NSFS-484', () => {
+        iconAction('external', 'Test: open with NSFS-484', () => {
           void chrome.tabs.create({ url: fillTemplate(site.template, SAMPLE) });
         }),
-        actionButton('↑', 'Move up', () => commitSites(moveItem(sites, i, -1)), i === 0),
-        actionButton('↓', 'Move down', () => commitSites(moveItem(sites, i, 1)), i === sites.length - 1),
-        actionButton('Remove', 'Remove site', () => commitSites(sites.filter((x) => x.id !== site.id))),
+        iconAction('arrowUp', 'Move up', () => commitSites(moveItem(sites, i, -1)), i === 0),
+        iconAction('arrowDown', 'Move down', () => commitSites(moveItem(sites, i, 1)), i === sites.length - 1),
+        iconAction('trash', 'Remove site', () => commitSites(sites.filter((x) => x.id !== site.id)), false, 'danger'),
       );
       return li;
     }),
@@ -296,7 +319,7 @@ function siteListEditor(
         const li = el('li');
         li.append(
           el('span', { textContent: host }),
-          actionButton(text.remove, text.removeTitle(host), () => {
+          textAction(text.remove, text.removeTitle(host), () => {
             showError($<HTMLParagraphElement>(`${prefix}-error`), null);
             sites = sites.filter((s) => s !== host);
             render();
@@ -390,5 +413,32 @@ document.getElementById('edit-shortcuts')!.addEventListener('click', () => {
   void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 });
 
+// Highlight the section being read in the side nav.
+function trackSections() {
+  const links = new Map(
+    [...document.querySelectorAll<HTMLAnchorElement>('.side a')].map((a) => [a.hash.slice(1), a]),
+  );
+  const visible = new Set<string>();
+  const mark = () => {
+    const current = [...links.keys()].find((id) => visible.has(id));
+    for (const [id, a] of links) a.setAttribute('aria-current', String(id === current));
+  };
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) visible.add(e.target.id);
+        else visible.delete(e.target.id);
+      }
+      mark();
+    },
+    { rootMargin: '-90px 0px -55% 0px' },
+  );
+  for (const id of links.keys()) {
+    const section = document.getElementById(id);
+    if (section) observer.observe(section);
+  }
+}
+
 void init();
 void showShortcuts();
+trackSections();

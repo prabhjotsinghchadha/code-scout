@@ -10,8 +10,9 @@
   height: 1.35em;
   margin: 0 0.15em 0 0.3em;
   border-radius: 50%;
-  background: #4f46e5 !important;
+  background: #e11d48 !important;
   color: #fff !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   font: 600 0.65em/1 system-ui, sans-serif !important;
   vertical-align: middle;
   cursor: pointer !important;
@@ -26,7 +27,7 @@
 .javtr-open-btn:focus-visible {
   opacity: 1;
   transform: scale(1.15);
-  outline: 2px solid #a5b4fc;
+  outline: 2px solid #fda4af;
 }
 
 /* Chip shown under a text field when a code is typed */
@@ -36,12 +37,13 @@
   z-index: 2147483647 !important;
   display: flex !important;
   align-items: center;
-  gap: 4px;
-  padding: 4px 4px 4px 10px;
+  gap: 3px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid rgb(255 255 255 / 0.08) !important;
   border-radius: 999px;
-  background: #1f2937 !important;
-  color: #f9fafb !important;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 8px 24px rgb(0 0 0 / 0.28);
   font: 500 12px/1 system-ui, -apple-system, sans-serif !important;
   animation: javtr-in 0.12s ease-out;
 }
@@ -50,37 +52,49 @@
 }
 #javtr-chip .javtr-code {
   all: unset;
-  margin-right: 4px;
+  margin-right: 5px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
 #javtr-chip button {
   all: unset;
-  padding: 5px 10px;
+  padding: 6px 11px;
   border-radius: 999px;
   font: 600 12px/1 system-ui, -apple-system, sans-serif !important;
   cursor: pointer !important;
-  color: #fff !important;
+  color: #f4f4f5 !important;
+  transition: background 0.12s, color 0.12s;
 }
 #javtr-chip button.javtr-primary {
-  background: #4f46e5 !important;
+  background: #e11d48 !important;
+  color: #fff !important;
 }
 #javtr-chip button.javtr-secondary {
-  background: #374151 !important;
+  background: #27272a !important;
 }
 #javtr-chip button.javtr-star {
-  padding: 5px 8px;
+  padding: 6px 8px;
   font-size: 13px !important;
 }
 #javtr-chip button.javtr-star.javtr-on {
   color: #fbbf24 !important;
 }
 #javtr-chip button.javtr-close {
-  padding: 5px 7px;
-  color: #9ca3af !important;
+  padding: 6px 8px;
+  color: #a1a1aa !important;
 }
-#javtr-chip button:hover {
-  filter: brightness(1.2);
+#javtr-chip button:hover,
+#javtr-chip button:focus-visible {
+  background: #3f3f46 !important;
+}
+#javtr-chip button.javtr-primary:hover,
+#javtr-chip button.javtr-primary:focus-visible {
+  background: #be123c !important;
+}
+#javtr-chip button.javtr-close:hover {
+  background: transparent !important;
+  color: #f4f4f5 !important;
 }
 @keyframes javtr-in {
   from { opacity: 0; transform: translateY(-3px); }
@@ -97,10 +111,11 @@
   max-height: 70vh;
   overflow-y: auto;
   padding: 6px;
-  border-radius: 10px;
-  background: #1f2937 !important;
-  color: #f9fafb !important;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+  border: 1px solid rgb(255 255 255 / 0.08) !important;
+  border-radius: 12px;
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 12px 32px rgb(0 0 0 / 0.35);
   font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
   animation: javtr-in 0.12s ease-out;
 }
@@ -110,34 +125,34 @@
   padding: 4px 10px 6px;
   font: 700 11px/1 system-ui, -apple-system, sans-serif !important;
   letter-spacing: 0.04em;
-  color: #9ca3af !important;
+  color: #a1a1aa !important;
 }
 #javtr-menu button {
   all: unset;
   display: block;
   padding: 7px 10px;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer !important;
-  color: #f9fafb !important;
+  color: #f4f4f5 !important;
   font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
 }
 #javtr-menu button:hover,
 #javtr-menu button:focus-visible {
-  background: #374151 !important;
+  background: #27272a !important;
 }
 #javtr-menu button.javtr-menu-all {
-  color: #a5b4fc !important;
+  color: #fda4af !important;
   font-weight: 600 !important;
 }
 #javtr-menu button.javtr-menu-muted {
-  color: #9ca3af !important;
+  color: #a1a1aa !important;
 }
 #javtr-menu .javtr-menu-sep {
   all: unset;
   display: block;
   height: 1px;
   margin: 4px 6px;
-  background: #374151 !important;
+  background: #27272a !important;
 }
 
 /* Video tools: toolbar over videos (video-tools.ts) and English subtitles (subs.ts) */
@@ -171,26 +186,32 @@
 .javtr-video-bar > button,
 .javtr-video-bar > .javtr-ahead {
   all: unset;
-  padding: 6px 10px;
+  padding: 7px 11px;
+  border: 1px solid rgb(255 255 255 / 0.1) !important;
   border-radius: 999px;
-  background: rgb(17 24 39 / 0.82) !important;
-  color: #f9fafb !important;
+  background: rgb(24 24 27 / 0.86) !important;
+  color: #f4f4f5 !important;
   font: 600 12px/1 system-ui, -apple-system, sans-serif !important;
   white-space: nowrap;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+  transition: background 0.12s;
 }
 .javtr-video-bar > button {
   cursor: pointer !important;
 }
 .javtr-video-bar > button:hover,
 .javtr-video-bar > button:focus-visible {
-  background: #4f46e5 !important;
+  background: #3f3f46 !important;
 }
 .javtr-video-bar > .javtr-ahead {
-  color: #a5b4fc !important;
+  color: #fda4af !important;
 }
 .javtr-video-bar > button.javtr-subs-btn.javtr-on {
-  background: #4f46e5 !important;
+  border-color: transparent !important;
+  background: #e11d48 !important;
+}
+.javtr-video-bar > button.javtr-subs-btn.javtr-on:hover {
+  background: #be123c !important;
 }
 .javtr-video-bar > button.javtr-cancel {
   padding: 6px 8px;
@@ -206,31 +227,33 @@
   flex-direction: column;
   min-width: 130px;
   padding: 4px;
-  border-radius: 10px;
-  background: #1f2937 !important;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  border: 1px solid rgb(255 255 255 / 0.08) !important;
+  border-radius: 12px;
+  background: #18181b !important;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 12px 32px rgb(0 0 0 / 0.35);
 }
 .javtr-video-menu button {
   all: unset;
   padding: 7px 10px;
-  border-radius: 6px;
-  color: #f9fafb !important;
+  border-radius: 8px;
+  color: #f4f4f5 !important;
   font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
   cursor: pointer !important;
 }
 .javtr-video-menu button:hover,
 .javtr-video-menu button:focus-visible {
-  background: #374151 !important;
+  background: #27272a !important;
 }
 .javtr-video-status {
   position: absolute;
   top: 46px;
   right: 10px;
   max-width: min(420px, 80%);
-  padding: 7px 11px;
-  border-radius: 8px;
-  background: rgb(17 24 39 / 0.88) !important;
-  color: #f9fafb !important;
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 0.08) !important;
+  border-radius: 10px;
+  background: rgb(24 24 27 / 0.9) !important;
+  color: #f4f4f5 !important;
   font: 500 12px/1.35 system-ui, -apple-system, sans-serif !important;
 }
 .javtr-video-status[hidden] {

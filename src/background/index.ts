@@ -140,7 +140,7 @@ const blockedCount = new Map<number, number>();
 function countBlocked(tabId: number) {
   const n = (blockedCount.get(tabId) ?? 0) + 1;
   blockedCount.set(tabId, n);
-  void chrome.action.setBadgeBackgroundColor({ tabId, color: '#dc2626' });
+  void chrome.action.setBadgeBackgroundColor({ tabId, color: '#e11d48' });
   void chrome.action.setBadgeText({ tabId, text: String(n) });
   void chrome.action.setTitle({ tabId, title: `${chrome.runtime.getManifest().name} — blocked ${n} pop-up${n === 1 ? '' : 's'} / redirect${n === 1 ? '' : 's'} here` });
 }

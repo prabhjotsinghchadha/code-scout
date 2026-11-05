@@ -1,0 +1,404 @@
+@import '../shared/ui.css';
+
+:root {
+  font-size: 14px;
+}
+body {
+  background: var(--surface);
+}
+
+/* Top bar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 12px 24px;
+}
+.logo {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding-left: 2px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.topbar .sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Two columns: section nav and cards */
+.layout {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 28px;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 24px 24px 80px;
+}
+.side {
+  position: sticky;
+  top: 82px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.side a .ico {
+  width: 16px;
+  color: var(--muted);
+}
+.side a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.side a[aria-current='true'] {
+  background: var(--bg);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.side a[aria-current='true'] .ico {
+  color: var(--accent-text);
+}
+
+main {
+  min-width: 0;
+}
+.card {
+  margin-bottom: 16px;
+  padding: 22px 24px;
+  scroll-margin-top: 82px;
+}
+.card h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 650;
+}
+.card h3 {
+  margin: 22px 0 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.desc {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.hint {
+  margin: 4px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Settings that are switched on or off */
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.setting strong {
+  font-weight: 500;
+}
+.options + .setting {
+  margin-top: 16px;
+}
+
+/* Choose one: open mode */
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.option:hover {
+  background: var(--surface);
+}
+.option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.option input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+.option strong {
+  font-weight: 600;
+}
+.option small {
+  overflow-wrap: anywhere;
+}
+
+/* Editable lists */
+.rows {
+  margin: 8px 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  list-style: none;
+}
+.rows:empty {
+  display: none;
+}
+.rows li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 8px 6px 12px;
+  border-top: 1px solid var(--border);
+}
+.rows li:first-child {
+  border-top: 0;
+}
+.rows li:hover {
+  background: var(--surface);
+}
+.rows li > span:not(.count) {
+  flex: 1;
+  min-width: 0;
+}
+.rows li small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rows .count {
+  margin-right: 6px;
+  white-space: nowrap;
+}
+.rows select {
+  max-width: 140px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+.rows input.inline-name,
+.rows input.inline-template {
+  width: 100%;
+  height: auto;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+.rows input.inline-name {
+  font-weight: 600;
+}
+.rows input.inline-template {
+  color: var(--muted);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.rows input.inline-name:hover,
+.rows input.inline-template:hover {
+  border-color: var(--border-strong);
+}
+.rows input.inline-name:focus,
+.rows input.inline-template:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.rows li .icon-btn:hover {
+  background: var(--surface-2);
+}
+.rows li .icon-btn.danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+.none {
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Add forms */
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.add input[type='text'] {
+  flex: 1 1 200px;
+  height: 34px;
+}
+.add input.narrow {
+  flex: 0 1 170px;
+}
+.add select {
+  height: 34px;
+}
+.add .btn {
+  height: 34px;
+}
+.error {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+/* Placeholders for "Open on" URL patterns */
+.placeholders {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+  list-style: none;
+}
+.placeholders code {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--accent-text);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.placeholders small {
+  display: inline;
+}
+
+/* Video tools: what the toolbar does */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.features li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.features strong {
+  font-weight: 600;
+}
+.features span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.translation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+/* Shortcuts */
+.shortcuts {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.shortcuts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.shortcuts kbd {
+  min-width: 104px;
+}
+
+/* Narrow windows: one column, the section nav becomes a strip under the top bar */
+@media (max-width: 760px) {
+  .topbar-inner {
+    padding: 10px 16px;
+  }
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 0 16px 64px;
+  }
+  .side {
+    top: 57px;
+    z-index: 4;
+    flex-direction: row;
+    margin: 0 -16px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    scrollbar-width: none;
+  }
+  .side a {
+    flex-shrink: 0;
+    gap: 6px;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+  .card {
+    padding: 18px 16px;
+    scroll-margin-top: 120px;
+  }
+}
