@@ -92,6 +92,12 @@ body {
 .tabs {
   margin: 10px 12px 2px;
 }
+/* Four tabs in 340px: each as wide as its label (and count) needs, on one line */
+.tabs .tab {
+  flex: 1 1 auto;
+  padding: 0 7px;
+  white-space: nowrap;
+}
 .panel {
   flex: 1 1 auto;
   min-height: 150px;
@@ -175,6 +181,56 @@ body {
 .list li.fav .fav-page:hover {
   color: var(--accent-text);
   text-decoration: none;
+}
+/* ✓ after a code already seen (This page, Favourites) */
+.list li .code.seen::after {
+  content: ' ✓';
+  color: var(--muted);
+  font-weight: 600;
+}
+/* Recent: when, the page it was seen on, and Forget under each code */
+.list li.seen-row {
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+}
+.list li.seen-row .seen-meta {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.list li.seen-row .seen-meta .when {
+  flex: none;
+}
+.list li.seen-row .seen-meta .fav-page {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list li.seen-row .seen-meta .fav-page::before {
+  content: '·';
+  margin-right: 6px;
+}
+.list li.seen-row .seen-meta .fav-page:hover {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.list li.seen-row .seen-meta .forget {
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  opacity: 0;
+}
+.list li.seen-row:hover .seen-meta .forget,
+.list li.seen-row .seen-meta .forget:focus-visible {
+  opacity: 1;
 }
 /* A favourite tag's pages: one chip per site, under its name */
 .list li.tag .tag-pages {

@@ -45,6 +45,9 @@
         <button type="button" class="tab" role="tab" id="tab-favs" data-tab="favs" aria-controls="panel-favs" aria-selected="false">
           Favourites <span id="favs-count" class="count"></span>
         </button>
+        <button type="button" class="tab" role="tab" id="tab-recent" data-tab="recent" aria-controls="panel-recent" aria-selected="false">
+          Recent
+        </button>
         <button type="button" class="tab" role="tab" id="tab-links" data-tab="links" aria-controls="panel-links" aria-selected="false">
           Links
         </button>
@@ -110,6 +113,19 @@
             <i data-icon="star" data-size="28"></i>
             <p>Right-click a tag link (…/tags/ntr, …/category/affair)<br />and pick “Add this tag to favourites”, or type one above.</p>
           </div>
+        </div>
+      </section>
+
+      <section id="panel-recent" class="panel" role="tabpanel" aria-labelledby="tab-recent" hidden>
+        <div class="panel-head">
+          <input id="recent-filter" type="search" placeholder="Filter seen codes" aria-label="Filter seen codes" hidden />
+        </div>
+        <ul id="recent" class="list"></ul>
+        <p id="recent-none" class="none" hidden>No seen code matches.</p>
+        <p id="recent-more" class="none" hidden></p>
+        <div id="recent-empty" class="empty" hidden>
+          <i data-icon="clock" data-size="28"></i>
+          <p>Codes you open, or whose video pages you visit,<br />show up here and get a ✓ on pages.</p>
         </div>
       </section>
 

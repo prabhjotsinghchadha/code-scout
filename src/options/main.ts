@@ -10,6 +10,7 @@ import {
   type OpenOnSite,
 } from '../shared/open-on';
 import { moveItem } from '../shared/quick-links';
+import { clearSeen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { subtitleLookVars } from '../shared/subtitles';
 import { createTranslators, translatorStatus } from '../shared/translator';
@@ -21,6 +22,7 @@ const status = document.getElementById('status') as HTMLDivElement;
 const inlineButtons = document.getElementById('inlineButtons') as HTMLInputElement;
 const fieldChip = document.getElementById('fieldChip') as HTMLInputElement;
 const openInBackground = document.getElementById('openInBackground') as HTMLInputElement;
+const rememberSeen = document.getElementById('rememberSeen') as HTMLInputElement;
 const modeRadios = document.querySelectorAll<HTMLInputElement>('input[name="openMode"]');
 
 let timer: number | undefined;
@@ -46,6 +48,12 @@ async function init() {
   inlineButtons.addEventListener('change', () => save({ inlineButtons: inlineButtons.checked }));
   fieldChip.addEventListener('change', () => save({ fieldChip: fieldChip.checked }));
   openInBackground.addEventListener('change', () => save({ openInBackground: openInBackground.checked }));
+  rememberSeen.checked = settings.rememberSeen;
+  rememberSeen.addEventListener('change', () => save({ rememberSeen: rememberSeen.checked }));
+  document.getElementById('clear-seen')!.addEventListener('click', async () => {
+    await clearSeen();
+    flash('Seen codes cleared');
+  });
   modeRadios.forEach((r) =>
     r.addEventListener('change', () => r.checked && save({ openMode: r.value as OpenMode })),
   );

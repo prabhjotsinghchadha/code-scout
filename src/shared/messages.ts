@@ -11,8 +11,11 @@ export type Message =
   | { type: 'GET_ACTIVE_CODE' }
   /** The link the user last right-clicked on the page (for "Add this actress to favourites"). */
   | { type: 'GET_CONTEXT_LINK' }
-  /** Open web URLs in new tabs next to the sender (first one focused unless background tabs are on). */
-  | { type: 'OPEN_URLS'; urls: string[] }
+  /**
+   * Open web URLs in new tabs next to the sender (first one focused unless background tabs are on). `code`:
+   * the code they open (e.g. on "Open on" sites), noted as seen.
+   */
+  | { type: 'OPEN_URLS'; urls: string[]; code?: VideoCode }
   | { type: 'OPEN_OPTIONS' }
   /** Pop-up blocker: the user is about to open a new tab themselves (Ctrl/middle-click, a same-site link). */
   | { type: 'ALLOW_NEW_TAB'; ms: number }

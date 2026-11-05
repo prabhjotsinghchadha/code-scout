@@ -23,6 +23,12 @@
 .javtr-open-btn.javtr-fav {
   background: #d97706 !important;
 }
+/* ✓ for a code already seen: grey, so the ones still to watch stand out (a favourite keeps its ★) */
+.javtr-open-btn.javtr-seen:not(.javtr-fav) {
+  background: #71717a !important;
+  font-weight: 700 !important;
+  opacity: 0.7;
+}
 .javtr-open-btn:hover,
 .javtr-open-btn:focus-visible {
   opacity: 1;
@@ -173,6 +179,12 @@
   font: 700 11px/1 system-ui, -apple-system, sans-serif !important;
   letter-spacing: 0.04em;
   color: #a1a1aa !important;
+}
+#javtr-menu .javtr-menu-seen {
+  all: unset;
+  margin-left: 8px;
+  font: 500 11px/1 system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0;
 }
 #javtr-menu button {
   all: unset;

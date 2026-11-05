@@ -1,7 +1,10 @@
-// ▶ buttons next to codes found in page text (including content added later); ★ for favourites.
+// ▶ buttons next to codes found in page text (including content added later); ★ for favourites, ✓ for
+// codes already seen.
 import { findCodes, formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
+import { seenAgo } from '../shared/seen';
 import { isStarred, onStarredChange } from './favourites';
+import { onSeenChange, seenEntryFor } from './seen';
 import { openSiteMenu } from './site-menu';
 import { markUi, onUi } from './ui-events';
 
@@ -44,12 +47,15 @@ function createButton(code: VideoCode): HTMLElement {
   return btn;
 }
 
-/** ▶, or a filled star for a favourite (it still opens the trailer). */
+/** ▶; a filled star for a favourite; a ✓ for a code already seen (both still open the trailer). */
 function paint(btn: HTMLElement, code: VideoCode) {
   const starred = isStarred(code);
-  btn.textContent = starred ? '★' : '▶';
+  const seen = seenEntryFor(code);
+  btn.textContent = starred ? '★' : seen ? '✓' : '▶';
   btn.classList.toggle('javtr-fav', starred);
-  btn.title = `${starred ? 'In your favourites · ' : ''}Open trailer for ${formatCode(code)} · right-click for more`;
+  btn.classList.toggle('javtr-seen', !!seen);
+  const notes = [starred && 'In your favourites', seen && `Seen ${seenAgo(seen.at, Date.now())}`].filter(Boolean);
+  btn.title = [...notes, `Open trailer for ${formatCode(code)}`, 'right-click for more'].join(' · ');
 }
 
 function repaintAll() {
@@ -93,6 +99,7 @@ export function enableInline() {
   if (!watchingStars) {
     watchingStars = true;
     onStarredChange(repaintAll);
+    onSeenChange(repaintAll);
   }
   scan(document.body);
 

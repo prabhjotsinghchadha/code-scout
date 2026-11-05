@@ -9,6 +9,7 @@ import { startFavourites } from './favourites';
 import { disableFieldChip, enableFieldChip } from './field-chip';
 import { disableInline, enableInline } from './inline';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
+import { setSeenMarks } from './seen';
 
 function pageCodes(): VideoCode[] {
   const seen = new Map<string, VideoCode>();
@@ -50,8 +51,16 @@ async function init() {
   // Known before the ▶ buttons are drawn, so favourites show as ★ straight away.
   await startFavourites().catch(() => {});
 
-  const state = { inlineButtons: false, fieldChip: false, video: false };
+  // Likewise the codes already seen, for their ✓.
+  const initial = await getSettings();
+  await setSeenMarks(initial.rememberSeen).catch(() => {});
+
+  const state = { inlineButtons: false, fieldChip: false, video: false, seen: initial.rememberSeen };
   const apply = (settings: Settings) => {
+    if (settings.rememberSeen !== state.seen) {
+      state.seen = settings.rememberSeen;
+      void setSeenMarks(settings.rememberSeen).catch(() => {});
+    }
     // Turned off for this site: no ▶ buttons or chip (right-click and shortcuts still work).
     const off = isSiteOff(location.hostname, settings.offSites);
     const inlineButtons = settings.inlineButtons && !off;
@@ -86,7 +95,7 @@ async function init() {
       }
     }
   };
-  apply(await getSettings());
+  apply(initial);
   onSettingsChanged(apply);
 }
 

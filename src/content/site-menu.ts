@@ -3,8 +3,10 @@ import { formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
 import type { FavouritePage } from '../shared/favourites';
 import { fillTemplate } from '../shared/open-on';
+import { seenAgo } from '../shared/seen';
 import { getSettings } from '../shared/storage';
 import { isStarred, thisPage, toggleStar } from './favourites';
+import { seenEntryFor } from './seen';
 import { markUi, onUi } from './ui-events';
 
 let menu: HTMLDivElement | null = null;
@@ -72,6 +74,14 @@ export async function openSiteMenu(
   const title = document.createElement('div');
   title.className = 'javtr-menu-title';
   title.textContent = formatCode(code);
+  const seen = seenEntryFor(code);
+  if (seen) {
+    const note = Object.assign(document.createElement('span'), {
+      className: 'javtr-menu-seen',
+      textContent: `✓ Seen ${seenAgo(seen.at, Date.now())}`,
+    });
+    title.append(note);
+  }
   el.append(
     title,
     item('▶ Open trailer', () => void sendToBackground({ type: 'OPEN_CODE', code })),
@@ -83,11 +93,11 @@ export async function openSiteMenu(
   );
   if (openOnSites.length) {
     for (const site of openOnSites) {
-      el.append(item(site.name, () => void sendToBackground({ type: 'OPEN_URLS', urls: [fillTemplate(site.template, code)] })));
+      el.append(item(site.name, () => void sendToBackground({ type: 'OPEN_URLS', urls: [fillTemplate(site.template, code)], code })));
     }
     if (openOnSites.length > 1) {
       const urls = openOnSites.map((s) => fillTemplate(s.template, code));
-      el.append(item(`Open on all ${urls.length} sites`, () => void sendToBackground({ type: 'OPEN_URLS', urls }), 'javtr-menu-all'));
+      el.append(item(`Open on all ${urls.length} sites`, () => void sendToBackground({ type: 'OPEN_URLS', urls, code }), 'javtr-menu-all'));
     }
   } else {
     el.append(item('+ Add sites in Settings…', () => void sendToBackground({ type: 'OPEN_OPTIONS' }), 'javtr-menu-muted'));

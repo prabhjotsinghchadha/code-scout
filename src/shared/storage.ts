@@ -35,6 +35,11 @@ export interface Settings {
   subBackground: number;
   /** Count visits to quick-link sites (on this computer) and show the most visited in the popup. */
   mostVisited: boolean;
+  /**
+   * Remember the codes opened or whose video pages were visited (on this computer, not in incognito): ✓ on
+   * their ▶ buttons and the popup's Recent tab. See seen.ts.
+   */
+  rememberSeen: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -52,6 +57,7 @@ export const defaultSettings: Settings = {
   subSize: 100,
   subBackground: 100,
   mostVisited: true,
+  rememberSeen: true,
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */

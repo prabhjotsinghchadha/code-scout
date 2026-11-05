@@ -5,6 +5,7 @@ import { ACTRESS_LINK_PATTERNS, addActress, capitalized, cleanName, isActressKey
 import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
 import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
+import { recordSeen, seenPage, videoPageCode, type SeenPage } from '../shared/seen';
 import { addTag, isTagKey, TAG_LINK_PATTERNS, tagNameFromUrl } from '../shared/tags';
 import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
 import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
@@ -205,6 +206,7 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabSite.delete(tabId);
+  tabSeenUrl.delete(tabId);
   blockedCount.delete(tabId);
   allowNewTabsUntil.delete(tabId);
   ownTabsPending.delete(tabId);
@@ -231,6 +233,30 @@ async function countVisit(site: string) {
   await chrome.storage.local.set({ [VISITS_KEY]: addVisit(stored[VISITS_KEY], site, Date.now()) });
 }
 
+// --- Seen codes: opened from the extension, or their video page visited (local storage, see seen.ts) ---
+/** Notes `code` as seen, unless the setting is off or it was seen in an incognito window. */
+async function noteSeen(code: VideoCode, from: chrome.tabs.Tab | undefined, page?: SeenPage | null) {
+  if (from?.incognito || !(await getSettings()).rememberSeen) return;
+  await recordSeen(code, page);
+}
+
+/** The video page each tab was last noted on, so its title arriving later only updates the entry. */
+const tabSeenUrl = new Map<number, string>();
+
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  if ((!info.url && !info.title) || !tab.url) return;
+  const code = videoPageCode(tab.url);
+  if (!code) {
+    tabSeenUrl.delete(tabId);
+    return;
+  }
+  const newPage = tabSeenUrl.get(tabId) !== tab.url;
+  if (!newPage && !info.title) return;
+  tabSeenUrl.set(tabId, tab.url);
+  // A new address's title comes in a later update (until then the tab may still show the last page's).
+  void noteSeen(code, tab, seenPage(tab.url, info.title));
+});
+
 /** Open URLs in new tabs right after the source tab; only the first takes focus. */
 async function openUrls(urls: string[], sourceTab?: chrome.tabs.Tab) {
   const { openInBackground } = await getSettings();
@@ -252,6 +278,7 @@ async function openUrls(urls: string[], sourceTab?: chrome.tabs.Tab) {
 async function openCode(code: VideoCode, sourceTab?: chrome.tabs.Tab, mode?: OpenMode) {
   const { openMode } = await getSettings();
   await openUrls([trailerUrl(code, mode ?? openMode)], sourceTab);
+  void noteSeen(code, sourceTab);
 }
 
 /** Open a parsed code, or fall back to searching the raw text when it doesn't parse. */
@@ -300,6 +327,7 @@ async function openOn(code: VideoCode, siteId: string | undefined, sourceTab?: c
   const { openOnSites } = await getSettings();
   const sites = siteId ? openOnSites.filter((s) => s.id === siteId) : openOnSites;
   await openUrls(sites.map((s) => fillTemplate(s.template, code)), sourceTab);
+  if (sites.length) void noteSeen(code, sourceTab);
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -403,7 +431,12 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     case 'OPEN_CODE':
       return reply(sourceTabOf(sender).then((tab) => openCode(message.code, tab, message.mode)));
     case 'OPEN_URLS':
-      return reply(sourceTabOf(sender).then((tab) => openUrls(message.urls, tab)));
+      return reply(
+        sourceTabOf(sender).then(async (tab) => {
+          await openUrls(message.urls, tab);
+          if (message.code) void noteSeen(message.code, tab);
+        }),
+      );
     case 'OPEN_OPTIONS':
       return reply(chrome.runtime.openOptionsPage());
     case 'ALLOW_NEW_TAB':

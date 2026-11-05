@@ -14,9 +14,11 @@ import { siteKey } from '../shared/hosts';
 import { hydrateIcons, icon, type IconName } from '../shared/icons';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
+import { seenAgo, type Seen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { setupActresses } from './actresses';
 import { setupLinks } from './links';
+import { setupRecent } from './recent';
 import { setupTags } from './tags';
 
 hydrateIcons();
@@ -79,8 +81,10 @@ function iconButton(name: IconName, label: string, className: string, onClick: (
 }
 
 // --- Tabs ---
-type Tab = 'page' | 'favs' | 'links';
-const TABS: Tab[] = ['page', 'favs', 'links'];
+type Tab = 'page' | 'favs' | 'recent' | 'links';
+const TABS: Tab[] = ['page', 'favs', 'recent', 'links'];
+/** The tabs on show (Recent is hidden while "Remember codes you've seen" is off). */
+const shownTabs = () => TABS.filter((t) => !$(`tab-${t}`).hidden);
 const TAB_KEY = 'popupTab';
 /** Set once the user picks a tab, so codes that arrive late don't switch away from it. */
 let tabPicked = false;
@@ -89,7 +93,7 @@ let tabPicked = false;
 function storedTab(): Tab | null {
   try {
     const tab = localStorage.getItem(TAB_KEY);
-    return TABS.includes(tab as Tab) ? (tab as Tab) : null;
+    return shownTabs().includes(tab as Tab) ? (tab as Tab) : null;
   } catch {
     return null;
   }
@@ -120,9 +124,10 @@ function setupTabs() {
   document.querySelector('.tabs')!.addEventListener('keydown', (e) => {
     const { key } = e as KeyboardEvent;
     if (key !== 'ArrowLeft' && key !== 'ArrowRight') return;
-    const at = TABS.findIndex((t) => $(`tab-${t}`) === document.activeElement);
+    const tabs = shownTabs();
+    const at = tabs.findIndex((t) => $(`tab-${t}`) === document.activeElement);
     if (at < 0) return;
-    const next = TABS[(at + (key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+    const next = tabs[(at + (key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
     pickTab(next);
     $(`tab-${next}`).focus();
   });
@@ -241,8 +246,30 @@ function setupTypedStar() {
   update();
 }
 
-const codeLabel = (code: VideoCode) =>
-  Object.assign(document.createElement('span'), { className: 'code', textContent: formatCode(code) });
+// --- Seen codes: a ✓ after the code in This page and Favourites (the Recent tab lists them) ---
+let seenCodes: Seen = {};
+
+/** ✓ and "Seen 3 days ago" on a code label (one with data-code) once its code has been seen. */
+function paintSeen(label: HTMLElement) {
+  const entry = seenCodes[label.dataset.code ?? ''];
+  label.classList.toggle('seen', !!entry);
+  label.title = entry ? `Seen ${seenAgo(entry.at, Date.now())}` : '';
+}
+
+function onSeenCodes(seen: Seen) {
+  seenCodes = seen;
+  document.querySelectorAll<HTMLElement>('.code[data-code]').forEach(paintSeen);
+}
+
+/** The code's name; `markSeen`: with a ✓ once it has been seen. */
+function codeLabel(code: VideoCode, markSeen = true) {
+  const label = Object.assign(document.createElement('span'), { className: 'code', textContent: formatCode(code) });
+  if (markSeen) {
+    label.dataset.code = formatCode(code);
+    paintSeen(label);
+  }
+  return label;
+}
 
 /** A link to a favourite's page, opened next to this tab. */
 function pageLink(url: string, title?: string) {
@@ -410,7 +437,7 @@ function siteRow(getCode: () => VideoCode | null, label?: string): HTMLDivElemen
   if (label) row.append(Object.assign(document.createElement('span'), { className: 'label', textContent: label }));
   const go = (targets: OpenOnSite[]) => {
     const code = getCode();
-    if (code) void openLinks(targets.map((s) => fillTemplate(s.template, code)));
+    if (code) void openLinks(targets.map((s) => fillTemplate(s.template, code)), code);
   };
   for (const site of sites) row.append(textButton(site.name, 'chip', () => go([site])));
   if (sites.length > 1) row.append(textButton(`All ${sites.length}`, 'chip all', () => go(sites)));
@@ -427,9 +454,12 @@ function setupTypedSites() {
   update();
 }
 
-/** Opened by the background (next to this tab), so the pop-up blocker knows they're ours. */
-async function openLinks(urls: string[]) {
-  await sendToBackground({ type: 'OPEN_URLS', urls });
+/**
+ * Opened by the background (next to this tab), so the pop-up blocker knows they're ours. `code`: the code
+ * they open, noted as seen.
+ */
+async function openLinks(urls: string[], code?: VideoCode) {
+  await sendToBackground({ type: 'OPEN_URLS', urls, code });
   window.close();
 }
 
@@ -505,6 +535,11 @@ async function init() {
   setupStarPage();
   setupTypedStar();
   setupSiteToggles(settings, tab);
+  if (settings.rememberSeen) {
+    void setupRecent({ row: (code, page) => codeRow(code, codeLabel(code, false), page), pageLink, onChange: onSeenCodes });
+  } else {
+    $('tab-recent').hidden = true;
+  }
 
   void setupLinks(settings, tab, openLinks);
 
