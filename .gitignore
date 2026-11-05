@@ -4,3 +4,4 @@ extension.zip
 .DS_Store
 *.log
 .vite/
+public/ocr/

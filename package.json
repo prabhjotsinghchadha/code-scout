@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/prepare-ocr.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/prepare-ocr.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "zip": "npm run build && cd dist && zip -r ../extension.zip .",
@@ -15,5 +17,10 @@
     "@types/chrome": "^0.3.7",
     "typescript": "^7.0.2",
     "vite": "^8.3.6"
+  },
+  "dependencies": {
+    "mediabunny": "^1.65.2",
+    "onnxruntime-web": "^1.31.1",
+    "ppu-paddle-ocr": "^6.6.1"
   }
 }

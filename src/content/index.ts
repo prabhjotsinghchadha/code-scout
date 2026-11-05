@@ -26,7 +26,7 @@ async function init() {
   // Known before the ▶ buttons are drawn, so favourites show as ★ straight away.
   await startFavourites().catch(() => {});
 
-  const state = { inlineButtons: false, fieldChip: false };
+  const state = { inlineButtons: false, fieldChip: false, video: false };
   const apply = (settings: Settings) => {
     // Turned off for this site: no ▶ buttons or chip (right-click and shortcuts still work).
     const off = isSiteOff(location.hostname, settings.offSites);
@@ -38,6 +38,12 @@ async function init() {
     state.fieldChip = fieldChip;
     if (isSiteOff(location.hostname, settings.popupBlockSites)) enablePopupGuard();
     else disablePopupGuard();
+    // Video tools: loaded only on the sites that use them (the download code is large).
+    const video = isSiteOff(location.hostname, settings.videoSites);
+    if (video !== state.video) {
+      state.video = video;
+      void import('./video-tools').then((m) => (state.video ? m.enableVideoTools() : m.disableVideoTools()));
+    }
   };
   apply(await getSettings());
   onSettingsChanged(apply);

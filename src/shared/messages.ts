@@ -1,5 +1,7 @@
 // Typed messages passed between popup, background and content scripts.
 import type { OpenMode, VideoCode } from './codes';
+import type { OcrLine } from './subtitles';
+import type { SubtitleLang } from './translator';
 
 export type Message =
   /** Open a code; `mode` overrides the "Open" setting (e.g. 'search' for the Search buttons). */
@@ -13,7 +15,13 @@ export type Message =
   /** Pop-up blocker: the user is about to open a new tab themselves (Ctrl/middle-click, a same-site link). */
   | { type: 'ALLOW_NEW_TAB'; ms: number }
   /** Pop-up blocker: something was blocked on the sender's page (counted on the toolbar badge). */
-  | { type: 'POPUP_BLOCKED' };
+  | { type: 'POPUP_BLOCKED' }
+  /** Video tools: read the text in a subtitle strip (a JPEG data URL). The background passes it to the
+   * offscreen document, which runs the OCR model. */
+  | { type: 'OCR_STRIP'; image: string }
+  /** Video tools: translate a subtitle line to English in the offscreen document (used when the page's
+   * content script has no Translator API). */
+  | { type: 'TRANSLATE'; text: string; from: SubtitleLang };
 
 export interface MessageResponses {
   OPEN_CODE: { ok: true };
@@ -23,7 +31,17 @@ export interface MessageResponses {
   OPEN_OPTIONS: { ok: true };
   ALLOW_NEW_TAB: { ok: true };
   POPUP_BLOCKED: { ok: true };
+  OCR_STRIP: OcrResult;
+  TRANSLATE: TranslateResult;
 }
+
+export type OcrResult = { lines: OcrLine[] } | { error: string };
+export type TranslateResult = { text: string } | { error: string };
+
+/** Background → offscreen document (only it handles these). */
+export type OffscreenMessage =
+  | { target: 'offscreen'; type: 'OCR'; image: string }
+  | { target: 'offscreen'; type: 'TRANSLATE'; text: string; from: SubtitleLang };
 
 export function sendToBackground<M extends Message>(message: M): Promise<MessageResponses[M['type']]> {
   return chrome.runtime.sendMessage(message);

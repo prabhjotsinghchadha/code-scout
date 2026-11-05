@@ -37,9 +37,14 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  // scripting + host access: the pop-up blocker's page script is registered per site at runtime, and
-  // the backstop reads which site opened a new tab. (Content scripts already run on all sites.)
-  permissions: ['storage', 'contextMenus', 'activeTab', 'scripting'],
+  // scripting + host access: the pop-up blocker's and video tools' page scripts are registered per site
+  // at runtime, and the backstop reads which site opened a new tab. (Content scripts already run on all
+  // sites.) offscreen: the page that reads and translates subtitles (OCR model in WebAssembly).
+  permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'offscreen'],
+  // 'wasm-unsafe-eval': lets extension pages run WebAssembly (the subtitle OCR model). No other code.
+  content_security_policy: {
+    extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+  },
   host_permissions: ['<all_urls>'],
   commands: {
     'open-trailer': {

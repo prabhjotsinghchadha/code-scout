@@ -1,8 +1,9 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
+import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
 import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
 import { addFavourite, favouriteError } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
-import { sendToTab, type Message } from '../shared/messages';
+import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
 
@@ -45,41 +46,60 @@ chrome.runtime.onInstalled.addListener(async () => {
   // overwrite the data synced from the user's other devices.
   await seedBuiltIns().catch((err) => console.error('Offering built-ins failed', err));
   buildMenus((await getSettings()).openOnSites);
-  await syncPopupBlocker();
+  await syncPageScripts();
 });
-chrome.runtime.onStartup.addListener(() => void syncPopupBlocker());
+chrome.runtime.onStartup.addListener(() => void syncPageScripts());
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.openOnSites) buildMenus((changes.openOnSites.newValue as OpenOnSite[]) ?? []);
-  if (area === 'sync' && changes.popupBlockSites) void syncPopupBlocker();
+  if (area === 'sync' && (changes.popupBlockSites || changes.videoSites)) void syncPageScripts();
 });
 
-// --- Pop-up blocker ---
+// --- Page-world scripts, registered only on the sites that use them ---
+// Pop-up blocker:
 // 1. popup-block.iife.ts runs in the page's own world on the chosen sites (registered here, so it
 //    only exists on those sites) and blocks window.open, scripted new-tab links and redirects.
 // 2. As a backstop, any other new tab such a site opens is closed here, unless the user asked for
 //    it (Ctrl/middle-click, a same-site link — announced by the content script) or we opened it.
+// Video tools: video-boost.iife.ts patches the site's hls.js player for parallel loading and the
+// quality menu (the toolbar itself is the content script's video-tools.ts).
 const POPUP_BLOCK_ID = 'javtr-popup-block';
-let popupSync = Promise.resolve();
-function syncPopupBlocker() {
+const VIDEO_BOOST_ID = 'javtr-video-boost';
+let pageScriptSync = Promise.resolve();
+function syncPageScripts() {
   // Serialized: two quick changes must not register the same id twice.
-  popupSync = popupSync.then(async () => {
-    const { popupBlockSites } = await getSettings();
-    await chrome.scripting.unregisterContentScripts({ ids: [POPUP_BLOCK_ID] }).catch(() => {});
-    if (!popupBlockSites.length) return;
-    await chrome.scripting.registerContentScripts([
-      {
-        id: POPUP_BLOCK_ID,
-        js: [popupBlockScript],
-        matches: sitePatterns(popupBlockSites),
-        runAt: 'document_start',
-        world: 'MAIN',
-        allFrames: true,
-        matchOriginAsFallback: true, // also about:blank frames the page creates
-      },
-    ]);
-  }).catch((err) => console.error('Pop-up blocker registration failed', err));
-  return popupSync;
+  pageScriptSync = pageScriptSync
+    .then(async () => {
+      const { popupBlockSites, videoSites } = await getSettings();
+      // One at a time: unregistering several ids fails as a whole if one of them isn't registered.
+      for (const id of [POPUP_BLOCK_ID, VIDEO_BOOST_ID]) {
+        await chrome.scripting.unregisterContentScripts({ ids: [id] }).catch(() => {});
+      }
+      const scripts: chrome.scripting.RegisteredContentScript[] = [];
+      if (popupBlockSites.length) {
+        scripts.push({
+          id: POPUP_BLOCK_ID,
+          js: [popupBlockScript],
+          matches: sitePatterns(popupBlockSites),
+          runAt: 'document_start',
+          world: 'MAIN',
+          allFrames: true,
+          matchOriginAsFallback: true, // also about:blank frames the page creates
+        });
+      }
+      if (videoSites.length) {
+        scripts.push({
+          id: VIDEO_BOOST_ID,
+          js: [videoBoostScript],
+          matches: sitePatterns(videoSites),
+          runAt: 'document_start',
+          world: 'MAIN',
+        });
+      }
+      if (scripts.length) await chrome.scripting.registerContentScripts(scripts);
+    })
+    .catch((err) => console.error('Page script registration failed', err));
+  return pageScriptSync;
 }
 
 /** Tabs we are about to open, per opener tab, so the backstop leaves them alone. */
@@ -218,6 +238,42 @@ async function sourceTabOf(sender: chrome.runtime.MessageSender) {
   return active;
 }
 
+// --- Subtitle OCR (video tools) ---
+// The OCR model runs in an offscreen document: content scripts can't load the extension's WebAssembly,
+// and one copy of the model serves every tab. It's created on first use and closed when idle (before
+// this service worker itself goes idle and could no longer close it).
+const OFFSCREEN_URL = 'src/offscreen/index.html';
+const OFFSCREEN_IDLE_MS = 25_000;
+let offscreenCreating: Promise<void> | null = null;
+let offscreenIdle: ReturnType<typeof setTimeout> | undefined;
+
+async function ensureOffscreen() {
+  const open = await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] });
+  if (open.length) return;
+  offscreenCreating ??= chrome.offscreen
+    .createDocument({
+      url: OFFSCREEN_URL,
+      reasons: [chrome.offscreen.Reason.WORKERS],
+      justification: 'Reads burned-in subtitle text from video frames and translates it, on this computer.',
+    })
+    .finally(() => (offscreenCreating = null));
+  await offscreenCreating;
+}
+
+/** Sends `message` to the offscreen document (creating it if needed) and returns its answer. */
+async function toOffscreen<T>(message: OffscreenMessage): Promise<T | { error: string }> {
+  clearTimeout(offscreenIdle);
+  try {
+    await ensureOffscreen();
+    return ((await chrome.runtime.sendMessage(message)) as T | undefined) ?? { error: 'No answer from the subtitle reader.' };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(offscreenIdle);
+    offscreenIdle = setTimeout(() => void chrome.offscreen.closeDocument().catch(() => {}), OFFSCREEN_IDLE_MS);
+  }
+}
+
 chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   const reply = (work: Promise<unknown>) => {
     void work.then(() => sendResponse({ ok: true }));
@@ -239,6 +295,14 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     case 'POPUP_BLOCKED':
       if (sender.tab?.id !== undefined) countBlocked(sender.tab.id);
       return reply(Promise.resolve());
+    case 'OCR_STRIP':
+      void toOffscreen<OcrResult>({ target: 'offscreen', type: 'OCR', image: message.image }).then(sendResponse);
+      return true;
+    case 'TRANSLATE':
+      void toOffscreen<TranslateResult>({ target: 'offscreen', type: 'TRANSLATE', text: message.text, from: message.from }).then(
+        sendResponse,
+      );
+      return true;
   }
   return false;
 });

@@ -97,6 +97,30 @@
       </fieldset>
 
       <fieldset>
+        <legend>Video tools</legend>
+        <p class="hint">
+          On these sites, videos get a small toolbar (top right, when you point at the video):
+          <strong>⚡ faster loading</strong> (downloads several pieces of the video at once, for servers that send each
+          piece slowly), a <strong>quality</strong> menu when the video has more than one,
+          <strong>⬇ Download</strong> (saves an MP4; keep the tab open while it runs) and
+          <strong>EN subs</strong> (reads burned-in Chinese or Japanese subtitles on this computer and covers them with
+          English, using Chrome’s built-in translator).
+          Tip: use <em>Video tools on this site</em> in the popup, then reload the page.
+        </p>
+        <ul id="video-sites" class="rows"></ul>
+        <p id="video-empty" class="hint" hidden><small>None.</small></p>
+        <form id="add-video-site" class="add-link">
+          <input id="video-site" type="text" placeholder="e.g. 18jav.tv" required />
+          <button type="submit">Add video tools</button>
+        </form>
+        <p id="video-error" class="error" hidden></p>
+        <p class="hint">
+          <button id="setup-translation" type="button">Set up English subtitles</button>
+          <span id="translation-status"></span>
+        </p>
+      </fieldset>
+
+      <fieldset>
         <legend>Open on other sites</legend>
         <p class="hint">
           Sites a code can be opened on — from the chip’s <em>Sites ▾</em>, right-clicking a ▶ button, the right-click

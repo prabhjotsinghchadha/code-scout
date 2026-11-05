@@ -342,7 +342,7 @@ async function setupAddPage(state: LinkState) {
   });
 }
 
-/** Per-site toggles for the current tab's site: "Off on javtiful.com" and "Block pop-ups on javtiful.com". */
+/** Per-site toggles for the current tab's site: "Off on …", "Block pop-ups on …" and "Video tools on …". */
 async function setupSiteToggles(settings: Settings) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const host = tab?.url && /^https?:/.test(tab.url) ? siteKey(tab.url) : null;
@@ -353,6 +353,7 @@ async function setupSiteToggles(settings: Settings) {
   const toggles = [
     ['site-off', 'offSites'],
     ['site-popups', 'popupBlockSites'],
+    ['site-video', 'videoSites'],
   ] as const;
   for (const [id, key] of toggles) {
     const box = $<HTMLInputElement>(id);
@@ -361,7 +362,7 @@ async function setupSiteToggles(settings: Settings) {
       const current = (await getSettings())[key].filter((s) => s !== host);
       await setSettings({ [key]: box.checked ? [...current, host] : current });
       // The page-side blocker only loads with the page.
-      if (key === 'popupBlockSites') $('reload-tab').hidden = false;
+      if (key === 'popupBlockSites' || key === 'videoSites') $('reload-tab').hidden = false;
     });
   }
   $('reload-tab').addEventListener('click', async () => {

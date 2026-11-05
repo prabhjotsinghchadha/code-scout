@@ -139,3 +139,127 @@
   margin: 4px 6px;
   background: #374151 !important;
 }
+
+/* Video tools: toolbar over videos (video-tools.ts) and English subtitles (subs.ts) */
+.javtr-video-layer {
+  all: initial;
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  pointer-events: none !important;
+  overflow: hidden;
+  font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
+}
+.javtr-video-layer[hidden] {
+  display: none !important;
+}
+.javtr-video-bar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+}
+.javtr-video-bar.javtr-show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto !important;
+}
+.javtr-video-bar > button,
+.javtr-video-bar > .javtr-ahead {
+  all: unset;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgb(17 24 39 / 0.82) !important;
+  color: #f9fafb !important;
+  font: 600 12px/1 system-ui, -apple-system, sans-serif !important;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+}
+.javtr-video-bar > button {
+  cursor: pointer !important;
+}
+.javtr-video-bar > button:hover,
+.javtr-video-bar > button:focus-visible {
+  background: #4f46e5 !important;
+}
+.javtr-video-bar > .javtr-ahead {
+  color: #a5b4fc !important;
+}
+.javtr-video-bar > button.javtr-subs-btn.javtr-on {
+  background: #4f46e5 !important;
+}
+.javtr-video-bar > button.javtr-cancel {
+  padding: 6px 8px;
+}
+.javtr-video-bar [hidden] {
+  display: none !important;
+}
+.javtr-video-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #1f2937 !important;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.javtr-video-menu button {
+  all: unset;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: #f9fafb !important;
+  font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
+  cursor: pointer !important;
+}
+.javtr-video-menu button:hover,
+.javtr-video-menu button:focus-visible {
+  background: #374151 !important;
+}
+.javtr-video-status {
+  position: absolute;
+  top: 46px;
+  right: 10px;
+  max-width: min(420px, 80%);
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: rgb(17 24 39 / 0.88) !important;
+  color: #f9fafb !important;
+  font: 500 12px/1.35 system-ui, -apple-system, sans-serif !important;
+}
+.javtr-video-status[hidden] {
+  display: none !important;
+}
+.javtr-sub {
+  position: absolute;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  background: #111 !important;
+  color: #fff !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  text-align: center;
+  text-wrap: balance;
+}
+.javtr-sub[hidden] {
+  display: none !important;
+}
+/* When the <video> element itself is full screen, the English line is a native caption. */
+video[data-javtr-subs]::cue {
+  background: #111;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+}

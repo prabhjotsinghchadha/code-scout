@@ -19,6 +19,7 @@ import {
   type LinkState,
 } from '../shared/quick-links';
 import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
+import { createTranslators, translatorStatus } from '../shared/translator';
 
 const status = document.getElementById('status') as HTMLParagraphElement;
 const inlineButtons = document.getElementById('inlineButtons') as HTMLInputElement;
@@ -281,9 +282,9 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.openOnSites && !editing) void loadSites();
 });
 
-// --- Per-site lists: ▶ buttons/chip off, pop-up blocker ---
+// --- Per-site lists: ▶ buttons/chip off, pop-up blocker, video tools ---
 function siteListEditor(
-  key: 'offSites' | 'popupBlockSites',
+  key: 'offSites' | 'popupBlockSites' | 'videoSites',
   prefix: string,
   text: { remove: string; removeTitle: (host: string) => string; already: (host: string) => string },
 ) {
@@ -338,6 +339,38 @@ siteListEditor('popupBlockSites', 'popup', {
   removeTitle: (host) => `Stop blocking pop-ups on ${host}`,
   already: (host) => `Pop-ups are already blocked on ${host}.`,
 });
+siteListEditor('videoSites', 'video', {
+  remove: 'Remove',
+  removeTitle: (host) => `Turn video tools off on ${host}`,
+  already: (host) => `Video tools are already on for ${host}.`,
+});
+
+// English subtitles: Chrome downloads its Chinese/Japanese → English models once, which needs a click.
+// EN subs on a video can do it too; this is for when the page itself can't (the status says so).
+async function showTranslationStatus() {
+  const button = document.getElementById('setup-translation') as HTMLButtonElement;
+  const label = document.getElementById('translation-status')!;
+  const status = await translatorStatus();
+  if (!status) {
+    button.hidden = true;
+    label.textContent = 'English subtitles need Chrome 138 or newer (on-device translation).';
+    return;
+  }
+  const ready = status.zh === 'available' && status.ja === 'available';
+  button.hidden = ready;
+  label.textContent = ready
+    ? '✓ English subtitles are set up (Chinese and Japanese, translated on this computer).'
+    : 'One-time download of Chrome’s Chinese and Japanese translators.';
+}
+document.getElementById('setup-translation')!.addEventListener('click', () => {
+  const label = document.getElementById('translation-status')!;
+  label.textContent = 'Setting up…';
+  createTranslators((text) => (label.textContent = text)).then(
+    () => void showTranslationStatus(),
+    (err: unknown) => (label.textContent = err instanceof Error ? err.message : String(err)),
+  );
+});
+void showTranslationStatus();
 
 // Show the shortcuts actually assigned (the user may have changed or cleared them).
 async function showShortcuts() {

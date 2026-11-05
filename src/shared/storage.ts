@@ -25,6 +25,8 @@ export interface Settings {
   offSites: string[];
   /** Sites where pop-ups, ad tabs and script redirects to other sites are blocked. */
   popupBlockSites: string[];
+  /** Sites with video tools: faster loading, quality menu, download and English subtitles. */
+  videoSites: string[];
 }
 
 export const defaultSettings: Settings = {
@@ -37,6 +39,7 @@ export const defaultSettings: Settings = {
   openOnSites: [],
   offSites: [],
   popupBlockSites: [],
+  videoSites: [],
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */
