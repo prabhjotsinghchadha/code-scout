@@ -48,6 +48,7 @@ export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number })[] = [
   { since: 5, name: 'YouPorn · Japanese', url: 'https://www.youporn.com/category/japanese/', group: 'All Japanese' },
   { since: 7, name: 'Jav Guru · English subbed', url: 'https://jav.guru/category/english-subbed/' },
   { since: 8, name: '18JAV · Chinese subtitle', url: 'https://18jav.tv/categories/chinese-subtitle' },
+  { since: 9, name: 'Jable · Home (English)', url: 'https://jable.tv/?lang=en' },
 ];
 /** Built-in "Open on" sites (URL patterns checked with NSFS-484) and the seed version that added them. */
 export const BUILT_IN_SITES: (OpenOnSite & { since: number })[] = [
@@ -56,6 +57,7 @@ export const BUILT_IN_SITES: (OpenOnSite & { since: number })[] = [
   { since: 6, id: 'javmost', name: 'JavMost', template: 'https://www.javmost.ws/{code}/' },
   { since: 6, id: 'javtiful', name: 'Javtiful', template: 'https://javtiful.com/search?q={code_lower}' },
   { since: 6, id: 'javguru', name: 'Jav Guru', template: 'https://jav.guru/?s={code}' },
+  { since: 9, id: 'jable', name: 'Jable', template: 'https://jable.tv/videos/{code_lower}/' },
 ];
 
 /** Built-in groups and the seed version that introduced each. */
@@ -69,9 +71,9 @@ export const BUILT_IN_GROUPS: { name: string; since: number }[] = [
  * Bump when changing the built-ins above so existing installs receive them.
  * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
  * 4: Beeg. 5: "All Japanese" group (FapHouse, Pornhub, YouPorn). 6: "Open on" sites.
- * 7: Jav Guru English subbed. 8: 18JAV Chinese subtitle.
+ * 7: Jav Guru English subbed. 8: 18JAV Chinese subtitle. 9: Jable (quick link + Open-on site).
  */
-const QUICK_LINKS_SEED_VERSION = 8;
+const QUICK_LINKS_SEED_VERSION = 9;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
