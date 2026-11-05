@@ -2,7 +2,7 @@
 import type { OpenMode } from './codes';
 import type { OpenOnSite } from './open-on.ts';
 import type { QuickLink } from './quick-links.ts';
-import { offeredByVersion, seed } from './seed.ts';
+import { BUILT_INS, LEGACY_KEYS, offeredByVersion, seed, type BuiltIns } from './seed.ts';
 
 export type { QuickLink } from './quick-links';
 
@@ -69,24 +69,57 @@ export async function setSettings(patch: Partial<Settings>): Promise<void> {
 }
 
 export function onSettingsChanged(callback: (settings: Settings) => void): void {
-  chrome.storage.onChanged.addListener((_changes, area) => {
-    if (area === 'sync') void getSettings().then(callback);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    // Other synced keys (the built-ins record, favourites) aren't settings.
+    if (area === 'sync' && Object.keys(changes).some((k) => k in defaultSettings)) void getSettings().then(callback);
   });
 }
 
+/** The settings built-ins are added to. */
+const SEEDED_KEYS = ['quickLinks', 'linkGroups', 'openOnSites'] as const;
+
 /**
- * Offer the built-in sites, pages and groups (sites.ts) this install hasn't been offered yet. Each is
+ * Offer the built-in sites, pages and groups (sites.ts) this user hasn't been offered yet. Each is
  * offered once, so anything the user removes or renames later isn't brought back.
+ *
+ * The record of what was offered ("seededBuiltIns") is kept in sync storage, shared by the user's
+ * devices, with a copy in local storage. Sync is only written when something changed, so installing
+ * on another device never overwrites the data synced from the first one.
  */
-export async function seedBuiltIns(): Promise<void> {
+export async function seedBuiltIns(builtIns: BuiltIns = BUILT_INS): Promise<void> {
+  // Read without defaults: whether the lists exist in sync at all matters below.
+  const stored = await chrome.storage.sync.get<
+    Partial<Pick<Settings, (typeof SEEDED_KEYS)[number]>> & { seededBuiltIns?: string[] }
+  >([...SEEDED_KEYS, 'seededBuiltIns']);
   const local = await chrome.storage.local.get<{ seededBuiltIns: string[]; quickLinksSeedVersion: number }>({
     seededBuiltIns: [],
     quickLinksSeedVersion: 0, // set by installs from before keys; see offeredByVersion
   });
-  const offered = [...local.seededBuiltIns, ...offeredByVersion(local.quickLinksSeedVersion)];
-  const { quickLinks, linkGroups, openOnSites } = await getSettings();
-  const result = seed({ quickLinks, linkGroups, openOnSites }, offered);
-  if (!result) return;
-  await setSettings(result.state);
-  await chrome.storage.local.set({ seededBuiltIns: result.offered });
+  const synced = stored.seededBuiltIns ?? [];
+  // Lists in sync but no record anywhere: they were seeded on another device by a build from before the
+  // record was synced. Count everything such a build could have offered as offered.
+  const fromOlderBuild =
+    !stored.seededBuiltIns &&
+    !local.seededBuiltIns.length &&
+    !local.quickLinksSeedVersion &&
+    SEEDED_KEYS.some((k) => k in stored);
+  const offered = [
+    ...synced,
+    ...local.seededBuiltIns,
+    ...offeredByVersion(local.quickLinksSeedVersion),
+    ...(fromOlderBuild ? LEGACY_KEYS : []),
+  ];
+  const state = {
+    quickLinks: stored.quickLinks ?? [],
+    linkGroups: stored.linkGroups ?? [],
+    openOnSites: stored.openOnSites ?? [],
+  };
+  const result = seed(state, offered, builtIns);
+  const record = result?.offered ?? [...new Set(offered)];
+
+  // One write, so the lists and the record land together or not at all. Sync before local: a failed
+  // sync write must not mark anything as offered on this device.
+  const patch = { ...result?.state, ...(record.some((k) => !synced.includes(k)) && { seededBuiltIns: record }) };
+  if (Object.keys(patch).length) await chrome.storage.sync.set(patch);
+  if (record.some((k) => !local.seededBuiltIns.includes(k))) await chrome.storage.local.set({ seededBuiltIns: record });
 }

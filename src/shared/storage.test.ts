@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BUILT_INS, builtInKeys } from './seed.ts';
+import { BUILT_INS, builtInKeys, builtInsFrom, LEGACY_KEYS, offeredByVersion } from './seed.ts';
+import { GROUPS, SITES } from './sites.ts';
 import { defaultLinkName, normalizeUrl } from './storage.ts';
 
 test('normalizes quick-link URLs', () => {
@@ -23,19 +24,50 @@ test('builds readable default link names', () => {
 // --- seedBuiltIns against an in-memory chrome.storage ---
 import { seedBuiltIns, type Settings } from './storage.ts';
 
-function fakeChrome(sync: Record<string, unknown>, local: Record<string, unknown>) {
-  const area = (data: Record<string, unknown>) => ({
-    async get(keys: string | Record<string, unknown>) {
-      if (typeof keys === 'string') return keys in data ? { [keys]: data[keys] } : {};
-      return { ...keys, ...structuredClone(data) };
+/**
+ * In-memory chrome.storage. Like Chrome, get() returns only the keys asked for (stored values, else the
+ * given defaults). Every set() is logged in `writes` as "area:key,key"; `failSync` makes sync writes throw.
+ */
+function fakeChrome(sync: Record<string, unknown>, local: Record<string, unknown>, { failSync = false } = {}) {
+  const writes: string[] = [];
+  const area = (name: string, data: Record<string, unknown>) => ({
+    async get(keys: string | string[] | Record<string, unknown>) {
+      const defaults: Record<string, unknown> =
+        typeof keys === 'string' ? { [keys]: undefined } : Array.isArray(keys) ? Object.fromEntries(keys.map((k) => [k, undefined])) : keys;
+      const out: Record<string, unknown> = {};
+      for (const [k, d] of Object.entries(defaults)) {
+        if (k in data) out[k] = structuredClone(data[k]);
+        else if (d !== undefined) out[k] = d;
+      }
+      return out;
     },
     async set(patch: Record<string, unknown>) {
+      if (name === 'sync' && failSync) throw new Error('QUOTA_BYTES_PER_ITEM quota exceeded');
+      writes.push(`${name}:${Object.keys(patch).sort().join(',')}`);
       Object.assign(data, structuredClone(patch));
     },
   });
-  (globalThis as unknown as { chrome: unknown }).chrome = { storage: { sync: area(sync), local: area(local) } };
-  return { sync: sync as Partial<Settings>, local };
+  (globalThis as unknown as { chrome: unknown }).chrome = { storage: { sync: area('sync', sync), local: area('local', local) } };
+  return { sync: sync as Partial<Settings> & { seededBuiltIns?: string[] }, local, writes };
 }
+
+/** Chrome's first sync on a device whose account has data: the account's copy replaces the local one. */
+function serverMerge(sync: Record<string, unknown>, server: Record<string, unknown>) {
+  for (const k of Object.keys(sync)) delete sync[k];
+  Object.assign(sync, structuredClone(server));
+}
+
+const ALL = builtInKeys(BUILT_INS);
+const SEED_WRITE = 'sync:linkGroups,openOnSites,quickLinks,seededBuiltIns';
+/** What a user's synced lists might look like after some edits on their first device. */
+const EDITED = {
+  quickLinks: [
+    { name: 'Mine', url: 'https://mine.example/' },
+    { name: 'MissAV · English subtitle', url: 'https://missav.ws/dm23/en/english-subtitle' }, // ungrouped by the user
+  ],
+  linkGroups: ['Cheating', 'Mine'], // NTR and others deleted
+  openOnSites: [{ id: 'missav', name: 'MissAV', template: 'https://missav.ws/en/{code_lower}' }],
+};
 
 const names = (s: Partial<Settings>) => s.quickLinks!.map((l) => `${l.name}${l.group ? ` [${l.group}]` : ''}`);
 
@@ -53,9 +85,11 @@ const V10_LINKS = [
 const ALL_GROUPS = ['Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
 const ALL_SITES = ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru', 'Jable', 'SupJav', 'BestJavPorn', 'SexTB'];
 
-test('seeds everything on a fresh install', async () => {
-  const { sync, local } = fakeChrome({}, {});
+test('seeds everything on a fresh install, writing only the seeded lists and the record', async () => {
+  const { sync, local, writes } = fakeChrome({}, {});
   await seedBuiltIns();
+  assert.deepEqual(Object.keys(sync).sort(), ['linkGroups', 'openOnSites', 'quickLinks', 'seededBuiltIns']);
+  assert.deepEqual(writes, [SEED_WRITE, 'local:seededBuiltIns']);
   assert.deepEqual(sync.linkGroups, ALL_GROUPS);
   assert.deepEqual(names(sync), [
     `MissAV · English subtitle ${SUBS}`,
@@ -73,10 +107,12 @@ test('seeds everything on a fresh install', async () => {
     `Jable · Home (English) ${MORE}`,
     ...V10_LINKS,
   ]);
-  assert.deepEqual(new Set(local.seededBuiltIns as string[]), new Set(builtInKeys(BUILT_INS)));
+  assert.deepEqual(new Set(sync.seededBuiltIns), new Set(ALL));
+  assert.deepEqual(new Set(local.seededBuiltIns as string[]), new Set(ALL));
   assert.deepEqual(sync.openOnSites!.map((x) => x.name), ALL_SITES);
-  await seedBuiltIns(); // idempotent
+  await seedBuiltIns(); // nothing new: no further writes
   assert.equal(sync.quickLinks!.length, 19);
+  assert.equal(writes.length, 2);
 });
 
 test('upgrades a v1 install: groups existing built-ins, keeps removals and own links', async () => {
@@ -164,11 +200,64 @@ test('upgrades a v9 install: groups ungrouped built-ins, leaves the user\'s grou
   assert.deepEqual(sync.openOnSites!.map((x) => x.name), ['SupJav', 'BestJavPorn', 'SexTB']);
 });
 
-test('upgrades a v10 install: nothing new to offer, nothing written', async () => {
-  const before = { quickLinks: [{ name: 'X', url: 'https://x.example/' }], linkGroups: ['NTR'], openOnSites: [] };
-  const { sync, local } = fakeChrome(structuredClone(before), { quickLinksSeedVersion: 10 });
+test('upgrades a v10 install: lists untouched, record copied to sync once', async () => {
+  const { sync, writes } = fakeChrome(structuredClone(EDITED), { quickLinksSeedVersion: 10 });
   await seedBuiltIns();
-  assert.deepEqual(sync, before);
+  const { seededBuiltIns, ...lists } = sync;
+  assert.deepEqual(lists, EDITED);
+  assert.deepEqual(new Set(seededBuiltIns), new Set(offeredByVersion(10)));
+  assert.deepEqual(writes, ['sync:seededBuiltIns', 'local:seededBuiltIns']);
+  await seedBuiltIns();
+  assert.equal(writes.length, 2);
+});
+
+test('a second device whose sync already has the lists and record writes nothing to sync', async () => {
+  const { sync, writes } = fakeChrome({ ...structuredClone(EDITED), seededBuiltIns: ALL }, {});
+  await seedBuiltIns();
+  const { seededBuiltIns: _record, ...lists } = sync;
+  assert.deepEqual(lists, EDITED); // deleted groups, built-ins and the user's grouping all kept
+  assert.deepEqual(writes, ['local:seededBuiltIns']);
+});
+
+test('a second device before the first device updated: adopts the synced lists as they are', async () => {
+  const { sync, writes } = fakeChrome(structuredClone(EDITED), {}); // lists from an older build, no record
+  await seedBuiltIns();
+  const { seededBuiltIns, ...lists } = sync;
+  assert.deepEqual(lists, EDITED);
+  assert.ok(LEGACY_KEYS.every((k) => seededBuiltIns!.includes(k)));
+  assert.deepEqual(writes, ['sync:seededBuiltIns', 'local:seededBuiltIns']);
+});
+
+test('adopted lists still get built-ins added after the record moved to sync', async () => {
+  const example = { id: 'example', name: 'Example', origin: 'https://example.com', openOn: '/v/{code}', pages: [{ id: 'home', path: '/' }] };
+  const { sync } = fakeChrome(structuredClone(EDITED), {});
+  await seedBuiltIns(builtInsFrom([...SITES, example], GROUPS));
+  assert.deepEqual(sync.quickLinks, [...EDITED.quickLinks, { name: 'Example', url: 'https://example.com/' }]);
+  assert.deepEqual(sync.openOnSites!.map((s) => s.id), ['missav', 'example']);
+  assert.deepEqual(sync.linkGroups, EDITED.linkGroups);
+});
+
+test('a new profile seeded before its sync data arrived keeps the account data after the merge', async () => {
+  const { sync, writes } = fakeChrome({}, {});
+  await seedBuiltIns(); // seeded locally; sync hasn't started yet
+  serverMerge(sync, EDITED); // first sync: the account's data (from an older build, no record) wins
+  await seedBuiltIns(); // next update
+  const { seededBuiltIns, ...lists } = sync;
+  assert.deepEqual(lists, EDITED);
+  assert.deepEqual(new Set(seededBuiltIns), new Set(ALL));
+  assert.deepEqual(writes, [SEED_WRITE, 'local:seededBuiltIns', 'sync:seededBuiltIns']);
+});
+
+test('keeps record keys this build doesn\'t know (added by a newer build on another device)', async () => {
+  const { sync, local } = fakeChrome({ seededBuiltIns: ['site:future'] }, { quickLinksSeedVersion: 9 });
+  await seedBuiltIns();
+  assert.ok(sync.seededBuiltIns!.includes('site:future'));
+  assert.ok((local.seededBuiltIns as string[]).includes('site:future'));
+});
+
+test('a failed sync write records nothing, so the next update tries again', async () => {
+  const { local } = fakeChrome({}, {}, { failSync: true });
+  await assert.rejects(seedBuiltIns(), /quota/);
   assert.equal(local.seededBuiltIns, undefined);
 });
 

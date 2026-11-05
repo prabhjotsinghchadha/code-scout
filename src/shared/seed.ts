@@ -1,6 +1,6 @@
-// Offering the built-in sites, pages and groups (sites.ts) to an install: each item once, on install or
-// on the first update that has it. An install remembers the keys of what it was offered, so anything
-// the user removed, renamed or regrouped afterwards is left alone. Pure; storage.ts runs it.
+// Offering the built-in sites, pages and groups (sites.ts) to a user: each item once, on install or
+// on the first update that has it. The keys of what was offered are recorded (in sync, see storage.ts),
+// so anything the user removed, renamed or regrouped afterwards stays that way. Pure; storage.ts runs it.
 import type { OpenOnSite } from './open-on.ts';
 import { hasGroup, type QuickLink } from './quick-links.ts';
 import { GROUPS, SITES, type Site } from './sites.ts';

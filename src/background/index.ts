@@ -3,7 +3,7 @@ import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } fr
 import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { sendToTab, type Message } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
-import { defaultSettings, getSettings, seedBuiltIns } from '../shared/storage';
+import { getSettings, seedBuiltIns } from '../shared/storage';
 
 const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
@@ -37,11 +37,10 @@ function buildMenus(sites: OpenOnSite[]) {
   });
 }
 
-chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    await chrome.storage.sync.set(defaultSettings);
-  }
-  await seedBuiltIns();
+chrome.runtime.onInstalled.addListener(async () => {
+  // No defaults are written on install: getSettings() fills them in on read, and a write here could
+  // overwrite the data synced from the user's other devices.
+  await seedBuiltIns().catch((err) => console.error('Offering built-ins failed', err));
   buildMenus((await getSettings()).openOnSites);
   await syncPopupBlocker();
 });
