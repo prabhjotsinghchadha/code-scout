@@ -5,7 +5,8 @@
 //
 // Some video servers send each request slowly (18JAV's CDN: about 50 KB/s per request, while the video
 // needs about 250 KB/s) but let several requests run at once. So each segment is downloaded as parallel
-// byte ranges, with the next segments fetched ahead, and handed to the player from memory:
+// byte ranges, with the next 10 minutes of video fetched ahead (also while paused, so pausing lets it
+// load; at most 250 MB), and handed to the player from memory:
 //  - hls.js on the page (window.Hls): it gets a loader that hands it the bytes through a blob: URL, which
 //    its own loader reads instantly.
 //  - Any other player (hls.js bundled inside it, JW Player, Video.js, Shaka): the same at the network
@@ -32,9 +33,16 @@ type Loose = any;
 
   /** Requests at once to the video server. */
   const PARALLEL = 6;
-  /** Segments fetched ahead of the one the player asked for (about 2 min of video while playing). */
-  const AHEAD_PLAYING = 30;
-  const AHEAD_PAUSED = 4;
+  /**
+   * Video fetched ahead of the segment the player last asked for, in seconds: once it has started playing
+   * (paused too, so pausing lets it load), and before that or while a download runs.
+   */
+  const AHEAD_SEC = 10 * 60;
+  const AHEAD_IDLE_SEC = 20;
+  /** Fetched-ahead bytes kept in memory at most (10 min of 720p is about 150 MB). */
+  const MAX_AHEAD_BYTES = 250e6;
+  /** Segments fetched at once; the next one starts as one finishes. */
+  const MAX_IN_FLIGHT = 6;
   const limiter = new Limiter(PARALLEL);
   // Untouched copies: our own range requests mustn't go through the wrappers below.
   const nativeFetch = window.fetch;
@@ -50,6 +58,8 @@ type Loose = any;
     controller: AbortController;
     done: boolean;
     duration: number;
+    /** Bytes, once done. */
+    size: number;
   }
   /** Segment URL → where it is in its playlist. */
   const positions = new Map<string, Position>();
@@ -57,7 +67,9 @@ type Loose = any;
   const jobs = new Map<string, Job>();
   /** When the player last asked for a segment of each playlist, and which one. */
   const lastAsked = new Map<string[], number>();
-  const lastIndex = new Map<string[], number>();
+  const current = new Map<string[], Position>();
+  /** The playlist the player asked from last: the one fetched ahead. */
+  let playing: string[] | null = null;
   const players = new Map<HTMLMediaElement, Loose>();
   /** Playlist each segment list came from, and the last master playlist seen (for downloads). */
   const listUrls = new Map<string[], string>();
@@ -67,17 +79,22 @@ type Loose = any;
   /** Segments to load the player's way once (their fetch ahead failed). */
   const plainOnce = new Set<string>();
 
-  const anyPlaying = () => [...players.keys(), ...document.getElementsByTagName('video')].some((m) => !m.paused);
+  /** A video here has played (and may be paused now): not just a preview sitting on the page. */
+  const anyStarted = () => [...players.keys(), ...document.getElementsByTagName('video')].some((m) => m.played.length > 0);
 
   /** Downloads running in this frame: fetch only a little ahead meanwhile. */
   let downloads = 0;
   window.addEventListener('javtr:downloading', (e) => {
     downloads = Math.max(0, downloads + ((e as CustomEvent).detail === 'start' ? 1 : -1));
-    if (!downloads) return;
+    if (!downloads) {
+      if (playing) topUp(playing);
+      return;
+    }
     // Stop fetching what's further ahead than that (what's already here stays).
     for (const [url, job] of jobs) {
       const p = positions.get(url);
-      if (!p || job.done || p.index <= (lastIndex.get(p.list) ?? -1) + AHEAD_PAUSED) continue;
+      const cur = p && current.get(p.list);
+      if (!p || !cur || job.done || p.index <= lastWithin(cur, AHEAD_IDLE_SEC)) continue;
       job.controller.abort();
       jobs.delete(url);
     }
@@ -105,17 +122,53 @@ type Loose = any;
     list.forEach((segment, index) => positions.set(segment, { list, durations: playlist.durations, index }));
   }
 
+  const durationOf = (pos: Position, index: number) => pos.durations[index] || 4;
+
+  /** The last segment of `pos`'s playlist within `sec` seconds after `pos`. */
+  function lastWithin(pos: Position, sec: number): number {
+    let i = pos.index;
+    for (let total = 0; total < sec && i + 1 < pos.list.length; ) total += durationOf(pos, ++i);
+    return i;
+  }
+
+  /**
+   * Fetches the segments after the one the player last asked for, up to how far ahead it should be
+   * now: a few at a time, each finished one starting the next, so it carries on while the player
+   * waits (paused, its own buffer full) and stops at MAX_AHEAD_BYTES.
+   */
+  function topUp(list: string[]) {
+    const pos = current.get(list);
+    if (!pos || off || list !== playing) return;
+    let inFlight = 0;
+    let bytes = 0;
+    for (const job of jobs.values()) {
+      if (job.done) bytes += job.size;
+      else inFlight++;
+    }
+    const end = lastWithin(pos, anyStarted() && !downloads ? AHEAD_SEC : AHEAD_IDLE_SEC);
+    for (let i = pos.index + 1; i <= end && inFlight < MAX_IN_FLIGHT && bytes < MAX_AHEAD_BYTES; i++) {
+      if (jobs.has(list[i])) continue;
+      start(list[i], pos, i);
+      inFlight++;
+    }
+  }
+
   function start(url: string, pos: Position, index: number) {
     if (jobs.has(url)) return;
     const controller = new AbortController();
     const job: Job = {
       controller,
       done: false,
-      duration: pos.durations[index] ?? 0,
+      duration: durationOf(pos, index),
+      size: 0,
       promise: fetchInRanges(url, { limiter, priority: index, signal: controller.signal, parallel: 4, fetch: fetchNative }),
     };
     job.promise.then(
-      () => (job.done = true),
+      (bytes) => {
+        job.done = true;
+        job.size = bytes.byteLength;
+        topUp(pos.list);
+      },
       () => {
         // Not handed out yet: forget it, so the player's request starts afresh.
         if (jobs.get(url) === job) jobs.delete(url);
@@ -130,20 +183,22 @@ type Loose = any;
     if (!pos || off) return null;
     const now = Date.now();
     lastAsked.set(pos.list, now);
-    lastIndex.set(pos.list, pos.index);
+    current.set(pos.list, pos);
+    playing = pos.list;
+    const end = lastWithin(pos, AHEAD_SEC);
     for (const [u, job] of jobs) {
       const p = positions.get(u);
       const stale =
         !p ||
-        (p.list === pos.list && (p.index < pos.index || p.index > pos.index + AHEAD_PLAYING)) || // after a seek
+        (p.list === pos.list && (p.index < pos.index || p.index > end)) || // after a seek
         (p.list !== pos.list && now - (lastAsked.get(p.list) ?? 0) > 30_000); // a quality no longer played
       if (stale) {
         job.controller.abort();
         jobs.delete(u);
       }
     }
-    const ahead = anyPlaying() && !downloads ? AHEAD_PLAYING : AHEAD_PAUSED;
-    for (let i = pos.index; i <= Math.min(pos.list.length - 1, pos.index + ahead); i++) start(pos.list[i], pos, i);
+    start(url, pos, pos.index);
+    topUp(pos.list);
     const job = jobs.get(url);
     jobs.delete(url); // handed to the player
     return job?.promise ?? null;
