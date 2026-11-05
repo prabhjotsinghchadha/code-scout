@@ -308,8 +308,22 @@ async function pageCodes(tab: chrome.tabs.Tab | undefined): Promise<VideoCode[]>
     if (tab?.id !== undefined) codes = [...codes, ...(await sendToTab(tab.id, { type: 'GET_PAGE_CODES' })).codes];
   } catch {
     // No content script here (chrome:// pages, Web Store, or a tab opened before install).
+    noContentScript(tab);
   }
   return [...new Map(codes.map((code) => [formatCode(code), code])).values()];
+}
+
+/**
+ * A web page that didn't answer was open before Code Scout was installed, updated or reloaded: its old
+ * copy is cut off, so nothing (buttons, video tools) works there until the page is reloaded. Say so.
+ */
+function noContentScript(tab: chrome.tabs.Tab | undefined) {
+  const url = tab?.url ?? '';
+  if (!/^https?:/.test(url) || tab?.status !== 'complete') return; // still loading: the script comes later
+  if (/^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)\//.test(url)) return; // never allowed
+  $('reload-label').textContent = 'Reload the page to use Code Scout here';
+  $('reload-tab').title = 'This page was open before Code Scout was installed or updated';
+  $('reload-tab').hidden = false;
 }
 
 function renderPageCodes(codes: VideoCode[]) {

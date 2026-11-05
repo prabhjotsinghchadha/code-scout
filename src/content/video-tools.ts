@@ -1,7 +1,7 @@
 // Video tools, content-script side (on sites where "Video tools" is on): a small toolbar on each video,
-// shown while the pointer is over it.
+// shown while it's paused or the pointer is over it.
 //   ⚡ 1:20      how far ahead the video has loaded (parallel loading, video-boost.iife.ts)
-//   720p ▾       quality menu, when the stream has more than one
+//   720p ▾       quality menu, when the stream has more than one (just "720p" when it hasn't)
 //   ⬇ Download   save the video as MP4 (video-download.ts)
 //   EN subs      English over burned-in Chinese/Japanese subtitles (subs.ts)
 // The toolbar sits in a layer that follows the video on screen (pointer-events: none except the buttons);
@@ -164,7 +164,8 @@ class VideoUi {
       Object.assign(this.layer.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       this.subs?.place();
     }
-    const show = now < this.hoverUntil || !this.menu.hidden || this.busy;
+    // Like the player's own controls: shown while paused, and while the pointer is over the video.
+    const show = now < this.hoverUntil || video.paused || !this.menu.hidden || this.busy;
     this.bar.classList.toggle('javtr-show', show);
     this.status.hidden = !this.status.textContent || (now > this.statusUntil && !show);
   }
@@ -181,8 +182,16 @@ class VideoUi {
     this.ahead.textContent = `⚡ ${shortDuration(info.aheadSec)}`;
     this.ahead.title = 'Loaded ahead (faster loading is on)';
     const levels = info.levels;
-    this.quality.hidden = levels.length < 2;
-    if (levels.length < 2) return;
+    if (levels.length < 2) {
+      // One quality only (18JAV serves just 720p): say so, rather than leaving people looking for a menu.
+      const height = levels[0]?.height || this.video.videoHeight;
+      this.quality.hidden = !height;
+      this.quality.textContent = `${height}p`;
+      this.quality.title = 'The only quality this site offers';
+      return;
+    }
+    this.quality.hidden = false;
+    this.quality.title = 'Video quality';
     const playing = levels[info.currentLevel];
     const name = playing ? levelName(playing) : 'Quality';
     this.quality.textContent = `${info.auto ? `Auto · ${name}` : name} ▾`;
@@ -194,8 +203,12 @@ class VideoUi {
       return;
     }
     const info = this.info;
-    if (!info || info.levels.length < 2) return;
-    const item = (label: string, level: number, current: boolean) => {
+    if (!info) return;
+    if (info.levels.length < 2) {
+      this.say(`This site only offers ${this.quality.textContent}. Faster loading (⚡) is on instead.`);
+      return;
+    }
+    const item =(label: string, level: number, current: boolean) => {
       const b = button('javtr-menu-item', `${current ? '✓ ' : ''}${label}`, '');
       onActivate(b, () => {
         this.video.dispatchEvent(new CustomEvent('javtr:set-level', { detail: String(level) }));
@@ -213,7 +226,10 @@ class VideoUi {
   }
 
   private source(): DownloadSource | null {
-    if (this.info?.manifestUrl) return { playlistUrl: this.info.manifestUrl, playingUrl: this.info.levelUrl || undefined };
+    // Several qualities: the one picked in the menu, else (Auto, which may have dropped on a slow
+    // connection) the best one.
+    const info = this.info;
+    if (info?.manifestUrl) return { playlistUrl: info.manifestUrl, playingUrl: (!info.auto && info.levelUrl) || undefined };
     const src = this.video.currentSrc;
     if (/^https?:/i.test(src)) return /\.m3u8(\?|#|$)/i.test(src) ? { playlistUrl: src } : { fileUrl: src };
     // A player other than hls.js: the newest playlist the page loaded.
