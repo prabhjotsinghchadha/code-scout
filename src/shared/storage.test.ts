@@ -45,7 +45,7 @@ const names = (s: Partial<Settings>) => s.quickLinks!.map((l) => `${l.name}${l.g
 test('seeds everything on a fresh install', async () => {
   const { sync, local } = fakeChrome({}, {});
   await seedQuickLinks();
-  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR']);
+  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR', 'All Japanese']);
   assert.deepEqual(names(sync), [
     'MissAV · English subtitle',
     'JavMost · Cuckold [Cuckold]',
@@ -54,10 +54,13 @@ test('seeds everything on a fresh install', async () => {
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
     'Beeg · Cuckold Japanese [Cuckold]',
+    'FapHouse · Japanese [All Japanese]',
+    'Pornhub · Japanese [All Japanese]',
+    'YouPorn · Japanese [All Japanese]',
   ]);
-  assert.equal(local.quickLinksSeedVersion, 4);
+  assert.equal(local.quickLinksSeedVersion, 5);
   await seedQuickLinks(); // idempotent
-  assert.equal(sync.quickLinks!.length, 7);
+  assert.equal(sync.quickLinks!.length, 10);
 });
 
 test('upgrades a v1 install: groups existing built-ins, keeps removals and own links', async () => {
@@ -79,8 +82,11 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
     'Beeg · Cuckold Japanese [Cuckold]',
+    'FapHouse · Japanese [All Japanese]',
+    'Pornhub · Japanese [All Japanese]',
+    'YouPorn · Japanese [All Japanese]',
   ]);
-  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR']);
+  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR', 'All Japanese']);
 });
 
 test('upgrades a v2 install: only adds links from v3 on', async () => {
@@ -95,15 +101,24 @@ test('upgrades a v2 install: only adds links from v3 on', async () => {
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
     'Beeg · Cuckold Japanese [Cuckold]',
+    'FapHouse · Japanese [All Japanese]',
+    'Pornhub · Japanese [All Japanese]',
+    'YouPorn · Japanese [All Japanese]',
   ]);
-  assert.deepEqual(sync.linkGroups, ['NTR', 'Cheating']); // user's group order untouched
+  assert.deepEqual(sync.linkGroups, ['NTR', 'Cheating', 'All Japanese']); // user's order kept, new group appended
 });
 
-test('upgrades a v3 install: only adds the Beeg link', async () => {
+test('upgrades a v3 install: adds Beeg and the All Japanese group', async () => {
   const { sync } = fakeChrome(
     { quickLinks: [{ name: 'X', url: 'https://x.example/' }], linkGroups: ['Cuckold'] },
     { quickLinksSeedVersion: 3 },
   );
   await seedQuickLinks();
-  assert.deepEqual(names(sync), ['X', 'Beeg · Cuckold Japanese [Cuckold]']);
+  assert.deepEqual(names(sync), ['X', 'Beeg · Cuckold Japanese [Cuckold]', 
+    'FapHouse · Japanese [All Japanese]',
+    'Pornhub · Japanese [All Japanese]',
+    'YouPorn · Japanese [All Japanese]',
+  ]);
+  // A user who deleted NTR before v3 doesn't get it back.
+  assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese']);
 });

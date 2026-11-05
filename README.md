@@ -9,7 +9,7 @@ Spot video codes like `NSFS-484` on any website and open their trailer on javtra
 - **Keyboard shortcuts** — select a code, or put the caret on one in a text box: `Alt+Shift+J` opens the trailer, `Alt+Shift+K` searches. Change them at `chrome://extensions/shortcuts`.
 - **Right-click menu** — on selected text: *Open trailer for "…"* / *Search javtrailers for "…"*. On links: looks for a code in the URL.
 - **Popup** — type a code (Open / Search), see every code on the current page, and your **Quick links**.
-- **Quick links in groups** — save sites or category pages (*+ Add this page* in the popup picks a group, or create a new one), organized into collapsible groups like Cheating / Cuckold / NTR, each with **Open all**. Rename, reorder and regroup in Settings. Comes with a few built-in links (MissAV, JavLibrary, JavMost, Javtiful, JavTrailers categories, Beeg) — edit or remove freely.
+- **Quick links in groups** — save sites or category pages (*+ Add this page* in the popup picks a group, or create a new one), organized into collapsible groups like Cheating / Cuckold / NTR / All Japanese, each with **Open all**. Rename, reorder and regroup in Settings. Comes with a few built-in links (MissAV, JavLibrary, JavMost, Javtiful, JavTrailers categories, Beeg, and Japanese sections of FapHouse, Pornhub, YouPorn) — edit or remove freely.
 - **Settings** — what "Open" does (direct video page by default, or search page), background tabs, turn the chip or ▶ buttons off.
 
 Built with **Vite + TypeScript** and [CRXJS](https://crxjs.dev/) (Manifest V3).

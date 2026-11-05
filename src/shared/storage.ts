@@ -36,14 +36,23 @@ export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number })[] = [
   { since: 3, name: 'JavTrailers · Cheating Wife', url: 'https://javtrailers.com/categories/cheating-wife', group: 'Cheating' },
   { since: 3, name: 'JavTrailers · Adultery', url: 'https://javtrailers.com/categories/adultery', group: 'Cheating' },
   { since: 4, name: 'Beeg · Cuckold Japanese', url: 'https://beeg.com/Cuckold+Japanese', group: 'Cuckold' },
+  { since: 5, name: 'FapHouse · Japanese', url: 'https://faphouse2.com/c/japanese/videos', group: 'All Japanese' },
+  { since: 5, name: 'Pornhub · Japanese', url: 'https://www.pornhub.com/categories/japanese', group: 'All Japanese' },
+  { since: 5, name: 'YouPorn · Japanese', url: 'https://www.youporn.com/category/japanese/', group: 'All Japanese' },
 ];
-export const BUILT_IN_GROUPS = ['Cheating', 'Cuckold', 'NTR'];
+/** Built-in groups and the seed version that introduced each. */
+export const BUILT_IN_GROUPS: { name: string; since: number }[] = [
+  { name: 'Cheating', since: 2 },
+  { name: 'Cuckold', since: 2 },
+  { name: 'NTR', since: 2 },
+  { name: 'All Japanese', since: 5 },
+];
 /**
  * Bump when changing the built-ins above so existing installs receive them.
  * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
- * 4: Beeg.
+ * 4: Beeg. 5: "All Japanese" group (FapHouse, Pornhub, YouPorn).
  */
-const QUICK_LINKS_SEED_VERSION = 4;
+const QUICK_LINKS_SEED_VERSION = 5;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
@@ -100,8 +109,9 @@ export async function seedQuickLinks(): Promise<void> {
   if (version >= QUICK_LINKS_SEED_VERSION) return;
   let { quickLinks, linkGroups } = await getSettings();
 
+  const newGroups = BUILT_IN_GROUPS.filter((g) => g.since > version && !hasGroup(linkGroups, g.name));
+  linkGroups = [...linkGroups, ...newGroups.map((g) => g.name)];
   if (version < 2) {
-    linkGroups = [...linkGroups, ...BUILT_IN_GROUPS.filter((g) => !hasGroup(linkGroups, g))];
     // Put built-in links the user already has (and hasn't grouped) into their group.
     quickLinks = quickLinks.map((l) => {
       const group = !l.group && BUILT_IN_QUICK_LINKS.find((b) => b.url === l.url)?.group;
