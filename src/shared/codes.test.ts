@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findCodes, formatCode, parseCode, searchUrl, trailerUrl, videoUrl } from './codes.ts';
+import {
+  codeNearCaret,
+  findCodes,
+  findTypedCodes,
+  formatCode,
+  parseCode,
+  searchUrl,
+  trailerUrl,
+  videoUrl,
+} from './codes.ts';
 
 const fmt = (text: string) => {
   const c = parseCode(text);
@@ -46,4 +55,25 @@ test('builds javtrailers URLs', () => {
   assert.equal(videoUrl(code), 'https://javtrailers.com/video/nsfs00484');
   assert.equal(trailerUrl(code, 'video'), 'https://javtrailers.com/video/nsfs00484');
   assert.equal(trailerUrl(parseCode('300MIUM-123')!, 'video'), 'https://javtrailers.com/search/300mium-123');
+});
+
+test('finds codes typed into fields', () => {
+  const typed = (t: string) => findTypedCodes(t).map((m) => formatCode(m.code));
+  assert.deepEqual(typed('looking for nsfs-484 trailer'), ['NSFS-484']);
+  assert.deepEqual(typed('nsfs00484'), ['NSFS-484']);
+  assert.deepEqual(typed('  NSFS 484 '), ['NSFS-484']);
+  assert.deepEqual(typed('ssis-001, ipx-123'), ['SSIS-001', 'IPX-123']);
+  assert.deepEqual(typed('hello there'), []);
+  assert.deepEqual(typed('my sha-256 hash'), []);
+  // Hyphen-less codes only count when they are the whole field.
+  assert.deepEqual(typed('see nsfs484 later'), []);
+});
+
+test('picks the code nearest the caret', () => {
+  const text = 'SSIS-001 and NSFS-484 and IPX-123';
+  const at = (caret: number) => formatCode(codeNearCaret(text, caret)!);
+  assert.equal(at(0), 'SSIS-001');
+  assert.equal(at(15), 'NSFS-484');
+  assert.equal(at(text.length), 'IPX-123');
+  assert.equal(codeNearCaret('nothing here', 3), null);
 });

@@ -10,7 +10,8 @@
     <main>
       <form id="search">
         <input id="code-input" type="text" placeholder="Enter a code, e.g. NSFS-484" autocomplete="off" autofocus />
-        <button type="submit">Open</button>
+        <button type="submit" title="Open the video page">Open</button>
+        <button type="button" id="search-btn" class="secondary" title="Search javtrailers.com">Search</button>
       </form>
       <p id="error" class="error" hidden></p>
 
@@ -20,8 +21,22 @@
         <p id="empty" class="muted" hidden>No codes found on this page.</p>
       </section>
 
+      <section>
+        <div class="section-head">
+          <h2>Quick links</h2>
+          <button type="button" id="add-page" class="link-button" title="Save the current page as a quick link">+ Add this page</button>
+        </div>
+        <div id="links" class="links"></div>
+        <p id="links-empty" class="muted" hidden>
+          No quick links yet. <a href="#" id="add-links">Add sites in Settings</a>
+        </p>
+      </section>
+
       <footer>
-        <label class="row"><input type="checkbox" id="inline" /> Show ▶ buttons on pages</label>
+        <div class="toggles">
+          <label class="row"><input type="checkbox" id="inline" /> ▶ buttons on pages</label>
+          <label class="row"><input type="checkbox" id="chip" /> Chip when typing a code</label>
+        </div>
         <a href="#" id="open-options">Settings</a>
       </footer>
     </main>

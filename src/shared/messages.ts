@@ -1,13 +1,17 @@
 // Typed messages passed between popup, background and content scripts.
-import type { VideoCode } from './codes';
+import type { OpenMode, VideoCode } from './codes';
 
 export type Message =
-  | { type: 'OPEN_CODE'; code: VideoCode }
-  | { type: 'GET_PAGE_CODES' };
+  /** Open a code; `mode` overrides the "Open" setting (e.g. 'search' for the Search buttons). */
+  | { type: 'OPEN_CODE'; code: VideoCode; mode?: OpenMode }
+  | { type: 'GET_PAGE_CODES' }
+  /** The code the user has selected, or is typing in the focused field. */
+  | { type: 'GET_ACTIVE_CODE' };
 
 export interface MessageResponses {
   OPEN_CODE: { ok: true };
   GET_PAGE_CODES: { codes: VideoCode[] };
+  GET_ACTIVE_CODE: { code: VideoCode | null; text: string };
 }
 
 export function sendToBackground<M extends Message>(message: M): Promise<MessageResponses[M['type']]> {

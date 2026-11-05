@@ -12,6 +12,17 @@
       label { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; }
       small { display: block; opacity: 0.7; }
       #status { color: #16a34a; min-height: 1.2em; }
+      .hint { margin: 4px 0; opacity: 0.8; }
+      .shortcuts { margin: 6px 0 10px; padding-left: 0; list-style: none; line-height: 1.9; }
+      .links { list-style: none; padding: 0; margin: 6px 0 10px; }
+      .links li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent); }
+      .links li span { flex: 1; min-width: 0; }
+      .links li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .links li button { padding: 2px 8px; }
+      .add-link { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+      .add-link input { flex: 1 1 160px; padding: 5px 8px; font: inherit; }
+      .error { color: #dc2626; }
+      kbd { display: inline-block; min-width: 92px; padding: 1px 6px; margin-right: 6px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; font: 12px ui-monospace, monospace; }
     </style>
   </head>
   <body>
@@ -38,8 +49,35 @@
         <legend>On web pages</legend>
         <label>
           <input type="checkbox" id="inlineButtons" />
-          <span>Show a ▶ button next to codes <small>Right-click → “Open trailer” on selected text works either way</small></span>
+          <span>Show a ▶ button next to codes on pages</span>
         </label>
+        <label>
+          <input type="checkbox" id="fieldChip" />
+          <span>Show an Open / Search chip when I type a code into a text box <small>Search boxes, comment fields, editors — on any site. Press Esc to hide it.</small></span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Always available</legend>
+        <p class="hint">Select a code (or put the caret on one in a text box), then:</p>
+        <ul class="shortcuts">
+          <li><kbd id="key-open">Alt+Shift+J</kbd> Open trailer</li>
+          <li><kbd id="key-search">Alt+Shift+K</kbd> Search javtrailers.com</li>
+          <li>Right-click → <em>Open trailer for “…”</em> / <em>Search javtrailers for “…”</em></li>
+        </ul>
+        <button type="button" id="edit-shortcuts">Change shortcuts</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Quick links</legend>
+        <p class="hint">Sites or pages you want one click away in the popup. Tip: use <em>+ Add this page</em> in the popup while you’re on a page.</p>
+        <ul id="links" class="links"></ul>
+        <form id="add-link" class="add-link">
+          <input id="link-url" type="text" placeholder="https://example.com/category/…" required />
+          <input id="link-name" type="text" placeholder="Name (optional)" />
+          <button type="submit">Add</button>
+        </form>
+        <p id="link-error" class="error" hidden></p>
       </fieldset>
 
       <p id="status"></p>

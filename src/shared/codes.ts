@@ -60,6 +60,36 @@ export function findCodes(text: string): CodeMatch[] {
   return matches;
 }
 
+const HYPHEN_PATTERN_G = new RegExp(HYPHEN_PATTERN.source, 'gi');
+const LOOSE_EXACT = /^\s*([A-Za-z]{2,8})[ _]?(\d{2,6})\s*$/;
+
+/**
+ * Codes in text the user typed into a field: any-case "nsfs-484" anywhere,
+ * or the whole field being a code without hyphen ("nsfs00484", "NSFS 484").
+ */
+export function findTypedCodes(text: string): CodeMatch[] {
+  const matches: CodeMatch[] = [];
+  for (const m of text.matchAll(HYPHEN_PATTERN_G)) {
+    const code = toCode(m[1], m[2]);
+    if (code) matches.push({ code, index: m.index, length: m[0].length });
+  }
+  if (matches.length === 0) {
+    const m = text.match(LOOSE_EXACT);
+    const code = m && toCode(m[1], m[2]);
+    if (m && code) matches.push({ code, index: text.indexOf(m[1]), length: m[0].trim().length });
+  }
+  return matches;
+}
+
+/** The typed code under the caret, else the closest one before it, else the first. */
+export function codeNearCaret(text: string, caret: number): VideoCode | null {
+  const matches = findTypedCodes(text);
+  if (matches.length === 0) return null;
+  const containing = matches.find((m) => caret >= m.index && caret <= m.index + m.length);
+  const before = matches.filter((m) => m.index + m.length <= caret).at(-1);
+  return (containing ?? before ?? matches[0]).code;
+}
+
 /** "NSFS-484" */
 export function formatCode({ prefix, number }: VideoCode): string {
   return `${prefix.toUpperCase()}-${String(number).padStart(3, '0')}`;

@@ -4,10 +4,13 @@ Spot video codes like `NSFS-484` on any website and open their trailer on javtra
 
 ## Features
 
-- **▶ buttons on pages** — a small button appears next to every code found on a page (also on content loaded later). Click it to open the trailer.
-- **Right-click menu** — select any text (`NSFS-484`, `nsfs00484`, `NSFS 484`) → *Open trailer for "…"*. Also works on links whose URL contains a code.
-- **Popup** — lists every code on the current page, plus a box to type one in.
-- **Settings** — open the video page directly (`/video/nsfs00484`, default) or the search page (`/search/nsfs-484`), open in a background tab, turn the inline buttons off.
+- **Type a code anywhere** — type `NSFS-484` (or `nsfs00484`) into any search box, comment field or editor on any site and a small chip appears under it: **▶ Open** or **Search**. Esc hides it.
+- **▶ buttons on pages** — a small button appears next to every code shown on a page (also on content loaded later).
+- **Keyboard shortcuts** — select a code, or put the caret on one in a text box: `Alt+Shift+J` opens the trailer, `Alt+Shift+K` searches. Change them at `chrome://extensions/shortcuts`.
+- **Right-click menu** — on selected text: *Open trailer for "…"* / *Search javtrailers for "…"*. On links: looks for a code in the URL.
+- **Popup** — type a code (Open / Search), see every code on the current page, and your **Quick links**.
+- **Quick links** — save sites or category pages you visit often (*+ Add this page* in the popup, or Settings) and open them in one click.
+- **Settings** — what "Open" does (direct video page by default, or search page), background tabs, turn the chip or ▶ buttons off.
 
 Built with **Vite + TypeScript** and [CRXJS](https://crxjs.dev/) (Manifest V3).
 

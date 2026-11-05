@@ -27,8 +27,19 @@ export default defineManifest({
     {
       matches: ['<all_urls>'],
       js: ['src/content/index.ts'],
+      css: ['src/content/content.css'],
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'contextMenus'],
+  permissions: ['storage', 'contextMenus', 'activeTab'],
+  commands: {
+    'open-trailer': {
+      suggested_key: { default: 'Alt+Shift+J' },
+      description: 'Open trailer for the selected or typed code',
+    },
+    'search-trailer': {
+      suggested_key: { default: 'Alt+Shift+K' },
+      description: 'Search javtrailers.com for the selected or typed code',
+    },
+  },
 });
