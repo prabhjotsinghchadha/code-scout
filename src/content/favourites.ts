@@ -58,6 +58,6 @@ export async function toggleStar(code: VideoCode, page: FavouritePage | null): P
   try {
     await toggleFavourite(code, page);
   } catch (err) {
-    alert(`JAV Trailer Opener: ${favouriteError(err)}`);
+    alert(`${chrome.runtime.getManifest().name}: ${favouriteError(err)}`);
   }
 }

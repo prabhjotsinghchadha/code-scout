@@ -3,8 +3,8 @@ import pkg from './package.json' with { type: 'json' };
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'JAV Trailer Opener',
-  description: 'Spot video codes like NSFS-484 on any page and open their trailer on javtrailers.com in a new tab.',
+  name: 'Code Scout',
+  description: 'Spot catalogue codes on any page and open them in one click, with favourites, quick links and video tools.',
   version: pkg.version,
   icons: {
     16: 'icons/icon-16.png',
@@ -54,7 +54,7 @@ export default defineManifest({
     },
     'search-trailer': {
       suggested_key: { default: 'Alt+Shift+K' },
-      description: 'Search javtrailers.com for the selected or typed code',
+      description: 'Search trailers for the selected or typed code',
     },
     'open-on-all': {
       suggested_key: { default: 'Alt+Shift+L' },

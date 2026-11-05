@@ -258,7 +258,7 @@ type Loose = any;
         };
       }
     } catch (err) {
-      console.warn('[JAV Trailer Opener] Could not speed up this player:', err);
+      console.warn('[Code Scout] Could not speed up this player:', err);
     }
     return Hls;
   }

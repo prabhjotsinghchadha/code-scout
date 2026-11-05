@@ -1,4 +1,4 @@
-// A copy of the favourites in a bookmarks folder, "JAV Trailer Opener favourites". Removing the extension
+// A copy of the favourites in a bookmarks folder, "Code Scout favourites". Removing the extension
 // deletes all of its storage, the synced copy included, but not your bookmarks; so after a reinstall the
 // favourites come back from the folder. With bookmark sync on, the folder is in your Google account too.
 //
@@ -18,7 +18,9 @@ import {
   type FavouriteData,
 } from './favourites.ts';
 
-export const BACKUP_FOLDER = 'JAV Trailer Opener favourites';
+export const BACKUP_FOLDER = 'Code Scout favourites';
+/** The folder's names from before the extension was renamed; found and renamed to BACKUP_FOLDER. */
+const OLD_FOLDERS = ['JAV Trailer Opener favourites'];
 const SEP = ' · ';
 
 export interface BookmarkData {
@@ -127,7 +129,7 @@ export function restorePatch(nodes: BackupNode[]): Record<string, FavouriteData>
 async function backup(): Promise<{ folders: BackupNode[]; nodes: BackupNode[] }> {
   const folders: chrome.bookmarks.BookmarkTreeNode[] = [];
   const walk = (n: chrome.bookmarks.BookmarkTreeNode) => {
-    if (!n.url && n.title === BACKUP_FOLDER) folders.push(n);
+    if (!n.url && (n.title === BACKUP_FOLDER || OLD_FOLDERS.includes(n.title))) folders.push(n);
     else n.children?.forEach(walk);
   };
   (await chrome.bookmarks.getTree()).forEach(walk);
@@ -141,6 +143,7 @@ export async function updateBackup(): Promise<void> {
   const markers = Object.keys(await chrome.storage.local.get(null)).filter((k) => k.startsWith(UNSTARRED_PREFIX));
   const unstarred = new Set(markers.map((k) => k.slice(UNSTARRED_PREFIX.length)));
   const [favs, { folders, nodes }] = await Promise.all([getFavourites(), backup()]);
+  for (const f of folders) if (f.title !== BACKUP_FOLDER) await chrome.bookmarks.update(f.id, { title: BACKUP_FOLDER });
   const { create, remove } = planBackup(favs, nodes, unstarred);
   for (const id of remove) await chrome.bookmarks.remove(id).catch(() => {}); // already gone (synced)
   if (create.length) {

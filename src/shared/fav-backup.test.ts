@@ -110,6 +110,9 @@ function fakeChrome() {
       marks.push(m);
       return m;
     },
+    async update(id: string, { title }: { title: string }) {
+      marks.find((m) => m.id === id)!.title = title;
+    },
     async remove(id: string) {
       const i = marks.findIndex((m) => m.id === id);
       if (i < 0) throw new Error("Can't find bookmark for id.");
@@ -154,4 +157,15 @@ test('backup survives a wipe and brings favourites back; un-starring here remove
   assert.deepEqual(c.local, {}); // the un-star note is done with
   await updateBackup();
   assert.deepEqual(c.inFolder(), ['MD-273', 'Some video']);
+});
+
+test('a backup folder with the old name is found and renamed', async () => {
+  const c = fakeChrome();
+  const old = await chrome.bookmarks.create({ title: 'JAV Trailer Opener favourites' });
+  await chrome.bookmarks.create({ parentId: old.id, title: 'NSFS-484', url: 'https://javtrailers.com/search/nsfs-484' });
+  await updateBackup();
+  assert.equal(c.marks.find((m) => m.id === old.id)!.title, BACKUP_FOLDER);
+  assert.deepEqual(c.inFolder(), ['NSFS-484']);
+  assert.equal(await restoreFromBackup(), true);
+  assert.deepEqual((await getFavourites()).map((f) => f.code), [nsfs]);
 });

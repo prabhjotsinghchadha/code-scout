@@ -22,7 +22,7 @@ function buildMenus(sites: OpenOnSite[]) {
   chrome.contextMenus.removeAll(() => {
     // "selection" also covers text selected inside inputs and textareas.
     chrome.contextMenus.create({ id: MENU_OPEN, title: 'Open trailer for “%s”', contexts: ['selection'] });
-    chrome.contextMenus.create({ id: MENU_SEARCH, title: 'Search javtrailers for “%s”', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_SEARCH, title: 'Search trailers for “%s”', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_FAVOURITE, title: 'Add “%s” to favourites', contexts: ['selection'] });
     if (sites.length) {
       chrome.contextMenus.create({ id: MENU_SITES, title: 'Open “%s” on', contexts: ['selection'] });
@@ -142,7 +142,7 @@ function countBlocked(tabId: number) {
   blockedCount.set(tabId, n);
   void chrome.action.setBadgeBackgroundColor({ tabId, color: '#dc2626' });
   void chrome.action.setBadgeText({ tabId, text: String(n) });
-  void chrome.action.setTitle({ tabId, title: `JAV Trailer Opener — blocked ${n} pop-up${n === 1 ? '' : 's'} / redirect${n === 1 ? '' : 's'} here` });
+  void chrome.action.setTitle({ tabId, title: `${chrome.runtime.getManifest().name} — blocked ${n} pop-up${n === 1 ? '' : 's'} / redirect${n === 1 ? '' : 's'} here` });
 }
 
 chrome.tabs.onCreated.addListener(async (tab) => {
