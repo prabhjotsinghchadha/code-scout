@@ -1,9 +1,11 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
 import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
+import { ACTRESS_LINK_PATTERNS, addActress, capitalized, cleanName, isActressKey, looksLikeActressUrl, nameFromUrl } from '../shared/actresses';
 import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
 import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
+import { addTag, isTagKey, TAG_LINK_PATTERNS, tagNameFromUrl } from '../shared/tags';
 import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
 import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
@@ -14,6 +16,9 @@ const MENU_SEARCH = 'search-trailer-selection';
 const MENU_LINK = 'open-trailer-link';
 const MENU_FAVOURITE = 'favourite-selection';
 const MENU_FAVOURITE_PAGE = 'favourite-page';
+const MENU_ACTRESS = 'actress-selection';
+const MENU_ACTRESS_LINK = 'actress-link';
+const MENU_TAG_LINK = 'tag-link';
 const MENU_SITES = 'open-on';
 const MENU_SITE_PREFIX = 'open-on:';
 const MENU_SITES_ALL = 'open-on:*all';
@@ -25,6 +30,7 @@ function buildMenus(sites: OpenOnSite[]) {
     chrome.contextMenus.create({ id: MENU_OPEN, title: 'Open trailer for “%s”', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_SEARCH, title: 'Search trailers for “%s”', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_FAVOURITE, title: 'Add “%s” to favourites', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_ACTRESS, title: 'Add “%s” to favourite actresses', contexts: ['selection'] });
     if (sites.length) {
       chrome.contextMenus.create({ id: MENU_SITES, title: 'Open “%s” on', contexts: ['selection'] });
       for (const site of sites) {
@@ -41,6 +47,20 @@ function buildMenus(sites: OpenOnSite[]) {
       }
     }
     chrome.contextMenus.create({ id: MENU_LINK, title: 'Open trailer for this link', contexts: ['link'] });
+    // Only on links to an actress's page ("/actresses/Yua Mikami", "/casts/…").
+    chrome.contextMenus.create({
+      id: MENU_ACTRESS_LINK,
+      title: 'Add this actress to favourites',
+      contexts: ['link'],
+      targetUrlPatterns: ACTRESS_LINK_PATTERNS,
+    });
+    // Only on links to a tag's page ("/categories/cheating-wife", "/genres/NTR", "/tag/…").
+    chrome.contextMenus.create({
+      id: MENU_TAG_LINK,
+      title: 'Add this tag to favourites',
+      contexts: ['link'],
+      targetUrlPatterns: TAG_LINK_PATTERNS,
+    });
     chrome.contextMenus.create({
       id: MENU_FAVOURITE_PAGE,
       title: 'Add this page to favourites',
@@ -82,7 +102,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.openOnSites) buildMenus((changes.openOnSites.newValue as OpenOnSite[]) ?? []);
   if (area === 'sync' && (changes.popupBlockSites || changes.videoTools || changes.videoOffSites)) void syncPageScripts();
   const unstarred = (key: string) => key.startsWith(UNSTARRED_PREFIX) && changes[key].newValue !== undefined;
-  if (Object.keys(changes).some(area === 'sync' ? isFavKey : unstarred)) void backUpFavourites();
+  const favKey = (key: string) => isFavKey(key) || isActressKey(key) || isTagKey(key);
+  if (Object.keys(changes).some(area === 'sync' ? favKey : unstarred)) void backUpFavourites();
 });
 
 // --- Page-world scripts, registered only on the sites that use them ---
@@ -240,6 +261,40 @@ async function openText(text: string, sourceTab?: chrome.tabs.Tab, mode?: OpenMo
   else if (text.trim()) await openUrls([rawSearchUrl(text.slice(0, 100))], sourceTab);
 }
 
+const notSaved = (err: unknown) => console.warn('Favourite not saved:', favouriteError(err));
+
+/**
+ * The name a right-clicked link shows (an actress's, a tag's): its text, asked of the page as the menu only
+ * gets the address; else read from the address with `fromUrl`. Null if neither has one.
+ */
+async function nameOfLink(
+  linkUrl: string,
+  tab: chrome.tabs.Tab | undefined,
+  frameId: number | undefined,
+  fromUrl: (url: string) => string | null,
+): Promise<string | null> {
+  let text = '';
+  if (tab?.id !== undefined) {
+    const link = await sendToTab(tab.id, { type: 'GET_CONTEXT_LINK' }, frameId).catch(() => null);
+    if (link?.url === linkUrl) text = link.text;
+  }
+  return cleanName(text) ?? fromUrl(linkUrl);
+}
+
+/** Saves the actress whose link was right-clicked, with the link as her page. */
+async function addActressFromLink(linkUrl: string, tab: chrome.tabs.Tab | undefined, frameId: number | undefined) {
+  const name = await nameOfLink(linkUrl, tab, frameId, nameFromUrl);
+  if (name) await addActress(name, linkUrl);
+  else console.warn('No actress name in this link:', linkUrl);
+}
+
+/** Saves the tag whose link was right-clicked, adding the link to its pages if it's saved already. */
+async function addTagFromLink(linkUrl: string, tab: chrome.tabs.Tab | undefined, frameId: number | undefined) {
+  const name = await nameOfLink(linkUrl, tab, frameId, tagNameFromUrl);
+  if (name) await addTag(capitalized(name), linkUrl);
+  else console.warn('No tag name in this link:', linkUrl);
+}
+
 /** Open a code on one site (by id) or on all of them (siteId undefined). */
 async function openOn(code: VideoCode, siteId: string | undefined, sourceTab?: chrome.tabs.Tab) {
   const { openOnSites } = await getSettings();
@@ -257,12 +312,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     const code = parseCode(info.selectionText);
     // Selected in a text box means typed, not shown on the page: save no page then.
     const page = !info.editable && info.pageUrl ? { url: info.pageUrl, title: tab?.title } : null;
-    if (code) void addFavourite(code, page).catch((err) => console.warn('Favourite not saved:', favouriteError(err)));
+    if (code) void addFavourite(code, page).catch(notSaved);
+  } else if (id === MENU_ACTRESS && info.selectionText) {
+    // Selected on her own page ("/actresses/Yua Mikami"): that's her page.
+    const page = !info.editable && info.pageUrl && looksLikeActressUrl(info.pageUrl) ? info.pageUrl : null;
+    void addActress(info.selectionText, page).catch(notSaved);
+  } else if (id === MENU_ACTRESS_LINK && info.linkUrl) {
+    void addActressFromLink(info.linkUrl, tab, info.frameId).catch(notSaved);
+  } else if (id === MENU_TAG_LINK && info.linkUrl) {
+    void addTagFromLink(info.linkUrl, tab, info.frameId).catch(notSaved);
   } else if (id === MENU_FAVOURITE_PAGE && info.pageUrl) {
     // The code in the page's address if it has one ("/videos/MD0273"), else the page itself.
-    void addPageFavourite({ url: info.pageUrl, title: tab?.title }).catch((err) =>
-      console.warn('Favourite not saved:', favouriteError(err)),
-    );
+    void addPageFavourite({ url: info.pageUrl, title: tab?.title }).catch(notSaved);
   } else if (id.startsWith(MENU_SITE_PREFIX) && info.selectionText) {
     const code = parseCode(info.selectionText);
     if (code) void openOn(code, id === MENU_SITES_ALL ? undefined : id.slice(MENU_SITE_PREFIX.length), tab);

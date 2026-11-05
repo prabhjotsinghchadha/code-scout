@@ -176,6 +176,19 @@ body {
   color: var(--accent-text);
   text-decoration: none;
 }
+/* A favourite tag's pages: one chip per site, under its name */
+.list li.tag .tag-pages {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 1px 0 3px;
+}
+.list li.tag .tag-pages .chip {
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}
 
 /* Quick links: search, group pills, then tiles */
 .links-bar {

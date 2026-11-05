@@ -6,7 +6,8 @@ import { openSiteMenu } from './site-menu';
 import { markUi, onUi } from './ui-events';
 
 const BUTTON_CLASS = 'javtr-open-btn';
-const SKIP_TAGS = new Set([
+/** Elements whose text is never decorated (also used for the favourite marks, favourite-marks.ts). */
+export const SKIP_TAGS = new Set([
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'BUTTON', 'svg', 'CANVAS', 'IFRAME',
 ]);
 

@@ -1,4 +1,4 @@
-import { codeInUrl, formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
+import { codeInUrl, findCodes, formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
 import {
   favouriteError,
   favouriteFor,
@@ -15,7 +15,9 @@ import { hydrateIcons, icon, type IconName } from '../shared/icons';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
+import { setupActresses } from './actresses';
 import { setupLinks } from './links';
+import { setupTags } from './tags';
 
 hydrateIcons();
 
@@ -131,7 +133,52 @@ function startTab(codes: number): Tab {
   if (codes) return 'page';
   const stored = storedTab();
   if (stored && stored !== 'page') return stored;
-  return favs.length ? 'favs' : 'links';
+  return favs.length || actressCount || tagCount ? 'favs' : 'links';
+}
+
+// --- Favourites: Videos | Actresses | Tags ---
+type FavKind = 'videos' | 'actresses' | 'tags';
+const FAV_KINDS: FavKind[] = ['videos', 'actresses', 'tags'];
+const FAV_KIND_KEY = 'favsKind';
+/** How many favourite actresses and tags there are (their views keep these current). */
+let actressCount = 0;
+let tagCount = 0;
+
+function showFavKind(kind: FavKind) {
+  for (const k of FAV_KINDS) {
+    $(`favs-kind-${k}`).setAttribute('aria-pressed', String(k === kind));
+    $(`favs-${k}`).hidden = k !== kind;
+  }
+}
+
+/** The switch at the top of Favourites; the kind picked last is a per-browser convenience (localStorage). */
+function setupFavKinds() {
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem(FAV_KIND_KEY);
+  } catch {
+    // Storage unavailable: start on Videos.
+  }
+  showFavKind(FAV_KINDS.includes(stored as FavKind) ? (stored as FavKind) : 'videos');
+  for (const k of FAV_KINDS) {
+    $(`favs-kind-${k}`).addEventListener('click', () => {
+      showFavKind(k);
+      try {
+        localStorage.setItem(FAV_KIND_KEY, k);
+      } catch {
+        // Not remembered, that's all.
+      }
+    });
+  }
+}
+
+/** The Favourites tab counts every kind; each kind's pill counts its own. */
+function paintFavsCounts() {
+  const count = (n: number) => (n ? String(n) : '');
+  $('favs-count').textContent = count(favs.length + actressCount + tagCount);
+  $('favs-videos-count').textContent = count(favs.length);
+  $('favs-actresses-count').textContent = count(actressCount);
+  $('favs-tags-count').textContent = count(tagCount);
 }
 
 // --- Favourites ---
@@ -265,7 +312,7 @@ function paintFavList() {
 async function renderFavourites() {
   favs = await getFavourites();
   starred = new Set(favs.flatMap((f) => (f.code ? [formatCode(f.code)] : [])));
-  $('favs-count').textContent = favs.length ? String(favs.length) : '';
+  paintFavsCounts();
   $('favs-empty').hidden = favs.length > 0;
   paintFavList();
   document.querySelectorAll<HTMLButtonElement>('button.star[data-code]').forEach(paintStar);
@@ -304,24 +351,46 @@ function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null
 async function pageCodes(tab: chrome.tabs.Tab | undefined): Promise<VideoCode[]> {
   const fromUrl = tab?.url ? codeInUrl(tab.url) : null;
   let codes: VideoCode[] = fromUrl ? [fromUrl] : [];
-  try {
-    if (tab?.id !== undefined) codes = [...codes, ...(await sendToTab(tab.id, { type: 'GET_PAGE_CODES' })).codes];
-  } catch {
-    // No content script here (chrome:// pages, Web Store, or a tab opened before install).
-    noContentScript(tab);
+  if (tab?.id !== undefined) {
+    try {
+      codes = [...codes, ...(await sendToTab(tab.id, { type: 'GET_PAGE_CODES' })).codes];
+    } catch {
+      // No content script here: a tab opened before install or an update, site access withheld, or a
+      // page Chrome keeps extensions out of. Read the page from here instead.
+      noContentScript(tab);
+      codes = [...codes, ...(await readPageCodes(tab.id))];
+    }
   }
   return [...new Map(codes.map((code) => [formatCode(code), code])).values()];
 }
 
 /**
+ * The codes in a tab's text, read by the popup itself. Opening the popup grants access to the tab
+ * (activeTab), so this works on pages where Code Scout's content script isn't running.
+ */
+async function readPageCodes(tabId: number): Promise<VideoCode[]> {
+  try {
+    const [frame] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => document.body?.innerText ?? '',
+      injectImmediately: true, // a page still loading: read what's there
+    });
+    return typeof frame?.result === 'string' ? findCodes(frame.result).map((m) => m.code) : [];
+  } catch {
+    return []; // chrome:// pages, the Web Store, the PDF viewer...
+  }
+}
+
+/**
  * A web page that didn't answer was open before Code Scout was installed, updated or reloaded: its old
- * copy is cut off, so nothing (buttons, video tools) works there until the page is reloaded. Say so.
+ * copy is cut off, so the ▶ buttons and video tools don't work there until the page is reloaded (the
+ * codes list does: the popup reads the page itself). Say so.
  */
 function noContentScript(tab: chrome.tabs.Tab | undefined) {
   const url = tab?.url ?? '';
   if (!/^https?:/.test(url) || tab?.status !== 'complete') return; // still loading: the script comes later
   if (/^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)\//.test(url)) return; // never allowed
-  $('reload-label').textContent = 'Reload the page to use Code Scout here';
+  $('reload-label').textContent = 'Reload the page for the ▶ buttons and video tools';
   $('reload-tab').title = 'This page was open before Code Scout was installed or updated';
   $('reload-tab').hidden = false;
 }
@@ -420,7 +489,17 @@ async function init() {
   sites = settings.openOnSites;
   tabPage = tab?.url && /^https?:/.test(tab.url) ? { url: tab.url, title: tab.title } : null;
   setupTypedSites();
-  await renderFavourites(); // before the page's codes, so their stars are right
+  setupFavKinds();
+  const countActresses = (n: number) => {
+    actressCount = n;
+    paintFavsCounts();
+  };
+  const countTags = (n: number) => {
+    tagCount = n;
+    paintFavsCounts();
+  };
+  // Favourites before the page's codes, so their stars are right.
+  await Promise.all([renderFavourites(), setupActresses(openLinks, countActresses), setupTags(openLinks, countTags)]);
   onFavouritesChanged(() => void renderFavourites());
   favsFilter.addEventListener('input', paintFavList);
   setupStarPage();

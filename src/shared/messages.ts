@@ -9,6 +9,8 @@ export type Message =
   | { type: 'GET_PAGE_CODES' }
   /** The code the user has selected, or is typing in the focused field. */
   | { type: 'GET_ACTIVE_CODE' }
+  /** The link the user last right-clicked on the page (for "Add this actress to favourites"). */
+  | { type: 'GET_CONTEXT_LINK' }
   /** Open web URLs in new tabs next to the sender (first one focused unless background tabs are on). */
   | { type: 'OPEN_URLS'; urls: string[] }
   | { type: 'OPEN_OPTIONS' }
@@ -27,12 +29,19 @@ export interface MessageResponses {
   OPEN_CODE: { ok: true };
   GET_PAGE_CODES: { codes: VideoCode[] };
   GET_ACTIVE_CODE: { code: VideoCode | null; text: string };
+  GET_CONTEXT_LINK: ContextLink | null;
   OPEN_URLS: { ok: true };
   OPEN_OPTIONS: { ok: true };
   ALLOW_NEW_TAB: { ok: true };
   POPUP_BLOCKED: { ok: true };
   OCR_STRIP: OcrResult;
   TRANSLATE: TranslateResult;
+}
+
+/** A link on a page: its address and its text (or its image's alt text). */
+export interface ContextLink {
+  url: string;
+  text: string;
 }
 
 export type OcrResult = { lines: OcrLine[] } | { error: string };
@@ -47,6 +56,7 @@ export function sendToBackground<M extends Message>(message: M): Promise<Message
   return chrome.runtime.sendMessage(message);
 }
 
-export function sendToTab<M extends Message>(tabId: number, message: M): Promise<MessageResponses[M['type']]> {
-  return chrome.tabs.sendMessage(tabId, message);
+/** `frameId`: only that frame of the tab (e.g. the one that was right-clicked), not every frame. */
+export function sendToTab<M extends Message>(tabId: number, message: M, frameId?: number): Promise<MessageResponses[M['type']]> {
+  return frameId === undefined ? chrome.tabs.sendMessage(tabId, message) : chrome.tabs.sendMessage(tabId, message, { frameId });
 }

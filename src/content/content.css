@@ -30,6 +30,53 @@
   outline: 2px solid #fda4af;
 }
 
+/* ♥ after a favourite actress's name on pages (violet, apart from a starred code's amber ★) */
+.javtr-actress {
+  all: unset;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0 0.15em 0 0.3em;
+  border-radius: 50%;
+  background: #7c3aed !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  font: 600 0.7em/1 system-ui, sans-serif !important;
+  vertical-align: middle;
+  cursor: pointer !important;
+  user-select: none;
+  opacity: 0.9;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.javtr-actress:hover,
+.javtr-actress:focus-visible {
+  opacity: 1;
+  transform: scale(1.15);
+  outline: 2px solid #c4b5fd;
+}
+
+/* # at the end of a link to a favourite tag's page (teal); part of the link, so it follows it */
+.javtr-tag {
+  all: unset;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0 0.1em 0 0.3em;
+  border-radius: 50%;
+  background: #0d9488 !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  font: 700 0.7em/1 system-ui, sans-serif !important;
+  text-decoration: none !important;
+  vertical-align: middle;
+  cursor: pointer !important;
+  user-select: none;
+}
+
 /* Chip shown under a text field when a code is typed */
 #javtr-chip {
   all: initial;

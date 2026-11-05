@@ -59,15 +59,57 @@
       </section>
 
       <section id="panel-favs" class="panel" role="tabpanel" aria-labelledby="tab-favs" hidden>
-        <div class="panel-head">
-          <input id="favs-filter" type="search" placeholder="Filter favourites" aria-label="Filter favourites" hidden />
-          <button type="button" id="fav-page" class="link-btn" hidden></button>
+        <div class="group-pills fav-kinds" role="toolbar" aria-label="Favourites">
+          <button type="button" id="favs-kind-videos" class="gpill" aria-pressed="true">Videos <span id="favs-videos-count" class="count"></span></button>
+          <button type="button" id="favs-kind-actresses" class="gpill" aria-pressed="false">Actresses <span id="favs-actresses-count" class="count"></span></button>
+          <button type="button" id="favs-kind-tags" class="gpill" aria-pressed="false">Tags <span id="favs-tags-count" class="count"></span></button>
         </div>
-        <ul id="favs" class="list"></ul>
-        <p id="favs-none" class="none" hidden>No favourites match.</p>
-        <div id="favs-empty" class="empty" hidden>
-          <i data-icon="star" data-size="28"></i>
-          <p>Star a code, or this page, to keep it here.</p>
+
+        <div id="favs-videos">
+          <div class="panel-head">
+            <input id="favs-filter" type="search" placeholder="Filter favourites" aria-label="Filter favourites" hidden />
+            <button type="button" id="fav-page" class="link-btn" hidden></button>
+          </div>
+          <ul id="favs" class="list"></ul>
+          <p id="favs-none" class="none" hidden>No favourites match.</p>
+          <div id="favs-empty" class="empty" hidden>
+            <i data-icon="star" data-size="28"></i>
+            <p>Star a code, or this page, to keep it here.</p>
+          </div>
+        </div>
+
+        <div id="favs-actresses" hidden>
+          <form id="actress-form" class="links-bar">
+            <div class="field sm">
+              <i data-icon="search" data-size="14"></i>
+              <input id="actress-input" type="search" placeholder="Find or add an actress" aria-label="Find or add an actress" maxlength="60" autocomplete="off" spellcheck="false" />
+            </div>
+            <button type="submit" id="actress-add" class="btn sm" title="Add this name to your favourite actresses" disabled><i data-icon="plus" data-size="14"></i>Add</button>
+          </form>
+          <p id="actress-error" class="error pad" hidden></p>
+          <ul id="actresses" class="list"></ul>
+          <p id="actresses-none" class="none" hidden>No saved actress matches. Press Enter to add her.</p>
+          <div id="actresses-empty" class="empty" hidden>
+            <i data-icon="star" data-size="28"></i>
+            <p>Right-click an actress’s name link and pick<br />“Add this actress to favourites”, or type her name above.</p>
+          </div>
+        </div>
+
+        <div id="favs-tags" hidden>
+          <form id="tag-form" class="links-bar">
+            <div class="field sm">
+              <i data-icon="search" data-size="14"></i>
+              <input id="tag-input" type="search" placeholder="Find or add a tag, like NTR" aria-label="Find or add a tag" maxlength="60" autocomplete="off" spellcheck="false" />
+            </div>
+            <button type="submit" id="tag-add" class="btn sm" title="Add this tag to your favourites" disabled><i data-icon="plus" data-size="14"></i>Add</button>
+          </form>
+          <p id="tag-error" class="error pad" hidden></p>
+          <ul id="tags" class="list"></ul>
+          <p id="tags-none" class="none" hidden>No saved tag matches.</p>
+          <div id="tags-empty" class="empty" hidden>
+            <i data-icon="star" data-size="28"></i>
+            <p>Right-click a tag link (…/tags/ntr, …/category/affair)<br />and pick “Add this tag to favourites”, or type one above.</p>
+          </div>
         </div>
       </section>
 
