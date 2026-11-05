@@ -47,6 +47,11 @@ export function parseCode(text: string): VideoCode | null {
 // A whole URL path segment that is a code: "MD0273", "nsfs-484", "nsfs00484", "259LUXU1759.html".
 const SEGMENT_PATTERN = /^(\d{0,4}[A-Za-z]{2,8})[-_]?(\d{3,6})(?:\.html?)?$/;
 
+// javtrailers.com files titles under the studio's ID: "1dldss00578" is DLDSS-578, "118abp00100" ABP-100,
+// "h_237nacr00914" NACR-914. It only has studio titles (no 300MIUM-style labels), so there, digits in front
+// are never part of the code.
+const STUDIO_ID_PREFIX = /^(?:h_)?\d+(?=[A-Za-z])/;
+
 /**
  * The code a page's address is about, when its last path segment is exactly a code: "/videos/MD0273",
  * "/en/nsfs-484". Video pages that never write the code with a hyphen are found this way.
@@ -54,8 +59,10 @@ const SEGMENT_PATTERN = /^(\d{0,4}[A-Za-z]{2,8})[-_]?(\d{3,6})(?:\.html?)?$/;
 export function codeInUrl(url: string): VideoCode | null {
   let segment: string | undefined;
   try {
-    segment = new URL(url).pathname.split('/').filter(Boolean).at(-1);
+    const { hostname, pathname } = new URL(url);
+    segment = pathname.split('/').filter(Boolean).at(-1);
     segment = segment && decodeURIComponent(segment);
+    if (segment && /(^|\.)javtrailers\.com$/.test(hostname)) segment = segment.replace(STUDIO_ID_PREFIX, '');
   } catch {
     return null;
   }

@@ -80,6 +80,7 @@ test('videoPageCode: an address that ends in a code, but not a search page', () 
   assert.equal(code('https://18jav.tv/videos/MD0273'), 'MD-273');
   assert.equal(code('https://missav.ws/en/nsfs-484'), 'NSFS-484');
   assert.equal(code('https://javtrailers.com/video/nsfs00484'), 'NSFS-484');
+  assert.equal(code('https://javtrailers.com/video/1dldss00578'), 'DLDSS-578');
   assert.equal(code('https://javtrailers.com/search/nsfs-484'), null);
   assert.equal(code('https://missav.ws/en/search/NSFS-484'), null);
   assert.equal(code('https://missav.ws/en/new'), null);

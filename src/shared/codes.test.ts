@@ -114,7 +114,12 @@ test('finds the code a page address is about', () => {
   assert.equal(inUrl('https://18jav.tv/videos/MD0273'), 'MD-273');
   assert.equal(inUrl('https://missav.ws/en/nsfs-484'), 'NSFS-484');
   assert.equal(inUrl('https://javtrailers.com/video/nsfs00484/'), 'NSFS-484');
+  // javtrailers' studio IDs: the digits (or "h_" and digits) in front aren't part of the code.
+  assert.equal(inUrl('https://javtrailers.com/video/1dldss00578'), 'DLDSS-578');
+  assert.equal(inUrl('https://javtrailers.com/video/118abp00100'), 'ABP-100');
+  assert.equal(inUrl('https://javtrailers.com/video/h_237nacr00914'), 'NACR-914');
   assert.equal(inUrl('https://example.com/v/259LUXU1759.html?ref=1'), '259LUXU-1759');
+  assert.equal(inUrl('https://example.com/v/300MIUM-123'), '300MIUM-123');
   // Only a whole last segment counts, so slugs, listings and short numbers are left to the page text.
   assert.equal(inUrl('https://jav.guru/123456/nsfs-484-some-title/'), null);
   assert.equal(inUrl('https://18jav.tv/categories/chinese-subtitle'), null);
