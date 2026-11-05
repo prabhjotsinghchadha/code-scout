@@ -9,7 +9,18 @@
 // embedded from another site, the top page shows "Save as" and writes the file (frame-bridge.ts). Video
 // links often carry a token that expires (18JAV: about 2 hours); when a segment says 403, a fresh copy of
 // the page is fetched for a new link to the same playlist and the download carries on.
-import { Conversion, Input, MPEG_TS, Mp4OutputFormat, Output, ReadableStreamSource, StreamTarget, type StreamTargetChunk } from 'mediabunny';
+import {
+  Conversion,
+  Input,
+  Logging,
+  LogLevel,
+  MPEG_TS,
+  Mp4OutputFormat,
+  Output,
+  ReadableStreamSource,
+  StreamTarget,
+  type StreamTargetChunk,
+} from 'mediabunny';
 import {
   downloadProblem,
   findPlaylistLinks,
@@ -38,6 +49,12 @@ export interface DownloadProgress {
   /** Seconds left, once there's enough to estimate. */
   etaSec: number | null;
 }
+
+// Mediabunny's warnings are notes, not failures (e.g. "stream_type 0x15 not supported": the ID3 timestamps
+// many HLS streams carry, which it skips while still saving the video and audio). console.warn from a content
+// script lands on the extension's Errors page, so they go to DevTools' Verbose level instead.
+Logging.level = LogLevel.Errors;
+Logging.on('warn', (args) => console.debug('[mediabunny]', ...args));
 
 /** Segments downloaded ahead of the one being written. */
 const WINDOW = 4;
