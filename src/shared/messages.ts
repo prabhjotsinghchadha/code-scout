@@ -1,18 +1,19 @@
 // Typed messages passed between popup, background and content scripts.
+import type { VideoCode } from './codes';
+
 export type Message =
-  | { type: 'PING' }
-  | { type: 'GET_PAGE_INFO' };
+  | { type: 'OPEN_CODE'; code: VideoCode }
+  | { type: 'GET_PAGE_CODES' };
 
-export type MessageResponse<T extends Message['type']> = T extends 'PING'
-  ? { ok: true; from: 'background' }
-  : T extends 'GET_PAGE_INFO'
-    ? { title: string; url: string }
-    : never;
+export interface MessageResponses {
+  OPEN_CODE: { ok: true };
+  GET_PAGE_CODES: { codes: VideoCode[] };
+}
 
-export function sendToBackground<M extends Message>(message: M): Promise<MessageResponse<M['type']>> {
+export function sendToBackground<M extends Message>(message: M): Promise<MessageResponses[M['type']]> {
   return chrome.runtime.sendMessage(message);
 }
 
-export function sendToTab<M extends Message>(tabId: number, message: M): Promise<MessageResponse<M['type']>> {
+export function sendToTab<M extends Message>(tabId: number, message: M): Promise<MessageResponses[M['type']]> {
   return chrome.tabs.sendMessage(tabId, message);
 }

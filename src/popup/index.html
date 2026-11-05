@@ -3,20 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Jav</title>
+    <title>JAV Trailer Opener</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <main>
-      <h1>Jav</h1>
-      <label class="row">
-        <input type="checkbox" id="enabled" />
-        Enabled
-      </label>
-      <button id="ping">Ping background</button>
-      <button id="page-info">Get page info</button>
-      <pre id="output"></pre>
-      <a href="#" id="open-options">Options</a>
+      <form id="search">
+        <input id="code-input" type="text" placeholder="Enter a code, e.g. NSFS-484" autocomplete="off" autofocus />
+        <button type="submit">Open</button>
+      </form>
+      <p id="error" class="error" hidden></p>
+
+      <section>
+        <h2>On this page</h2>
+        <ul id="codes"></ul>
+        <p id="empty" class="muted" hidden>No codes found on this page.</p>
+      </section>
+
+      <footer>
+        <label class="row"><input type="checkbox" id="inline" /> Show ▶ buttons on pages</label>
+        <a href="#" id="open-options">Settings</a>
+      </footer>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

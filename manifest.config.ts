@@ -3,8 +3,8 @@ import pkg from './package.json' with { type: 'json' };
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'Jav',
-  description: 'A Chrome extension.',
+  name: 'JAV Trailer Opener',
+  description: 'Spot video codes like NSFS-484 on any page and open their trailer on javtrailers.com in a new tab.',
   version: pkg.version,
   icons: {
     16: 'icons/icon-16.png',
@@ -30,5 +30,5 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage'],
+  permissions: ['storage', 'contextMenus'],
 });

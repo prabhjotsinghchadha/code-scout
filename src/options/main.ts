@@ -1,17 +1,30 @@
-import { getSettings, setSettings } from '../shared/storage';
+import type { OpenMode } from '../shared/codes';
+import { getSettings, setSettings, type Settings } from '../shared/storage';
 
-const enabledEl = document.getElementById('enabled') as HTMLInputElement;
 const status = document.getElementById('status') as HTMLParagraphElement;
+const inlineButtons = document.getElementById('inlineButtons') as HTMLInputElement;
+const openInBackground = document.getElementById('openInBackground') as HTMLInputElement;
+const modeRadios = document.querySelectorAll<HTMLInputElement>('input[name="openMode"]');
+
+let timer: number | undefined;
+async function save(patch: Partial<Settings>) {
+  await setSettings(patch);
+  status.textContent = 'Saved.';
+  clearTimeout(timer);
+  timer = window.setTimeout(() => (status.textContent = ''), 1200);
+}
 
 async function init() {
   const settings = await getSettings();
-  enabledEl.checked = settings.enabled;
+  inlineButtons.checked = settings.inlineButtons;
+  openInBackground.checked = settings.openInBackground;
+  modeRadios.forEach((r) => (r.checked = r.value === settings.openMode));
 
-  enabledEl.addEventListener('change', async () => {
-    await setSettings({ enabled: enabledEl.checked });
-    status.textContent = 'Saved.';
-    setTimeout(() => (status.textContent = ''), 1200);
-  });
+  inlineButtons.addEventListener('change', () => save({ inlineButtons: inlineButtons.checked }));
+  openInBackground.addEventListener('change', () => save({ openInBackground: openInBackground.checked }));
+  modeRadios.forEach((r) =>
+    r.addEventListener('change', () => r.checked && save({ openMode: r.value as OpenMode })),
+  );
 }
 
 void init();

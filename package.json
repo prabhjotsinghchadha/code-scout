@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "zip": "npm run build && cd dist && zip -r ../extension.zip ."
+    "zip": "npm run build && cd dist && zip -r ../extension.zip .",
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^3.0.0",

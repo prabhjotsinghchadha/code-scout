@@ -1,0 +1,24 @@
+.javtr-open-btn {
+  all: unset;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0 0.15em 0 0.3em;
+  border-radius: 50%;
+  background: #4f46e5 !important;
+  color: #fff !important;
+  font: 600 0.65em/1 system-ui, sans-serif !important;
+  vertical-align: middle;
+  cursor: pointer !important;
+  user-select: none;
+  opacity: 0.85;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.javtr-open-btn:hover,
+.javtr-open-btn:focus-visible {
+  opacity: 1;
+  transform: scale(1.15);
+  outline: 2px solid #a5b4fc;
+}
