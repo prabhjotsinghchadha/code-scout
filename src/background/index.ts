@@ -1,6 +1,6 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
-import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
+import { formatCode, parseCode, rawSearchUrl, searchUrl, trailerUrl, videoUrlIn, type OpenMode, type VideoCode } from '../shared/codes';
 import { ACTRESS_LINK_PATTERNS, addActress, capitalized, cleanName, isActressKey, looksLikeActressUrl, nameFromUrl } from '../shared/actresses';
 import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
 import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
@@ -294,10 +294,36 @@ async function openUrls(urls: string[], sourceTab?: chrome.tabs.Tab) {
   }
 }
 
+/** Video pages found by searching javtrailers, by code (while the background stays awake). */
+const foundVideoPages = new Map<string, string>();
+
+/**
+ * Where "Video page" opens `code`: the page javtrailers' own search links to. Some titles are filed under
+ * the studio's ID ("1dldss00578" for DLDSS-578), so the guessed address would be "Page not found". The
+ * search results when the search doesn't list it; the guessed address when the search can't be reached.
+ */
+async function videoPage(code: VideoCode): Promise<string> {
+  const key = formatCode(code);
+  const found = foundVideoPages.get(key);
+  if (found) return found;
+  try {
+    const response = await fetch(searchUrl(code), { signal: AbortSignal.timeout(4000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const url = videoUrlIn(await response.text(), code);
+    if (!url) return searchUrl(code);
+    foundVideoPages.set(key, url);
+    return url;
+  } catch (err) {
+    console.warn(`Looking up ${key} on javtrailers failed, opening the usual address:`, err);
+    return trailerUrl(code, 'video');
+  }
+}
+
 /** `mode` overrides the "Open" setting; omit it to use the setting. */
 async function openCode(code: VideoCode, sourceTab?: chrome.tabs.Tab, mode?: OpenMode) {
   const { openMode } = await getSettings();
-  await openUrls([trailerUrl(code, mode ?? openMode)], sourceTab);
+  const url = (mode ?? openMode) === 'video' ? await videoPage(code) : searchUrl(code);
+  await openUrls([url], sourceTab);
   void noteSeen(code, sourceTab);
 }
 

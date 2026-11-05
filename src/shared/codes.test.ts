@@ -10,6 +10,7 @@ import {
   searchUrl,
   trailerUrl,
   videoUrl,
+  videoUrlIn,
 } from './codes.ts';
 
 const fmt = (text: string) => {
@@ -65,6 +66,23 @@ test('builds javtrailers URLs', () => {
   assert.equal(videoUrl(code), 'https://javtrailers.com/video/nsfs00484');
   assert.equal(trailerUrl(code, 'video'), 'https://javtrailers.com/video/nsfs00484');
   assert.equal(trailerUrl(parseCode('300MIUM-123')!, 'video'), 'https://javtrailers.com/search/300mium-123');
+});
+
+test('finds a code\'s page among javtrailers search results', () => {
+  // As the site sends them: close matches too, some titles under the studio's ID ("1" in front).
+  const html = [
+    '<a href="/video/1dldss00569" class="video-link" title="…">',
+    '<a href="/video/1dldss00578" class="video-link" title="…">',
+    '<a href="/video/nsfs00484" class="video-link" title="…">',
+    '<a href="/video/h_1711abc00123" class="video-link" title="…">',
+  ].join('');
+  assert.equal(videoUrlIn(html, parseCode('DLDSS-578')!), 'https://javtrailers.com/video/1dldss00578');
+  assert.equal(videoUrlIn(html, parseCode('NSFS-484')!), 'https://javtrailers.com/video/nsfs00484');
+  assert.equal(videoUrlIn(html, parseCode('ABC-123')!), 'https://javtrailers.com/video/h_1711abc00123');
+  // Not listed, or only a code that merely ends the same way: no page.
+  assert.equal(videoUrlIn(html, parseCode('DLDSS-570')!), null);
+  assert.equal(videoUrlIn(html, parseCode('SS-578')!), null);
+  assert.equal(videoUrlIn(html, parseCode('NSFS-48')!), null);
 });
 
 test('finds codes typed into fields', () => {

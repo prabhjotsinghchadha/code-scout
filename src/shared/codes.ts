@@ -124,6 +124,20 @@ export function videoUrl({ prefix, number }: VideoCode): string {
   return `${BASE_URL}/video/${prefix}${String(number).padStart(5, '0')}`;
 }
 
+/**
+ * The address of `code`'s page among the links of a javtrailers search page (its HTML), e.g.
+ * "https://javtrailers.com/video/1dldss00578". The site files some titles under the studio's own ID, a
+ * number or "h_123" in front of the code, so their page can't be worked out from the code alone. Null when
+ * the search doesn't list it.
+ */
+export function videoUrlIn(searchHtml: string, { prefix, number }: VideoCode): string | null {
+  const id = new RegExp(`^(?:h_)?\\d*${prefix}0*${number}$`, 'i');
+  for (const m of searchHtml.matchAll(/href="\/video\/([\w-]+)"/g)) {
+    if (id.test(m[1])) return `${BASE_URL}/video/${m[1]}`;
+  }
+  return null;
+}
+
 export function trailerUrl(code: VideoCode, mode: OpenMode): string {
   // Prefixes starting with digits (e.g. "300MIUM") don't follow the padded video-id scheme.
   if (mode === 'video' && !/^\d/.test(code.prefix)) return videoUrl(code);
