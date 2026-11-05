@@ -6,13 +6,16 @@ import {
   isEmptyMask,
   LruCache,
   maskCount,
+  maskDensity,
   maskDifference,
   maskRegion,
   normalizeLine,
   pictureRect,
+  preferOutlined,
   stripBoxToScreen,
   subtitleLanguage,
   subtitleLines,
+  subtitleLookVars,
   textMask,
   unionBox,
   WatermarkTracker,
@@ -138,4 +141,27 @@ test('LRU cache evicts the least recently used entry', () => {
   assert.equal(c.get('b'), undefined);
   assert.equal(c.get('a'), '1');
   assert.equal(c.size, 2);
+});
+
+test('subtitle look: box opacity, and an outline once the box is see-through', () => {
+  assert.deepEqual(subtitleLookVars(100), { '--javtr-sub-bg': '1', '--javtr-sub-shadow': 'none' });
+  assert.equal(subtitleLookVars(60)['--javtr-sub-shadow'], 'none');
+  assert.equal(subtitleLookVars(50)['--javtr-sub-bg'], '0.5');
+  assert.notEqual(subtitleLookVars(50)['--javtr-sub-shadow'], 'none');
+  assert.equal(subtitleLookVars(-20)['--javtr-sub-bg'], '0');
+  assert.equal(subtitleLookVars(250)['--javtr-sub-bg'], '1');
+});
+
+test('prefers outlined subtitle text over other text the OCR read', () => {
+  // A 100×40 strip (mask cells of 2 px): outlined text in the lower half, nothing in the upper half.
+  const width = 100;
+  const mask = new Uint8Array(50 * 20);
+  for (let r = 12; r < 18; r++) for (let c = 10; c < 40; c += 3) mask[r * 50 + c] = 1;
+  const subtitle = { text: '我叫你给我拿回去重做', box: { x: 20, y: 24, width: 60, height: 12 } };
+  const sign = { text: '开元棋牌', box: { x: 30, y: 2, width: 30, height: 12 } };
+  assert.ok(maskDensity(mask, width, subtitle.box) > 0.05);
+  assert.equal(maskDensity(mask, width, sign.box), 0);
+  assert.deepEqual(preferOutlined([sign, subtitle], mask, width), [subtitle]);
+  // No outlined text at all (a style the mask misses): keep what the OCR found.
+  assert.deepEqual(preferOutlined([sign], new Uint8Array(50 * 20), width), [sign]);
 });

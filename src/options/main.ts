@@ -20,6 +20,7 @@ import {
   type LinkState,
 } from '../shared/quick-links';
 import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
+import { subtitleLookVars } from '../shared/subtitles';
 import { createTranslators, translatorStatus } from '../shared/translator';
 
 hydrateIcons();
@@ -394,6 +395,30 @@ document.getElementById('setup-translation')!.addEventListener('click', () => {
   );
 });
 void showTranslationStatus();
+
+/** English subtitles: text size and background, previewed live and saved when the slider is let go. */
+async function setupSubtitleLook() {
+  const settings = await getSettings();
+  const size = $<HTMLInputElement>('subSize');
+  const background = $<HTMLInputElement>('subBackground');
+  const preview = $('sub-preview');
+  const paint = () => {
+    const bg = Number(background.value);
+    $('subSize-value').textContent = `${size.value}%`;
+    $('subBackground-value').textContent =
+      bg >= 100 ? 'Solid: hides the original line' : bg <= 0 ? 'None: text only, with an outline' : `${bg}%: the original shows through`;
+    preview.style.fontSize = `${(18 * Number(size.value)) / 100}px`;
+    for (const [name, value] of Object.entries(subtitleLookVars(bg))) preview.style.setProperty(name, value);
+  };
+  size.value = String(settings.subSize);
+  background.value = String(settings.subBackground);
+  paint();
+  size.addEventListener('input', paint);
+  background.addEventListener('input', paint);
+  size.addEventListener('change', () => save({ subSize: Number(size.value) }));
+  background.addEventListener('change', () => save({ subBackground: Number(background.value) }));
+}
+void setupSubtitleLook();
 
 // Show the shortcuts actually assigned (the user may have changed or cleared them).
 async function showShortcuts() {

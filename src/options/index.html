@@ -149,7 +149,7 @@
             <li><strong>⚡ Faster loading</strong><span>Downloads several pieces of the video at once, for servers that send each piece slowly.</span></li>
             <li><strong>Quality</strong><span>A menu, when the video has more than one.</span></li>
             <li><strong>⬇ Download</strong><span>Saves an MP4. Keep the tab open while it runs.</span></li>
-            <li><strong>EN subs</strong><span>Reads burned-in Chinese or Japanese subtitles on this computer and covers them with English.</span></li>
+            <li><strong>EN subs</strong><span>Reads burned-in Chinese or Japanese subtitles on this computer and covers them with English. Size and background are below.</span></li>
           </ul>
           <p class="hint">Tip: switch on <em>Video tools</em> in the popup, then reload the page.</p>
           <ul id="video-sites" class="rows"></ul>
@@ -162,6 +162,21 @@
           <div class="translation">
             <button id="setup-translation" type="button" class="btn">Set up English subtitles</button>
             <span id="translation-status" class="muted"></span>
+          </div>
+          <div class="sub-look">
+            <h3>English subtitles</h3>
+            <div class="sub-preview" aria-hidden="true">
+              <span class="sub-original">你要去哪里？</span>
+              <span class="sub-english" id="sub-preview">Where are you going?</span>
+            </div>
+            <label class="setting range">
+              <span><strong>Text size</strong><small id="subSize-value"></small></span>
+              <input type="range" id="subSize" min="60" max="200" step="10" />
+            </label>
+            <label class="setting range">
+              <span><strong>Background</strong><small id="subBackground-value"></small></span>
+              <input type="range" id="subBackground" min="0" max="100" step="10" />
+            </label>
           </div>
         </section>
 

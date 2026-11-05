@@ -221,3 +221,40 @@ export class LruCache<K, V> {
     return this.map.size;
   }
 }
+
+/** Below this background opacity the English text gets a dark outline, to stay readable on the picture. */
+const OUTLINE_BELOW = 60;
+
+/**
+ * CSS variables for the English subtitle's look (Settings → Video tools): --javtr-sub-bg is the box's
+ * opacity, --javtr-sub-shadow an outline when the box is see-through. Used by the overlay and the preview.
+ */
+export function subtitleLookVars(backgroundPercent: number): Record<'--javtr-sub-bg' | '--javtr-sub-shadow', string> {
+  const bg = Math.min(100, Math.max(0, backgroundPercent));
+  return {
+    '--javtr-sub-bg': String(bg / 100),
+    '--javtr-sub-shadow': bg < OUTLINE_BELOW ? '0 0 3px #000, 0 0 2px #000, 0 1px 2px #000' : 'none',
+  };
+}
+
+/**
+ * Share of `box` (strip pixels) covered by subtitle-style text pixels (textMask). Burned-in subtitles are
+ * outlined white or yellow, so their boxes are well covered; other text the OCR finds (a sign in the scene,
+ * an ad printed on a prop) has next to none.
+ */
+export function maskDensity(mask: Uint8Array, width: number, box: Box, step = 2): number {
+  const region = maskRegion(mask, width, box, step, 0);
+  return region.length ? maskCount(region) / region.length : 0;
+}
+
+/** Below this maskDensity a line isn't subtitle-style text (subtitles measure about 0.05–0.15). */
+const MIN_TEXT_DENSITY = 0.01;
+
+/**
+ * When some lines are subtitle-style (outlined) text, keeps only those: drops a sign or an ad printed on a
+ * prop that the OCR also read. When none are (a subtitle style the mask doesn't catch), keeps them all.
+ */
+export function preferOutlined<T extends { box: Box }>(lines: T[], mask: Uint8Array, width: number, step = 2): T[] {
+  const outlined = lines.filter((l) => maskDensity(mask, width, l.box, step) >= MIN_TEXT_DENSITY);
+  return outlined.length ? outlined : lines;
+}

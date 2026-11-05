@@ -27,6 +27,10 @@ export interface Settings {
   popupBlockSites: string[];
   /** Sites with video tools: faster loading, quality menu, download and English subtitles. */
   videoSites: string[];
+  /** English subtitles: text size, % of the usual (which follows the video's height). */
+  subSize: number;
+  /** English subtitles: how opaque the box behind them is, %. 100 hides the original line; 0 is text only. */
+  subBackground: number;
 }
 
 export const defaultSettings: Settings = {
@@ -40,6 +44,8 @@ export const defaultSettings: Settings = {
   offSites: [],
   popupBlockSites: [],
   videoSites: [],
+  subSize: 100,
+  subBackground: 100,
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */
