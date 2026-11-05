@@ -53,10 +53,11 @@ test('seeds everything on a fresh install', async () => {
     'JavLibrary · Most wanted',
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
+    'Beeg · Cuckold Japanese [Cuckold]',
   ]);
-  assert.equal(local.quickLinksSeedVersion, 3);
+  assert.equal(local.quickLinksSeedVersion, 4);
   await seedQuickLinks(); // idempotent
-  assert.equal(sync.quickLinks!.length, 6);
+  assert.equal(sync.quickLinks!.length, 7);
 });
 
 test('upgrades a v1 install: groups existing built-ins, keeps removals and own links', async () => {
@@ -77,11 +78,12 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
     'JavLibrary · Most wanted',
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
+    'Beeg · Cuckold Japanese [Cuckold]',
   ]);
   assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR']);
 });
 
-test('upgrades a v2 install: only adds the new v3 links', async () => {
+test('upgrades a v2 install: only adds links from v3 on', async () => {
   const { sync } = fakeChrome(
     { quickLinks: [{ name: 'X', url: 'https://x.example/', group: 'NTR' }], linkGroups: ['NTR', 'Cheating'] },
     { quickLinksSeedVersion: 2 },
@@ -92,6 +94,16 @@ test('upgrades a v2 install: only adds the new v3 links', async () => {
     'JavLibrary · Most wanted',
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
+    'Beeg · Cuckold Japanese [Cuckold]',
   ]);
   assert.deepEqual(sync.linkGroups, ['NTR', 'Cheating']); // user's group order untouched
+});
+
+test('upgrades a v3 install: only adds the Beeg link', async () => {
+  const { sync } = fakeChrome(
+    { quickLinks: [{ name: 'X', url: 'https://x.example/' }], linkGroups: ['Cuckold'] },
+    { quickLinksSeedVersion: 3 },
+  );
+  await seedQuickLinks();
+  assert.deepEqual(names(sync), ['X', 'Beeg · Cuckold Japanese [Cuckold]']);
 });

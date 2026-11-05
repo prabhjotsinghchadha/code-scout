@@ -35,13 +35,15 @@ export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number })[] = [
   { since: 3, name: 'JavLibrary · Most wanted', url: 'https://www.javlibrary.com/en/vl_mostwanted.php' },
   { since: 3, name: 'JavTrailers · Cheating Wife', url: 'https://javtrailers.com/categories/cheating-wife', group: 'Cheating' },
   { since: 3, name: 'JavTrailers · Adultery', url: 'https://javtrailers.com/categories/adultery', group: 'Cheating' },
+  { since: 4, name: 'Beeg · Cuckold Japanese', url: 'https://beeg.com/Cuckold+Japanese', group: 'Cuckold' },
 ];
 export const BUILT_IN_GROUPS = ['Cheating', 'Cuckold', 'NTR'];
 /**
  * Bump when changing the built-ins above so existing installs receive them.
  * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
+ * 4: Beeg.
  */
-const QUICK_LINKS_SEED_VERSION = 3;
+const QUICK_LINKS_SEED_VERSION = 4;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
