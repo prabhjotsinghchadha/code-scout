@@ -19,6 +19,9 @@
   opacity: 0.85;
   transition: opacity 0.15s, transform 0.15s;
 }
+.javtr-open-btn.javtr-fav {
+  background: #d97706 !important;
+}
 .javtr-open-btn:hover,
 .javtr-open-btn:focus-visible {
   opacity: 1;
@@ -64,6 +67,13 @@
 }
 #javtr-chip button.javtr-secondary {
   background: #374151 !important;
+}
+#javtr-chip button.javtr-star {
+  padding: 5px 8px;
+  font-size: 13px !important;
+}
+#javtr-chip button.javtr-star.javtr-on {
+  color: #fbbf24 !important;
 }
 #javtr-chip button.javtr-close {
   padding: 5px 7px;

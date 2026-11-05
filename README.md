@@ -10,6 +10,7 @@ Spot video codes like `NSFS-484` on any website and open their trailer on javtra
 - **Keyboard shortcuts** — select a code, or put the caret on one in a text box: `Alt+Shift+J` opens the trailer, `Alt+Shift+K` searches, `Alt+Shift+L` opens it on all your sites. Change them at `chrome://extensions/shortcuts`.
 - **Right-click menu** — on selected text: *Open trailer for "…"* / *Search javtrailers for "…"*. On links: looks for a code in the URL.
 - **Popup** — type a code (Open / Search), see every code on the current page, and your **Quick links**.
+- **Favourite videos** — star a code with ☆ from the ▶ button's right-click menu, the chip, the popup (next to codes on the page or the one you type), or right-click → *Add “…” to favourites*. Starred codes show as ★ on pages and in the popup's **Favourites** list (newest first) with Open, Search and Sites, plus a link back to the page you starred them on (only saved when the code is shown on that page, not just typed). Favourites sync across your Chrome devices; about 500 fit.
 - **Quick links in groups** — save sites or category pages (*+ Add this page* in the popup picks a group, or create a new one), organized into collapsible groups, each with **Open all**. Rename, reorder and regroup in Settings. Comes with built-in links in groups — Cheating, Cuckold, All Japanese (FapHouse, Pornhub, YouPorn), Subtitles (MissAV, Jav Guru, 18JAV, SupJav, BestJavPorn) and More sites (Jable, SexTB, 7MMTV, Korean Porn Movie, ThePornDude)) — edit or remove freely.
 - **Settings** — what "Open" does (direct video page by default, or search page), background tabs, turn the chip or ▶ buttons off.
 - **Off on this site** — turn the ▶ buttons and chip off for one site (and its subdomains) from the popup, or manage the list in Settings. Right-click and shortcuts keep working there.
@@ -32,6 +33,7 @@ src/
   popup/               # Toolbar popup UI
   options/             # Options page
   shared/codes.ts      # Code detection + javtrailers URL building (unit-tested)
+  shared/favourites.ts # Favourite videos, one synced key per code (fav:NSFS-484)
   shared/sites.ts      # Built-in sites: each one's "Open on" pattern and quick-link pages, defined once
   shared/seed.ts       # Offers new built-ins to each install once, so ones the user removed stay removed
   shared/              # Typed messaging + storage helpers

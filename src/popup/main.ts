@@ -1,4 +1,12 @@
 import { formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
+import {
+  favouriteError,
+  getFavourites,
+  onFavouritesChanged,
+  toggleFavourite,
+  type Favourite,
+  type FavouritePage,
+} from '../shared/favourites';
 import { siteKey } from '../shared/hosts';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
@@ -46,6 +54,116 @@ function smallButton(text: string, className: string, onClick: () => void) {
   return b;
 }
 
+// --- Favourites ---
+/** The current tab, saved with codes starred from its list; null on non-web pages. */
+let tabPage: FavouritePage | null = null;
+/** Codes shown on the current tab ("NSFS-484"). */
+let onPage = new Set<string>();
+/** Codes the user starred ("NSFS-484"). */
+let starred = new Set<string>();
+
+async function toggleStar(code: VideoCode, page: FavouritePage | null) {
+  try {
+    await toggleFavourite(code, starred.has(formatCode(code)) ? null : page);
+    error.hidden = true;
+  } catch (err) {
+    error.textContent = favouriteError(err);
+    error.hidden = false;
+  }
+}
+
+/** ☆ / ★ for the code in the button's data-code (empty = nothing to star). */
+function paintStar(b: HTMLButtonElement) {
+  const on = starred.has(b.dataset.code ?? '');
+  b.textContent = on ? '★' : '☆';
+  b.classList.toggle('on', on);
+  b.title = on ? 'Remove from favourites' : 'Add to favourites';
+  b.setAttribute('aria-label', b.title);
+}
+
+function starButton(code: VideoCode, page: FavouritePage | null) {
+  const b = smallButton('☆', 'secondary star', () => void toggleStar(code, page));
+  b.dataset.code = formatCode(code);
+  paintStar(b);
+  return b;
+}
+
+/** The ☆ next to the code box: the page is saved only if the typed code is shown on it. */
+function setupTypedStar() {
+  const btn = $<HTMLButtonElement>('star-btn');
+  const update = () => {
+    const code = parseCode(input.value);
+    btn.disabled = !code;
+    btn.dataset.code = code ? formatCode(code) : '';
+    paintStar(btn);
+  };
+  btn.addEventListener('click', () => {
+    const code = parseCode(input.value);
+    if (code) void toggleStar(code, onPage.has(formatCode(code)) ? tabPage : null);
+  });
+  input.addEventListener('input', update);
+  update();
+}
+
+const codeLabel = (code: VideoCode) =>
+  Object.assign(document.createElement('span'), { className: 'code', textContent: formatCode(code) });
+
+/** A favourite's row, with the page it was starred on as a full-width link underneath. */
+function favRow({ code, url, title }: Favourite) {
+  const li = codeRow(code, codeLabel(code), null);
+  li.classList.add('fav');
+  if (url) {
+    const a = Object.assign(document.createElement('a'), {
+      className: 'fav-page',
+      href: url,
+      textContent: title || new URL(url).hostname,
+      title: url,
+    });
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      void openLinks([url]);
+    });
+    li.append(a);
+  }
+  return li;
+}
+
+async function renderFavourites() {
+  const favs = await getFavourites();
+  starred = new Set(favs.map((f) => formatCode(f.code)));
+  $('favs-count').textContent = favs.length ? String(favs.length) : '';
+  $('favs-empty').hidden = favs.length > 0;
+  $('favs').replaceChildren(...favs.map(favRow));
+  document.querySelectorAll<HTMLButtonElement>('button.star').forEach(paintStar);
+}
+
+/** A row for a code: Open, Search, Sites (toggles a row of site buttons below it) and ☆. */
+function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null): HTMLLIElement {
+  const li = document.createElement('li');
+  li.append(
+    label,
+    smallButton('▶ Open', '', () => void open(code)),
+    smallButton('Search', 'secondary', () => void open(code, 'search')),
+  );
+  let sitesRow: HTMLLIElement | null = null;
+  if (sites.length) {
+    li.append(
+      smallButton('Sites', 'secondary', () => {
+        if (sitesRow) {
+          sitesRow.remove();
+          sitesRow = null;
+          return;
+        }
+        sitesRow = Object.assign(document.createElement('li'), { className: 'sites' });
+        sitesRow.append(siteRow(() => code));
+        li.after(sitesRow);
+      }),
+    );
+  }
+  li.append(starButton(code, page));
+  return li;
+}
+
 async function loadPageCodes() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   let codes: VideoCode[] = [];
@@ -55,31 +173,8 @@ async function loadPageCodes() {
     // No content script here (chrome:// pages, Web Store, or a tab opened before install).
   }
   empty.hidden = codes.length > 0;
-  for (const code of codes) {
-    const li = document.createElement('li');
-    const label = Object.assign(document.createElement('span'), { className: 'code', textContent: formatCode(code) });
-    li.append(
-      label,
-      smallButton('▶ Open', '', () => void open(code)),
-      smallButton('Search', 'secondary', () => void open(code, 'search')),
-    );
-    let sitesRow: HTMLLIElement | null = null;
-    if (sites.length) {
-      li.append(
-        smallButton('Sites', 'secondary', () => {
-          if (sitesRow) {
-            sitesRow.remove();
-            sitesRow = null;
-            return;
-          }
-          sitesRow = Object.assign(document.createElement('li'), { className: 'sites' });
-          sitesRow.append(siteRow(() => code));
-          li.after(sitesRow);
-        }),
-      );
-    }
-    list.append(li);
-  }
+  onPage = new Set(codes.map(formatCode));
+  list.replaceChildren(...codes.map((code) => codeRow(code, codeLabel(code), tabPage)));
 }
 
 let sites: OpenOnSite[] = [];
@@ -279,6 +374,11 @@ async function init() {
   const settings = await getSettings();
   sites = settings.openOnSites;
   setupTypedSites();
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  tabPage = tab?.url && /^https?:/.test(tab.url) ? { url: tab.url, title: tab.title } : null;
+  await renderFavourites(); // before the page's codes, so their stars are right
+  onFavouritesChanged(() => void renderFavourites());
+  setupTypedStar();
   inline.checked = settings.inlineButtons;
   chip.checked = settings.fieldChip;
   inline.addEventListener('change', () => setSettings({ inlineButtons: inline.checked }));

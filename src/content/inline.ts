@@ -1,6 +1,7 @@
-// ▶ buttons next to codes found in page text (including content added later).
+// ▶ buttons next to codes found in page text (including content added later); ★ for favourites.
 import { findCodes, formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
+import { isStarred, onStarredChange } from './favourites';
 import { openSiteMenu } from './site-menu';
 import { markUi, onUi } from './ui-events';
 
@@ -12,6 +13,9 @@ const SKIP_TAGS = new Set([
 // Text nodes we created while splitting, so we never add a second button for the same code.
 const processed = new WeakSet<Text>();
 let observer: MutationObserver | null = null;
+/** The code each button opens, for restyling when favourites change. */
+const buttonCodes = new WeakMap<HTMLElement, VideoCode>();
+let watchingStars = false;
 
 function shouldSkip(node: Text): boolean {
   if (processed.has(node)) return true;
@@ -25,8 +29,8 @@ function shouldSkip(node: Text): boolean {
 function createButton(code: VideoCode): HTMLElement {
   const btn = markUi(document.createElement('span'));
   btn.className = BUTTON_CLASS;
-  btn.textContent = '▶';
-  btn.title = `Open trailer for ${formatCode(code)} · right-click for more sites`;
+  buttonCodes.set(btn, code);
+  paint(btn, code);
   btn.setAttribute('role', 'button');
   btn.tabIndex = 0;
 
@@ -37,6 +41,21 @@ function createButton(code: VideoCode): HTMLElement {
   onUi(btn, 'contextmenu', () => void openSiteMenu(code, btn.getBoundingClientRect(), { anchorEl: btn }));
   onUi(btn, 'keydown', ({ key }) => (key === 'Enter' || key === ' ') && open());
   return btn;
+}
+
+/** ▶, or a filled star for a favourite (it still opens the trailer). */
+function paint(btn: HTMLElement, code: VideoCode) {
+  const starred = isStarred(code);
+  btn.textContent = starred ? '★' : '▶';
+  btn.classList.toggle('javtr-fav', starred);
+  btn.title = `${starred ? 'In your favourites · ' : ''}Open trailer for ${formatCode(code)} · right-click for more`;
+}
+
+function repaintAll() {
+  document.querySelectorAll<HTMLElement>(`.${BUTTON_CLASS}`).forEach((btn) => {
+    const code = buttonCodes.get(btn);
+    if (code) paint(btn, code);
+  });
 }
 
 function decorateTextNode(node: Text) {
@@ -70,6 +89,10 @@ function scan(root: Node) {
 }
 
 export function enableInline() {
+  if (!watchingStars) {
+    watchingStars = true;
+    onStarredChange(repaintAll);
+  }
   scan(document.body);
 
   // Pick up content added later (infinite scroll, SPA navigation, ...).

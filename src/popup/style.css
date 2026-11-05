@@ -18,7 +18,7 @@
 }
 body {
   margin: 0;
-  width: 300px;
+  width: 320px;
 }
 main {
   display: flex;
@@ -80,7 +80,7 @@ li .code {
   font-weight: 600;
 }
 li button {
-  padding: 4px 8px;
+  padding: 4px 6px;
   font-size: 12px;
 }
 .muted {
@@ -248,4 +248,36 @@ details.group summary .open-all {
 }
 li.sites {
   padding: 2px 0 6px;
+}
+button.star {
+  padding-inline: 8px;
+}
+li button.star {
+  padding-inline: 5px;
+}
+button.star.on {
+  color: #d97706;
+}
+form button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+h2 .count {
+  margin-left: 2px;
+  font-weight: 400;
+}
+li.fav {
+  flex-wrap: wrap;
+}
+li.fav .fav-page {
+  flex-basis: 100%;
+  margin-top: -2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  text-decoration: none;
+}
+li.fav .fav-page:hover {
+  text-decoration: underline;
 }

@@ -1,12 +1,15 @@
-// Floating "NSFS-484  ▶ Open  Search" chip under a text field while a code is typed in it.
+// Floating "NSFS-484  ▶ Open  Search  ☆  Sites ▾" chip under a text field while a code is typed in it.
 import { formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
 import { codeInEditable, editableFrom, readEditable, type Editable } from './editable';
+import { isStarred, onStarredChange, shownOnPage, thisPage, toggleStar } from './favourites';
 import { closeSiteMenu, isSiteMenuOpen, openSiteMenu } from './site-menu';
 import { markUi, onUi } from './ui-events';
 
 let chip: HTMLDivElement | null = null;
 let label: HTMLSpanElement;
+let star: HTMLButtonElement;
+let watchingStars = false;
 let current: { el: Editable; code: VideoCode } | null = null;
 /** Field text at the moment the user dismissed the chip; it stays hidden until the text changes. */
 let dismissed: { el: Editable; text: string } | null = null;
@@ -30,6 +33,12 @@ function build(): HTMLDivElement {
   el.hidden = true;
   label = document.createElement('span');
   label.className = 'javtr-code';
+  star = button('☆', 'javtr-secondary javtr-star', () => {
+    closeSiteMenu();
+    if (!current) return;
+    const { code, el: field } = current;
+    void toggleStar(code, isStarred(code) || !shownOnPage(code, field) ? null : thisPage());
+  });
   el.append(
     label,
     button('▶ Open', 'javtr-primary', () => {
@@ -40,16 +49,31 @@ function build(): HTMLDivElement {
       closeSiteMenu();
       if (current) void sendToBackground({ type: 'OPEN_CODE', code: current.code, mode: 'search' });
     }),
+    star,
     button('Sites ▾', 'javtr-secondary', () => {
       if (!current || !chip) return;
       if (isSiteMenuOpen()) return closeSiteMenu();
-      void openSiteMenu(current.code, chip.getBoundingClientRect(), { anchorEl: chip });
+      const { code, el: field } = current;
+      void openSiteMenu(code, chip.getBoundingClientRect(), {
+        anchorEl: chip,
+        page: () => (shownOnPage(code, field) ? thisPage() : null),
+      });
     }),
     button('×', 'javtr-close', dismiss),
   );
   el.querySelector('.javtr-close')!.setAttribute('aria-label', 'Dismiss');
   document.documentElement.append(el);
   return el;
+}
+
+/** ☆ / ★ for the code in the chip. */
+function paintStar() {
+  if (!current || !star) return;
+  const on = isStarred(current.code);
+  star.textContent = on ? '★' : '☆';
+  star.classList.toggle('javtr-on', on);
+  star.title = on ? 'Remove from favourites' : 'Add to favourites';
+  star.setAttribute('aria-label', star.title);
 }
 
 function position() {
@@ -82,6 +106,7 @@ function update(el: Editable) {
   if (current && formatCode(current.code) !== formatCode(code)) closeSiteMenu();
   current = { el, code };
   label.textContent = formatCode(code);
+  paintStar();
   chip.hidden = false;
   position();
 }
@@ -123,6 +148,10 @@ const onCaretMove = (e: Event) => {
 const onViewportChange = () => position();
 
 export function enableFieldChip() {
+  if (!watchingStars) {
+    watchingStars = true;
+    onStarredChange(paintStar);
+  }
   document.addEventListener('input', onInput, true);
   document.addEventListener('focusin', onFocusIn, true);
   document.addEventListener('focusout', onFocusOut, true);

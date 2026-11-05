@@ -1,5 +1,6 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
+import { addFavourite, favouriteError } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { sendToTab, type Message } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
@@ -8,6 +9,7 @@ import { getSettings, seedBuiltIns } from '../shared/storage';
 const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
 const MENU_LINK = 'open-trailer-link';
+const MENU_FAVOURITE = 'favourite-selection';
 const MENU_SITES = 'open-on';
 const MENU_SITE_PREFIX = 'open-on:';
 const MENU_SITES_ALL = 'open-on:*all';
@@ -18,6 +20,7 @@ function buildMenus(sites: OpenOnSite[]) {
     // "selection" also covers text selected inside inputs and textareas.
     chrome.contextMenus.create({ id: MENU_OPEN, title: 'Open trailer for “%s”', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_SEARCH, title: 'Search javtrailers for “%s”', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_FAVOURITE, title: 'Add “%s” to favourites', contexts: ['selection'] });
     if (sites.length) {
       chrome.contextMenus.create({ id: MENU_SITES, title: 'Open “%s” on', contexts: ['selection'] });
       for (const site of sites) {
@@ -176,6 +179,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     void openText(info.selectionText, tab);
   } else if (id === MENU_SEARCH && info.selectionText) {
     void openText(info.selectionText, tab, 'search');
+  } else if (id === MENU_FAVOURITE && info.selectionText) {
+    const code = parseCode(info.selectionText);
+    // Selected in a text box means typed, not shown on the page: save no page then.
+    const page = !info.editable && info.pageUrl ? { url: info.pageUrl, title: tab?.title } : null;
+    if (code) void addFavourite(code, page).catch((err) => console.warn('Favourite not saved:', favouriteError(err)));
   } else if (id.startsWith(MENU_SITE_PREFIX) && info.selectionText) {
     const code = parseCode(info.selectionText);
     if (code) void openOn(code, id === MENU_SITES_ALL ? undefined : id.slice(MENU_SITE_PREFIX.length), tab);

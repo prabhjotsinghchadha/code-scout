@@ -12,6 +12,7 @@
         <input id="code-input" type="text" placeholder="Enter a code, e.g. NSFS-484" autocomplete="off" autofocus />
         <button type="submit" title="Open the video page">Open</button>
         <button type="button" id="search-btn" class="secondary" title="Search javtrailers.com">Search</button>
+        <button type="button" id="star-btn" class="secondary star" title="Add to favourites" aria-label="Add to favourites" disabled>☆</button>
       </form>
       <p id="error" class="error" hidden></p>
       <div id="typed-sites" class="site-row" hidden></div>
@@ -20,6 +21,12 @@
         <h2>On this page</h2>
         <ul id="codes"></ul>
         <p id="empty" class="muted" hidden>No codes found on this page.</p>
+      </section>
+
+      <section>
+        <h2>Favourites <span id="favs-count" class="count"></span></h2>
+        <ul id="favs"></ul>
+        <p id="favs-empty" class="muted" hidden>Star a code with ☆ to keep it here.</p>
       </section>
 
       <section>

@@ -3,6 +3,7 @@ import { isSiteOff } from '../shared/hosts';
 import type { Message } from '../shared/messages';
 import { getSettings, onSettingsChanged, type Settings } from '../shared/storage';
 import { activeCode } from './editable';
+import { startFavourites } from './favourites';
 import { disableFieldChip, enableFieldChip } from './field-chip';
 import { disableInline, enableInline } from './inline';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
@@ -22,6 +23,8 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
 async function init() {
   // javtrailers.com has its own search and links; don't add our UI there.
   if (location.hostname.endsWith('javtrailers.com')) return;
+  // Known before the ▶ buttons are drawn, so favourites show as ★ straight away.
+  await startFavourites().catch(() => {});
 
   const state = { inlineButtons: false, fieldChip: false };
   const apply = (settings: Settings) => {

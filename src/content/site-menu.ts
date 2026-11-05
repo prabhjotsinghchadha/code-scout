@@ -1,8 +1,10 @@
-// Small floating menu: open a code on javtrailers or on any of the user's "Open on" sites.
+// Small floating menu: open a code on javtrailers or on any of the user's "Open on" sites, or star it.
 import { formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
+import type { FavouritePage } from '../shared/favourites';
 import { fillTemplate } from '../shared/open-on';
 import { getSettings } from '../shared/storage';
+import { isStarred, thisPage, toggleStar } from './favourites';
 import { markUi, onUi } from './ui-events';
 
 let menu: HTMLDivElement | null = null;
@@ -52,11 +54,14 @@ export function closeSiteMenu() {
   anchorEl = null;
 }
 
-/** Show the menu for `code` just below (or above) `anchor`. */
+/**
+ * Show the menu for `code` just below (or above) `anchor`. `page` gives the page to save when the code is
+ * starred (default: this page; null for none, e.g. for a code that was only typed).
+ */
 export async function openSiteMenu(
   code: VideoCode,
   anchor: DOMRect,
-  opts: { onClose?: () => void; anchorEl?: Element } = {},
+  opts: { onClose?: () => void; anchorEl?: Element; page?: () => FavouritePage | null } = {},
 ) {
   closeSiteMenu();
   const { openOnSites } = await getSettings();
@@ -71,6 +76,9 @@ export async function openSiteMenu(
     title,
     item('▶ Open trailer', () => void sendToBackground({ type: 'OPEN_CODE', code })),
     item('Search JavTrailers', () => void sendToBackground({ type: 'OPEN_CODE', code, mode: 'search' })),
+    isStarred(code)
+      ? item('★ Remove from favourites', () => void toggleStar(code, null))
+      : item('☆ Add to favourites', () => void toggleStar(code, (opts.page ?? thisPage)())),
     Object.assign(document.createElement('hr'), { className: 'javtr-menu-sep' }),
   );
   if (openOnSites.length) {
