@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  codeInUrl,
   codeNearCaret,
   findCodes,
   findTypedCodes,
@@ -25,6 +26,7 @@ test('parses common code formats', () => {
   assert.equal(fmt('ipx-001'), 'IPX-001');
   assert.equal(fmt('SSIS-1023'), 'SSIS-1023');
   assert.equal(fmt('300MIUM-123'), '300MIUM-123');
+  assert.equal(fmt('MD0273'), 'MD-273');
 });
 
 test('parses codes from URLs', () => {
@@ -76,4 +78,21 @@ test('picks the code nearest the caret', () => {
   assert.equal(at(15), 'NSFS-484');
   assert.equal(at(text.length), 'IPX-123');
   assert.equal(codeNearCaret('nothing here', 3), null);
+});
+
+test('finds the code a page address is about', () => {
+  const inUrl = (url: string) => {
+    const c = codeInUrl(url);
+    return c && formatCode(c);
+  };
+  assert.equal(inUrl('https://18jav.tv/videos/MD0273'), 'MD-273');
+  assert.equal(inUrl('https://missav.ws/en/nsfs-484'), 'NSFS-484');
+  assert.equal(inUrl('https://javtrailers.com/video/nsfs00484/'), 'NSFS-484');
+  assert.equal(inUrl('https://example.com/v/259LUXU1759.html?ref=1'), '259LUXU-1759');
+  // Only a whole last segment counts, so slugs, listings and short numbers are left to the page text.
+  assert.equal(inUrl('https://jav.guru/123456/nsfs-484-some-title/'), null);
+  assert.equal(inUrl('https://18jav.tv/categories/chinese-subtitle'), null);
+  assert.equal(inUrl('https://example.com/users/bob99'), null);
+  assert.equal(inUrl('https://example.com/docs/sha-256'), null);
+  assert.equal(inUrl('not a url'), null);
 });

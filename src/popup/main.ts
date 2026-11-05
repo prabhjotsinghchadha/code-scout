@@ -1,4 +1,4 @@
-import { formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
+import { codeInUrl, formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
 import {
   favouriteError,
   getFavourites,
@@ -166,12 +166,15 @@ function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null
 
 async function loadPageCodes() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  let codes: VideoCode[] = [];
+  // The video the page's address is about ("/videos/MD0273") comes first: its text may never show the code.
+  const fromUrl = tab?.url ? codeInUrl(tab.url) : null;
+  let codes: VideoCode[] = fromUrl ? [fromUrl] : [];
   try {
-    if (tab?.id !== undefined) codes = (await sendToTab(tab.id, { type: 'GET_PAGE_CODES' })).codes;
+    if (tab?.id !== undefined) codes = [...codes, ...(await sendToTab(tab.id, { type: 'GET_PAGE_CODES' })).codes];
   } catch {
     // No content script here (chrome:// pages, Web Store, or a tab opened before install).
   }
+  codes = [...new Map(codes.map((code) => [formatCode(code), code])).values()];
   empty.hidden = codes.length > 0;
   onPage = new Set(codes.map(formatCode));
   list.replaceChildren(...codes.map((code) => codeRow(code, codeLabel(code), tabPage)));

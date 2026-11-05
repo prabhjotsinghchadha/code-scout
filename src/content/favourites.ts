@@ -1,6 +1,6 @@
 // Favourites on web pages: which codes are starred (for the ★ buttons, chip and menu), and starring one
 // together with the page it's shown on.
-import { findCodes, formatCode, type VideoCode } from '../shared/codes';
+import { codeInUrl, findCodes, formatCode, type VideoCode } from '../shared/codes';
 import {
   favouriteCodes,
   favouriteError,
@@ -41,11 +41,14 @@ export function thisPage(): FavouritePage {
 const count = (text: string, code: string) => findCodes(text).filter((m) => formatCode(m.code) === code).length;
 
 /**
- * True if `code` is shown on the page, not only typed into `field` (whose text is part of the page's
- * text when it's a rich-text editor). A typed code gets no page: it's probably a search box, not the video.
+ * True if `code` is this page's video (its address is "/videos/MD0273") or is shown on the page, not only
+ * typed into `field` (whose text is part of the page's text when it's a rich-text editor). A code that is
+ * only typed gets no page: it's probably a search box, not the video.
  */
 export function shownOnPage(code: VideoCode, field?: Editable): boolean {
   const c = formatCode(code);
+  const fromUrl = codeInUrl(location.href);
+  if (fromUrl && formatCode(fromUrl) === c) return true;
   const inField = field?.isContentEditable ? count(field.innerText, c) : 0;
   return count(document.body.innerText, c) > inField;
 }
