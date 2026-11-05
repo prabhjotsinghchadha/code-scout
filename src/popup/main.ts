@@ -1,9 +1,12 @@
 import { codeInUrl, formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
 import {
   favouriteError,
+  favouriteFor,
   getFavourites,
   onFavouritesChanged,
+  removeFavouriteEntry,
   toggleFavourite,
+  togglePageFavourite,
   type Favourite,
   type FavouritePage,
 } from '../shared/favourites';
@@ -59,18 +62,24 @@ function smallButton(text: string, className: string, onClick: () => void) {
 let tabPage: FavouritePage | null = null;
 /** Codes shown on the current tab ("NSFS-484"). */
 let onPage = new Set<string>();
+/** Every favourite, newest first. */
+let favs: Favourite[] = [];
 /** Codes the user starred ("NSFS-484"). */
 let starred = new Set<string>();
 
-async function toggleStar(code: VideoCode, page: FavouritePage | null) {
+/** Makes a favourites change, showing why if it couldn't be saved. */
+async function saving(change: () => Promise<unknown>) {
   try {
-    await toggleFavourite(code, starred.has(formatCode(code)) ? null : page);
+    await change();
     error.hidden = true;
   } catch (err) {
     error.textContent = favouriteError(err);
     error.hidden = false;
   }
 }
+
+const toggleStar = (code: VideoCode, page: FavouritePage | null) =>
+  saving(() => toggleFavourite(code, starred.has(formatCode(code)) ? null : page));
 
 /** ☆ / ★ for the code in the button's data-code (empty = nothing to star). */
 function paintStar(b: HTMLButtonElement) {
@@ -108,33 +117,68 @@ function setupTypedStar() {
 const codeLabel = (code: VideoCode) =>
   Object.assign(document.createElement('span'), { className: 'code', textContent: formatCode(code) });
 
-/** A favourite's row, with the page it was starred on as a full-width link underneath. */
-function favRow({ code, url, title }: Favourite) {
-  const li = codeRow(code, codeLabel(code), null);
-  li.classList.add('fav');
-  if (url) {
-    const a = Object.assign(document.createElement('a'), {
-      className: 'fav-page',
-      href: url,
-      textContent: title || new URL(url).hostname,
-      title: url,
-    });
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      void openLinks([url]);
-    });
-    li.append(a);
+/** A link to a favourite's page, opened next to this tab. */
+function pageLink(url: string, title?: string) {
+  const a = Object.assign(document.createElement('a'), {
+    className: 'fav-page',
+    href: url,
+    textContent: title || url.replace(/^https?:\/\/(www\.)?/, ''),
+    title: url,
+  });
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    void openLinks([url]);
+  });
+  return a;
+}
+
+/**
+ * A favourite's row with its page as a full-width link underneath: a code gets Open, Search, Sites and ★;
+ * a page starred on its own gets its site's name and ★.
+ */
+function favRow(fav: Favourite) {
+  let li: HTMLLIElement;
+  if (fav.code) {
+    li = codeRow(fav.code, codeLabel(fav.code), null);
+  } else {
+    li = document.createElement('li');
+    const site = Object.assign(document.createElement('span'), { className: 'code host', textContent: siteKey(fav.url) });
+    const remove = smallButton('★', 'secondary star on', () => void saving(() => removeFavouriteEntry(fav)));
+    remove.title = 'Remove from favourites';
+    remove.setAttribute('aria-label', remove.title);
+    li.append(site, remove);
   }
+  li.classList.add('fav');
+  if (fav.url) li.append(pageLink(fav.url, fav.title));
   return li;
 }
 
+/** "☆ Star this page" in the Favourites heading: stars the tab (the code in its address, if it has one). */
+function setupStarPage() {
+  const page = tabPage;
+  if (!page) return;
+  const btn = $<HTMLButtonElement>('fav-page');
+  btn.hidden = false;
+  btn.addEventListener('click', () => void saving(() => togglePageFavourite(page)));
+  paintStarPage();
+}
+
+function paintStarPage() {
+  const btn = $<HTMLButtonElement>('fav-page');
+  const on = !!tabPage && !!favouriteFor(favs, tabPage.url);
+  btn.textContent = on ? '★ Starred' : '☆ Star this page';
+  btn.classList.toggle('on', on);
+  btn.title = on ? 'Remove this page from favourites' : 'Add the page you’re on to favourites';
+}
+
 async function renderFavourites() {
-  const favs = await getFavourites();
-  starred = new Set(favs.map((f) => formatCode(f.code)));
+  favs = await getFavourites();
+  starred = new Set(favs.flatMap((f) => (f.code ? [formatCode(f.code)] : [])));
   $('favs-count').textContent = favs.length ? String(favs.length) : '';
   $('favs-empty').hidden = favs.length > 0;
   $('favs').replaceChildren(...favs.map(favRow));
-  document.querySelectorAll<HTMLButtonElement>('button.star').forEach(paintStar);
+  document.querySelectorAll<HTMLButtonElement>('button.star[data-code]').forEach(paintStar);
+  paintStarPage();
 }
 
 /** A row for a code: Open, Search, Sites (toggles a row of site buttons below it) and ☆. */
@@ -381,6 +425,7 @@ async function init() {
   tabPage = tab?.url && /^https?:/.test(tab.url) ? { url: tab.url, title: tab.title } : null;
   await renderFavourites(); // before the page's codes, so their stars are right
   onFavouritesChanged(() => void renderFavourites());
+  setupStarPage();
   setupTypedStar();
   inline.checked = settings.inlineButtons;
   chip.checked = settings.fieldChip;
