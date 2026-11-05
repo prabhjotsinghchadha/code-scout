@@ -9,11 +9,13 @@ import {
   groupOf,
   linkLabel,
   placeLink,
+  suggestLinkName,
   validateGroupName,
   type LinkState,
   type QuickLink,
 } from '../shared/quick-links';
 import { siteIcon } from '../shared/site-icon';
+import { SITES } from '../shared/sites';
 import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
 import { mostVisitedLinks, VISITS_KEY, type Visits } from '../shared/visits';
 
@@ -95,13 +97,16 @@ function showUndo(text: string, undo: () => void) {
 }
 
 // --- Tiles ---
-function renameTile(tile: HTMLElement, link: QuickLink) {
+/** Renames in place. `pageOnly` selects just the page's part of "Site · Page", ready to type over. */
+function renameTile(tile: HTMLElement, link: QuickLink, pageOnly = false) {
   const title = tile.querySelector<HTMLElement>('.tile-title')!;
   const input = el('input', { type: 'text', className: 'tile-rename', value: link.name, maxLength: 80 });
   input.setAttribute('aria-label', 'Link name');
   title.replaceWith(input);
   input.focus();
-  input.select();
+  const dot = link.name.indexOf(' · ');
+  if (pageOnly && dot > 0) input.setSelectionRange(dot + 3, link.name.length);
+  else input.select();
   let done = false;
   const finish = (save: boolean) => {
     if (done) return;
@@ -127,6 +132,23 @@ function renameTile(tile: HTMLElement, link: QuickLink) {
     e.preventDefault();
     e.stopPropagation();
   });
+}
+
+/** After "Add page": shows the new link's tile and opens its name to edit, so it can say what the page is. */
+function renameAdded(link: QuickLink) {
+  const search = $<HTMLInputElement>('links-search');
+  search.value = '';
+  const group = groupOf(state, link) ?? ALL; // links without a group show under All
+  if (pill !== ALL && pill !== group) setPill(group);
+  else render();
+  // The last match: "Most visited" (first, under All) may list the same page.
+  const tile = [...$('links').querySelectorAll<HTMLAnchorElement>('.tile-link')]
+    .filter((a) => a.getAttribute('href') === link.url)
+    .at(-1)
+    ?.closest<HTMLElement>('.tile');
+  if (!tile) return;
+  tile.scrollIntoView({ block: 'nearest' });
+  renameTile(tile, link, true);
 }
 
 function removeLink(link: QuickLink) {
@@ -327,9 +349,10 @@ function setupAddPage(tab: chrome.tabs.Tab | undefined) {
       group = newGroup.value.trim();
       next = addGroup(next, group);
     }
-    const name = tab.title?.trim().slice(0, 60) || defaultLinkName(url);
+    const link: QuickLink = { name: suggestLinkName(url, tab.title ?? '', next.quickLinks, SITES), url, ...(group && { group }) };
     showForm(false);
-    await commit(appendLink(next, { name, url, ...(group && { group }) }));
+    void commit(appendLink(next, link));
+    renameAdded(link);
   });
 }
 

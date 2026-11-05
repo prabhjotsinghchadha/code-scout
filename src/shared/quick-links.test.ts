@@ -11,6 +11,7 @@ import {
   placeLink,
   renameGroup,
   setLinkGroup,
+  suggestLinkName,
   validateGroupName,
   type LinkState,
 } from './quick-links.ts';
@@ -101,4 +102,32 @@ test('placeGroup reorders groups', () => {
   assert.deepEqual(placeGroup(['A', 'B', 'C'], 'C', 'A'), ['C', 'A', 'B']);
   assert.deepEqual(placeGroup(['A', 'B', 'C'], 'A', null), ['B', 'C', 'A']);
   assert.deepEqual(placeGroup(['A', 'B', 'C'], 'B', 'B'), ['A', 'B', 'C']);
+});
+
+test('suggestLinkName: "Site · Page", with the site named like the links already saved there', () => {
+  const sites = [
+    { name: 'Jav Guru', origin: 'https://jav.guru' },
+    { name: 'MissAV', origin: 'https://missav.ws' },
+    { name: 'Javtiful', origin: 'https://javtiful.com' },
+    { name: 'Jable', origin: 'https://jable.tv' },
+  ];
+  const saved = [{ name: 'Guru · English subbed', url: 'https://jav.guru/category/english-subbed/' }];
+  const url = 'https://jav.guru/category/english-subbed/?cast=single&orderby=views-monthly&order=DESC';
+  // A saved link's site name wins over the built-in one; the site's part of the title is dropped.
+  assert.equal(suggestLinkName(url, 'English Subbed Archives - Jav Guru', saved, sites), 'Guru · English Subbed Archives');
+  // Nothing saved there yet: the built-in name.
+  assert.equal(suggestLinkName(url, 'Jav Guru | English Subbed', [], sites), 'Jav Guru · English Subbed');
+  assert.equal(suggestLinkName('https://missav.ws/en/x', 'Uncensored – MissAV.ws', [], sites), 'MissAV · Uncensored');
+  // Subdomains count as the same site.
+  assert.equal(suggestLinkName('https://m.javtiful.com/videos', 'Videos', [], sites), 'Javtiful · Videos');
+  // No title: the address's last part.
+  assert.equal(suggestLinkName(url, '', [], sites), 'Jav Guru · English subbed');
+  // A home page titled with just the site's name is the site's name alone, like built-in home links.
+  assert.equal(suggestLinkName('https://jable.tv/', 'Jable', [], sites), 'Jable');
+  // Unknown sites: the title part that matches the address, else the address.
+  assert.equal(suggestLinkName('https://www.example.com/search?q=a', 'Search results | Example', [], sites), 'Example · Search results');
+  assert.equal(suggestLinkName('https://foo.net/videos/latest', 'Latest videos', [], sites), 'foo.net · Latest videos');
+  assert.equal(suggestLinkName('https://foo.net/', '', [], sites), 'foo.net');
+  // Long titles are cut.
+  assert.equal(suggestLinkName('https://foo.net/a', 'x'.repeat(100), [], sites), `foo.net · ${'x'.repeat(60)}`);
 });

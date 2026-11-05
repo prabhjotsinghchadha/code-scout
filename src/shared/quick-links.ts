@@ -1,4 +1,5 @@
 // Pure helpers for quick links and their groups (no chrome APIs, so they're unit-testable).
+import { baseDomain } from './hosts.ts';
 
 export interface QuickLink {
   name: string;
@@ -100,6 +101,62 @@ export function linkLabel({ name, url }: QuickLink): { title: string; host: stri
   }
   const dot = name.indexOf(' · ');
   return { title: (dot > 0 ? name.slice(dot + 3) : name).trim() || host, host };
+}
+
+const SITE_DOT = ' · ';
+export const MAX_PAGE_NAME = 60;
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+};
+/** Lower case letters and digits only, so "Jav Guru", "JAV GURU" and "jav.guru" compare equal. */
+const nameKey = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+/** "English subbed" from ".../category/english-subbed/"; "" for a site's home page. */
+function pathName(url: string): string {
+  let last = '';
+  try {
+    last = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).at(-1) ?? '');
+  } catch {
+    return '';
+  }
+  const words = last.replace(/\.[a-z\d]+$/i, '').replace(/[-_+]+/g, ' ').trim();
+  return words && words[0].toUpperCase() + words.slice(1);
+}
+
+/**
+ * A name for a page being saved, in the "Site · Page" form the built-in links use ("Jav Guru · English
+ * subbed"), so its tile shows the page's name over the site's address. The site's name comes from a link
+ * already saved on that site, else a built-in site, else the part of the page title that matches the
+ * address, else the address itself; the page's name is the rest of the title (or the address's last part).
+ */
+export function suggestLinkName(url: string, title: string, links: QuickLink[], sites: { name: string; origin: string }[]): string {
+  const host = hostOf(url);
+  if (!host) return title.trim().slice(0, MAX_PAGE_NAME) || url;
+  const site = baseDomain(host);
+  const onSite = (u: string) => {
+    const h = hostOf(u);
+    return h !== null && baseDomain(h) === site;
+  };
+  // "English Subbed - Jav Guru", "Jav Guru | English Subbed", ...
+  const parts = title
+    .split(/\s+[|·•\-–—»›]\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const addressKeys = [nameKey(host), nameKey(host.replace(/\.[^.]+$/, ''))];
+  const isAddress = (p: string) => addressKeys.includes(nameKey(p));
+
+  const saved = links.find((l) => onSite(l.url) && l.name.indexOf(SITE_DOT) > 0)?.name.split(SITE_DOT)[0].trim();
+  const builtIn = sites.find((s) => onSite(s.origin))?.name;
+  const fromTitle = parts.length > 1 ? parts.find(isAddress) : undefined;
+  const siteName = saved || builtIn || fromTitle || host;
+
+  const page = parts.filter((p) => !isAddress(p) && nameKey(p) !== nameKey(siteName)).join(' - ') || pathName(url);
+  return page ? `${siteName}${SITE_DOT}${page.slice(0, MAX_PAGE_NAME).trim()}` : siteName;
 }
 
 /** The group a link is shown in: its group if that still exists, else null (no group). */
