@@ -35,11 +35,20 @@ export class Limiter {
   private running = 0;
   private queue: Waiting[] = [];
   private order = 0;
-
-  readonly max: number;
+  private limit: number;
 
   constructor(max: number) {
-    this.max = max;
+    this.limit = max;
+  }
+
+  get max() {
+    return this.limit;
+  }
+
+  /** Change how many run at once: more start straight away; fewer, as running ones finish. */
+  setMax(max: number) {
+    this.limit = Math.max(1, max);
+    this.next();
   }
 
   get active() {
@@ -74,7 +83,7 @@ export class Limiter {
   }
 
   private next() {
-    while (this.running < this.max && this.queue.length) {
+    while (this.running < this.limit && this.queue.length) {
       let best = 0;
       for (let i = 1; i < this.queue.length; i++) {
         const a = this.queue[i];
@@ -98,6 +107,13 @@ export interface RangeFetchOptions {
   attempts?: number;
   /** Called as bytes arrive, for progress and speed. */
   onBytes?: (bytes: number) => void;
+  /** Called when a range is about to be tried again (busy server, network error). */
+  onRetry?: () => void;
+  /**
+   * The browser's priority for the requests. 'low' lets other requests to the same server go first
+   * (a download leaves the playing video its turn).
+   */
+  fetchPriority?: RequestPriority;
   /** For tests. */
   fetch?: typeof fetch;
   retryDelayMs?: number;
@@ -122,7 +138,7 @@ const hostOf = (url: string) => {
 
 /** Download `url` as parallel byte ranges and return the whole file. */
 export async function fetchInRanges(url: string, options: RangeFetchOptions): Promise<Uint8Array> {
-  const { limiter, priority = 0, chunkSize = CHUNK_SIZE, attempts = 3, onBytes, retryDelayMs = 500 } = options;
+  const { limiter, priority = 0, chunkSize = CHUNK_SIZE, attempts = 3, onBytes, onRetry, fetchPriority, retryDelayMs = 500 } = options;
   const host = hostOf(url);
   const parallel = noRangeHosts.has(host) ? 1 : (options.parallel ?? 4);
   const doFetch = options.fetch ?? fetch.bind(globalThis);
@@ -141,12 +157,13 @@ export async function fetchInRanges(url: string, options: RangeFetchOptions): Pr
       let error: unknown;
       let retryable = true; // network errors and 429/5xx are worth another try
       try {
-        const response = await doFetch(url, { headers: { Range: `bytes=${from}-${from + chunkSize - 1}` }, signal });
+        const init: RequestInit = { headers: { Range: `bytes=${from}-${from + chunkSize - 1}` }, signal };
+        if (fetchPriority) init.priority = fetchPriority;
+        const response = await doFetch(url, init);
         if (response.status === 416) return { kind: 'past-end' };
         if (EXPIRED.has(response.status)) throw new LinkExpiredError(response.status);
         if (response.status === 206 || response.status === 200) {
-          const bytes = new Uint8Array(await response.arrayBuffer());
-          onBytes?.(bytes.byteLength);
+          const bytes = await readBody(response, onBytes);
           return response.status === 206 ? { kind: 'part', bytes } : { kind: 'whole', bytes };
         }
         error = new Error(`HTTP ${response.status}`);
@@ -157,6 +174,7 @@ export async function fetchInRanges(url: string, options: RangeFetchOptions): Pr
         error = err;
       }
       if (!retryable || attempt >= attempts) throw error;
+      onRetry?.();
       await new Promise((r) => setTimeout(r, retryDelayMs * attempt));
       if (signal.aborted) throw new AbortError();
     }
@@ -206,6 +224,24 @@ export async function fetchInRanges(url: string, options: RangeFetchOptions): Pr
   } finally {
     outer?.removeEventListener('abort', onOuterAbort);
   }
+}
+
+/** The response's bytes, reported to `onBytes` as they arrive (a range can take seconds on a slow server). */
+async function readBody(response: Response, onBytes?: (bytes: number) => void): Promise<Uint8Array> {
+  if (!onBytes || !response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    onBytes?.(bytes.byteLength);
+    return bytes;
+  }
+  const reader = response.body.getReader();
+  const pieces: Uint8Array[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    pieces.push(value);
+    onBytes(value.byteLength);
+  }
+  return pieces.length === 1 ? pieces[0] : joinParts(pieces, pieces.length);
 }
 
 export function joinParts(parts: Uint8Array[], count: number): Uint8Array {

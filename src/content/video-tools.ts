@@ -107,6 +107,17 @@ function megabytes(bytes: number): string {
   return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${Math.round(bytes / 1e6)} MB`;
 }
 
+/** " · 850 KB/s", " · 1.4 MB/s" */
+function speedText(bytesPerSec: number | null): string {
+  if (bytesPerSec === null) return '';
+  return bytesPerSec >= 1e6 ? ` · ${(bytesPerSec / 1e6).toFixed(1)} MB/s` : ` · ${Math.round(bytesPerSec / 1e3)} KB/s`;
+}
+
+/** Tells the page's faster loading (video-boost.iife.ts) a download started or ended in this frame. */
+function signalDownload(state: 'start' | 'end') {
+  window.dispatchEvent(new CustomEvent('javtr:downloading', { detail: state }));
+}
+
 function levelName(level: VideoInfo['levels'][number]): string {
   if (level.height) return `${level.height}p`;
   return level.bitrate ? `${Math.round(level.bitrate / 1000)} kbps` : '?';
@@ -367,7 +378,8 @@ class VideoUi {
       this.say('Couldn’t find the video file. Play the video for a moment, then try again.');
       return;
     }
-    const download = new VideoDownload(source, suggestedFileName(), (p) => this.showProgress(p));
+    // Only while it's this toolbar's download: a late report must not start the counting again.
+    const download: VideoDownload = new VideoDownload(source, suggestedFileName(), (p) => this.download === download && this.showProgress(p));
     this.download = download;
     this.downloadBtn.textContent = '⬇ Choose where to save…';
     // Runs straight away: its first step is the "Save as" dialog, which needs this click.
@@ -381,6 +393,7 @@ class VideoUi {
         },
       )
       .finally(() => {
+        if (!this.cancelBtn.hidden) signalDownload('end');
         this.download = null;
         this.downloadBtn.textContent = '⬇ Download';
         this.downloadBtn.title = 'Save this video as an MP4 file';
@@ -391,12 +404,19 @@ class VideoUi {
 
   private showProgress(p: DownloadProgress) {
     if (this.cancelBtn.hidden) {
+      // The first progress: past the "Save as" dialog, downloading.
       this.cancelBtn.hidden = false;
       window.addEventListener('beforeunload', this.warnBeforeLeaving); // closing the tab stops it
-      this.say('Downloading. Keep this tab open until it finishes.');
+      signalDownload('start');
+      this.say(
+        this.video.paused
+          ? 'Downloading. Keep this tab open until it finishes.'
+          : 'Downloading. Keep this tab open until it finishes. Pausing the video can make it faster.',
+      );
     }
-    this.downloadBtn.textContent = `⬇ ${Math.floor(p.fraction * 100)}%${eta(p.etaSec)}`;
-    this.downloadBtn.title = `${megabytes(p.bytes)} downloaded. Keep this tab open until it finishes.`;
+    this.downloadBtn.textContent = `⬇ ${Math.floor(p.fraction * 100)}%${speedText(p.speed)}${eta(p.etaSec)}`;
+    const parallel = p.parallel ? `, ${p.parallel} requests at once` : '';
+    this.downloadBtn.title = `${megabytes(p.bytes)} downloaded${parallel}. Keep this tab open until it finishes.`;
   }
 
   private setSubs(reader: SubtitleReader | null) {

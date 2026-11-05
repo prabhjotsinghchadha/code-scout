@@ -5,6 +5,11 @@
 // file is written to disk as it goes, so memory stays small even for a 2 GB video. A plain video file
 // (<video src="….mp4">) is streamed to disk as is.
 //
+// How many requests run at once is measured as it goes (parallel-tuner.ts): 6 to begin with, more while
+// more turns out faster (servers that slow down each request), up to 24. They're sent at low priority,
+// so a video playing meanwhile still gets its segments first; and the page's faster loading
+// (video-boost.iife.ts) fetches less ahead while a download runs ("javtr:downloading").
+//
 // Runs in the page (the same requests the site's player makes), so the tab has to stay open. In a player
 // embedded from another site, the top page shows "Save as" and writes the file (frame-bridge.ts). Video
 // links often carry a token that expires (18JAV: about 2 hours); when a segment says 403, a fresh copy of
@@ -30,6 +35,7 @@ import {
   pickVariant,
   type MediaPlaylist,
 } from '../shared/hls-playlist';
+import { ParallelTuner } from '../shared/parallel-tuner';
 import { AbortError, fetchInRanges, Limiter, LinkExpiredError } from '../shared/range-fetch';
 import { fileTarget, inForeignFrame, saveInPage, type SaveTarget } from './frame-bridge';
 
@@ -46,8 +52,12 @@ export interface DownloadProgress {
   /** 0–1 */
   fraction: number;
   bytes: number;
+  /** Bytes per second over the last few seconds, once there's enough to tell. */
+  speed: number | null;
   /** Seconds left, once there's enough to estimate. */
   etaSec: number | null;
+  /** Requests at once (HLS only). */
+  parallel: number | null;
 }
 
 // Mediabunny's warnings are notes, not failures (e.g. "stream_type 0x15 not supported": the ID3 timestamps
@@ -56,8 +66,13 @@ export interface DownloadProgress {
 Logging.level = LogLevel.Errors;
 Logging.on('warn', (args) => console.debug('[mediabunny]', ...args));
 
-/** Segments downloaded ahead of the one being written. */
-const WINDOW = 4;
+/** Requests at once to begin with, and at most (see ParallelTuner). */
+const PARALLEL_START = 6;
+const PARALLEL_MAX = 24;
+/** Segments downloaded ahead of the one being written: enough to keep every request busy, even when a segment is only two ranges. */
+const windowFor = (parallel: number) => Math.max(4, Math.ceil(parallel / 2));
+/** Speed is averaged over this long. */
+const SPEED_WINDOW_MS = 10_000;
 
 export class CancelledError extends Error {
   constructor() {
@@ -70,9 +85,17 @@ export class VideoDownload {
   /** A segment couldn't be downloaded: the file must not be kept. */
   private failed = false;
   private conversion: Conversion | null = null;
-  private readonly limiter = new Limiter(6);
+  private readonly limiter = new Limiter(PARALLEL_START);
   private bytes = 0;
-  private readonly started = Date.now();
+  private fraction = 0;
+  private started = Date.now();
+  /** Recent [time, bytes] readings, for the speed. */
+  private samples: [number, number][] = [];
+  private speed: number | null = null;
+  /** Requests at once, for HLS (null: a plain file, one request). */
+  private parallel: number | null = null;
+  /** Called every second while downloading (the HLS download tunes its requests). */
+  private onTick: ((now: number) => void) | null = null;
   private readonly source: DownloadSource;
   private readonly filename: string | Promise<string>;
   private readonly onProgress: (p: DownloadProgress) => void;
@@ -99,6 +122,8 @@ export class VideoDownload {
       close: () => (this.failed || this.controller.signal.aborted ? target.abort() : target.close()),
       abort: () => target.abort(),
     });
+    this.started = Date.now(); // not counting the time in the dialog
+    const ticker = setInterval(() => this.tick(), 1000);
     try {
       if (this.source.fileUrl) await this.saveFile(this.source.fileUrl, writable);
       else if (this.source.playlistUrl) await this.saveHls(this.source.playlistUrl, writable);
@@ -106,6 +131,9 @@ export class VideoDownload {
     } catch (err) {
       await target.abort().catch(() => {});
       throw this.controller.signal.aborted ? new CancelledError() : err;
+    } finally {
+      clearInterval(ticker);
+      this.onTick = null;
     }
     return target.name;
   }
@@ -130,10 +158,27 @@ export class VideoDownload {
     return answer;
   }
 
-  private report(fraction: number) {
-    const elapsed = (Date.now() - this.started) / 1000;
-    const etaSec = fraction > 0.01 && elapsed > 5 ? (elapsed / fraction) * (1 - fraction) : null;
-    this.onProgress({ fraction, bytes: this.bytes, etaSec });
+  private tick() {
+    const now = Date.now();
+    this.samples.push([now, this.bytes]);
+    while (now - this.samples[0][0] > SPEED_WINDOW_MS) this.samples.shift();
+    const [t0, b0] = this.samples[0];
+    this.speed = now - t0 >= 3000 ? ((this.bytes - b0) * 1000) / (now - t0) : null;
+    this.onTick?.(now);
+    this.report();
+  }
+
+  private report() {
+    const { fraction, bytes, speed } = this;
+    let etaSec: number | null = null;
+    if (fraction > 0.01 && speed) {
+      // From the recent speed, so it follows speed-ups. The size is guessed from the share done so far.
+      etaSec = Math.max(0, (bytes / fraction - bytes) / speed);
+    } else {
+      const elapsed = (Date.now() - this.started) / 1000;
+      if (fraction > 0.01 && elapsed > 5) etaSec = (elapsed / fraction) * (1 - fraction);
+    }
+    this.onProgress({ fraction, bytes, speed, etaSec, parallel: this.parallel });
   }
 
   private async saveFile(url: string, writable: WritableStream<unknown>) {
@@ -143,7 +188,7 @@ export class VideoDownload {
     const counter = new TransformStream<Uint8Array, Uint8Array>({
       transform: (chunk, c) => {
         this.bytes += chunk.byteLength;
-        this.report(total ? this.bytes / total : 0);
+        this.fraction = total ? this.bytes / total : 0;
         c.enqueue(chunk);
       },
     });
@@ -192,6 +237,16 @@ export class VideoDownload {
         throw new Error('The video link expired. Reload the page and start the download again.');
       })().finally(() => setTimeout(() => (refreshing = null), 10_000)));
 
+    // Requests at once: more while more turns out faster (see the top of this file).
+    const tuner = new ParallelTuner(Date.now(), { start: PARALLEL_START, max: PARALLEL_MAX });
+    this.parallel = tuner.limit;
+    const setParallel = (limit: number | null) => {
+      if (limit === null) return;
+      this.limiter.setMax(limit);
+      this.parallel = limit;
+      fill(); // more segments ahead to keep them busy
+    };
+
     const fetchSegment = async (i: number): Promise<Uint8Array> => {
       for (let attempt = 0; ; attempt++) {
         try {
@@ -200,7 +255,9 @@ export class VideoDownload {
             priority: i,
             signal,
             parallel: 4,
+            fetchPriority: 'low',
             onBytes: (n) => (this.bytes += n),
+            onRetry: () => setParallel(tuner.backOff(Date.now())),
           });
         } catch (err) {
           if (!(err instanceof LinkExpiredError) || attempt >= 2) throw err;
@@ -213,7 +270,7 @@ export class VideoDownload {
     let started = 0;
     let next = 0;
     const fill = () => {
-      while (started < total && started < next + WINDOW) {
+      while (started < total && started < next + windowFor(this.limiter.max)) {
         const p = fetchSegment(started);
         p.catch(() => {}); // awaited when its turn comes
         ready.set(started++, p);
@@ -233,13 +290,16 @@ export class VideoDownload {
           }
           ready.delete(next++);
           fill();
-          this.report(next / total);
+          this.fraction = next / total;
+          this.report();
           c.enqueue(bytes);
         },
         cancel: () => this.controller.abort(),
       },
       { highWaterMark: 0 },
     );
+
+    this.onTick = (now) => setParallel(tuner.update(now, this.bytes));
 
     const input = new Input({ source: new ReadableStreamSource(stream), formats: [MPEG_TS] });
     const output = new Output({

@@ -116,6 +116,57 @@ test('limiter runs the lowest priority first and never more than max at once', a
   assert.deepEqual(order, [0, 1, 3, 9]);
 });
 
+test('limiter can be raised and lowered while running', async () => {
+  const limiter = new Limiter(1);
+  const releases: (() => void)[] = [];
+  const task = () => new Promise<void>((r) => releases.push(r));
+  const all = Promise.all(Array.from({ length: 6 }, () => limiter.run(task)));
+  assert.equal(limiter.active, 1);
+  limiter.setMax(4);
+  assert.equal(limiter.active, 4, 'more start straight away');
+  limiter.setMax(2);
+  assert.equal(limiter.active, 4, 'running ones finish');
+  releases.splice(0, 4).forEach((r) => r());
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(limiter.active, 2, 'then no more than the new max');
+  releases.forEach((r) => r());
+  await new Promise((r) => setTimeout(r, 0));
+  releases.forEach((r) => r());
+  await all;
+});
+
+test('reports bytes as they arrive, asks for the given priority, and tells about retries', async () => {
+  const pieces = [bytes(40), bytes(30), bytes(50)];
+  const priorities: (string | undefined)[] = [];
+  let busy = 1;
+  const fetch = (async (_url: string, init?: RequestInit) => {
+    priorities.push(init?.priority);
+    if (busy-- > 0) return new Response('busy', { status: 503 });
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const piece of pieces) c.enqueue(piece);
+        c.close();
+      },
+    });
+    return new Response(body, { status: 200 });
+  }) as typeof globalThis.fetch;
+  const reports: number[] = [];
+  let retries = 0;
+  const out = await fetchInRanges('https://slow.example.com/i.ts', {
+    limiter: new Limiter(2),
+    parallel: 1,
+    fetch,
+    retryDelayMs: 1,
+    fetchPriority: 'low',
+    onBytes: (n) => reports.push(n),
+    onRetry: () => retries++,
+  });
+  assert.equal(out.byteLength, 120);
+  assert.deepEqual(reports, [40, 30, 50]);
+  assert.equal(retries, 1);
+  assert.deepEqual(priorities, ['low', 'low']);
+});
+
 test('formats short durations', () => {
   assert.equal(shortDuration(45), '45s');
   assert.equal(shortDuration(80), '1:20');

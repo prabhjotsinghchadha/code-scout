@@ -12,7 +12,9 @@
 //    level. Playlists the page downloads (XMLHttpRequest or fetch) are remembered, and when the player
 //    then asks for one of their segments, the request is answered with the bytes fetched ahead.
 // Only finished videos (not live streams). Anything unusual (byte-range segments, a failed range
-// request) falls back to the player's normal loading.
+// request) falls back to the player's normal loading. While a download runs in the frame
+// (video-download.ts sends "javtr:downloading"), only a few segments are fetched ahead, leaving the
+// video server's connections to the download.
 //
 // It also reports each player's state (qualities, how far ahead it has loaded, the playlist URL for
 // downloads) to the content script with a "javtr:video-info" event on the <video>, and switches hls.js's
@@ -53,8 +55,9 @@ type Loose = any;
   const positions = new Map<string, Position>();
   /** Segments being fetched or fetched ahead, not yet handed to the player. */
   const jobs = new Map<string, Job>();
-  /** When the player last asked for a segment of each playlist. */
+  /** When the player last asked for a segment of each playlist, and which one. */
   const lastAsked = new Map<string[], number>();
+  const lastIndex = new Map<string[], number>();
   const players = new Map<HTMLMediaElement, Loose>();
   /** Playlist each segment list came from, and the last master playlist seen (for downloads). */
   const listUrls = new Map<string[], string>();
@@ -65,6 +68,20 @@ type Loose = any;
   const plainOnce = new Set<string>();
 
   const anyPlaying = () => [...players.keys(), ...document.getElementsByTagName('video')].some((m) => !m.paused);
+
+  /** Downloads running in this frame: fetch only a little ahead meanwhile. */
+  let downloads = 0;
+  window.addEventListener('javtr:downloading', (e) => {
+    downloads = Math.max(0, downloads + ((e as CustomEvent).detail === 'start' ? 1 : -1));
+    if (!downloads) return;
+    // Stop fetching what's further ahead than that (what's already here stays).
+    for (const [url, job] of jobs) {
+      const p = positions.get(url);
+      if (!p || job.done || p.index <= (lastIndex.get(p.list) ?? -1) + AHEAD_PAUSED) continue;
+      job.controller.abort();
+      jobs.delete(url);
+    }
+  });
 
   let off = false;
   window.addEventListener('javtr:video-off', () => {
@@ -113,6 +130,7 @@ type Loose = any;
     if (!pos || off) return null;
     const now = Date.now();
     lastAsked.set(pos.list, now);
+    lastIndex.set(pos.list, pos.index);
     for (const [u, job] of jobs) {
       const p = positions.get(u);
       const stale =
@@ -124,7 +142,7 @@ type Loose = any;
         jobs.delete(u);
       }
     }
-    const ahead = anyPlaying() ? AHEAD_PLAYING : AHEAD_PAUSED;
+    const ahead = anyPlaying() && !downloads ? AHEAD_PLAYING : AHEAD_PAUSED;
     for (let i = pos.index; i <= Math.min(pos.list.length - 1, pos.index + ahead); i++) start(pos.list[i], pos, i);
     const job = jobs.get(url);
     jobs.delete(url); // handed to the player
