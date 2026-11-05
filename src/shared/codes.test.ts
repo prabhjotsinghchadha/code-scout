@@ -51,6 +51,14 @@ test('finds codes in page text', () => {
   assert.equal(text.slice(first.index, first.index + first.length), 'NSFS-484');
 });
 
+test('finds codes with a suffix, as in list-page titles', () => {
+  const text = '[MFYD-200-SUBS] I spent a week… [JUR-853-SUBS] I cuckolded… [DLDSS-537-SUBS] Father-in-law…';
+  assert.deepEqual(
+    findCodes(text).map((m) => formatCode(m.code)),
+    ['MFYD-200', 'JUR-853', 'DLDSS-537'],
+  );
+});
+
 test('builds javtrailers URLs', () => {
   const code = parseCode('NSFS-484')!;
   assert.equal(searchUrl(code), 'https://javtrailers.com/search/nsfs-484');
