@@ -3,7 +3,7 @@ import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } fr
 import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { sendToTab, type Message } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
-import { defaultSettings, getSettings, seedQuickLinks } from '../shared/storage';
+import { defaultSettings, getSettings, seedBuiltIns } from '../shared/storage';
 
 const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
@@ -41,7 +41,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
     await chrome.storage.sync.set(defaultSettings);
   }
-  await seedQuickLinks();
+  await seedBuiltIns();
   buildMenus((await getSettings()).openOnSites);
   await syncPopupBlocker();
 });

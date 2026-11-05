@@ -32,7 +32,25 @@ src/
   popup/               # Toolbar popup UI
   options/             # Options page
   shared/codes.ts      # Code detection + javtrailers URL building (unit-tested)
+  shared/sites.ts      # Built-in sites: each one's "Open on" pattern and quick-link pages, defined once
+  shared/seed.ts       # Offers new built-ins to each install once, so ones the user removed stay removed
   shared/              # Typed messaging + storage helpers
+```
+
+## Adding a built-in site
+
+Add an entry to `SITES` in `src/shared/sites.ts`, or a page to an existing site's `pages`. Every install gets
+it on its next update; there is no version to bump. Installs remember items by id, so never rename or reuse
+an id. `npm test` checks the registry: unique ids, valid URLs and "Open on" patterns, and known groups.
+
+```ts
+{
+  id: 'example',
+  name: 'Example',
+  origin: 'https://example.com',
+  openOn: '/search?q={code_lower}',  // optional: adds it to "Open on"
+  pages: [{ id: 'subs', label: 'English subtitles', path: '/category/subs', group: 'Subtitles' }],
+},
 ```
 
 ## Development

@@ -1,7 +1,8 @@
 // Typed wrapper around chrome.storage.sync.
 import type { OpenMode } from './codes';
 import type { OpenOnSite } from './open-on.ts';
-import { hasGroup, type QuickLink } from './quick-links.ts';
+import type { QuickLink } from './quick-links.ts';
+import { offeredByVersion, seed } from './seed.ts';
 
 export type { QuickLink } from './quick-links';
 
@@ -25,91 +26,6 @@ export interface Settings {
   /** Sites where pop-ups, ad tabs and script redirects to other sites are blocked. */
   popupBlockSites: string[];
 }
-
-/**
- * Built-in quick links and groups, added once on install/update (see seedQuickLinks).
- * `since` is the seed version that introduced each link, so updates only add new ones.
- * `groupSince` is the seed version that put an existing link into its group (default 2).
- */
-export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number; groupSince?: number })[] = [
-  {
-    since: 1,
-    name: 'MissAV · English subtitle',
-    url: 'https://missav.ws/dm23/en/english-subtitle',
-    group: 'Subtitles',
-    groupSince: 10,
-  },
-  { since: 1, name: 'JavMost · Cuckold', url: 'https://www.javmost.ws/category/Cuckold/', group: 'Cuckold' },
-  {
-    since: 1,
-    name: 'Javtiful · Affair (popular)',
-    url: 'https://javtiful.com/category/affair?sort=popular',
-    group: 'Cheating',
-  },
-  { since: 3, name: 'JavLibrary · Most wanted', url: 'https://www.javlibrary.com/en/vl_mostwanted.php' },
-  { since: 3, name: 'JavTrailers · Cheating Wife', url: 'https://javtrailers.com/categories/cheating-wife', group: 'Cheating' },
-  { since: 3, name: 'JavTrailers · Adultery', url: 'https://javtrailers.com/categories/adultery', group: 'Cheating' },
-  { since: 4, name: 'Beeg · Cuckold Japanese', url: 'https://beeg.com/Cuckold+Japanese', group: 'Cuckold' },
-  { since: 5, name: 'FapHouse · Japanese', url: 'https://faphouse2.com/c/japanese/videos', group: 'All Japanese' },
-  { since: 5, name: 'Pornhub · Japanese', url: 'https://www.pornhub.com/categories/japanese', group: 'All Japanese' },
-  { since: 5, name: 'YouPorn · Japanese', url: 'https://www.youporn.com/category/japanese/', group: 'All Japanese' },
-  {
-    since: 7,
-    name: 'Jav Guru · English subbed',
-    url: 'https://jav.guru/category/english-subbed/',
-    group: 'Subtitles',
-    groupSince: 10,
-  },
-  {
-    since: 8,
-    name: '18JAV · Chinese subtitle',
-    url: 'https://18jav.tv/categories/chinese-subtitle',
-    group: 'Subtitles',
-    groupSince: 10,
-  },
-  { since: 9, name: 'Jable · Home (English)', url: 'https://jable.tv/?lang=en', group: 'More sites', groupSince: 10 },
-  { since: 10, name: 'SupJav · English subtitles', url: 'https://supjav.com/category/english-subtitles', group: 'Subtitles' },
-  {
-    since: 10,
-    name: 'BestJavPorn · English subtitle',
-    url: 'https://www.bestjavporn.com/v10/category/censored/english-subtitle/',
-    group: 'Subtitles',
-  },
-  { since: 10, name: 'SexTB', url: 'https://sextb.net/', group: 'More sites' },
-  { since: 10, name: '7MMTV', url: 'https://7mmtv.sx/', group: 'More sites' },
-  { since: 10, name: 'Korean Porn Movie', url: 'https://koreanpornmovie.com/', group: 'More sites' },
-  { since: 10, name: 'ThePornDude · All sites', url: 'https://theporndude.com/', group: 'More sites' },
-];
-/** Built-in "Open on" sites (URL patterns checked with NSFS-484) and the seed version that added them. */
-export const BUILT_IN_SITES: (OpenOnSite & { since: number })[] = [
-  { since: 6, id: 'missav', name: 'MissAV', template: 'https://missav.ws/en/{code_lower}' },
-  { since: 6, id: 'javlibrary', name: 'JavLibrary', template: 'https://www.javlibrary.com/en/vl_searchbyid.php?keyword={code}' },
-  { since: 6, id: 'javmost', name: 'JavMost', template: 'https://www.javmost.ws/{code}/' },
-  { since: 6, id: 'javtiful', name: 'Javtiful', template: 'https://javtiful.com/search?q={code_lower}' },
-  { since: 6, id: 'javguru', name: 'Jav Guru', template: 'https://jav.guru/?s={code}' },
-  { since: 9, id: 'jable', name: 'Jable', template: 'https://jable.tv/videos/{code_lower}/' },
-  { since: 10, id: 'supjav', name: 'SupJav', template: 'https://supjav.com/?s={code_lower}' },
-  { since: 10, id: 'bestjavporn', name: 'BestJavPorn', template: 'https://www.bestjavporn.com/search/{code_lower}/' },
-  { since: 10, id: 'sextb', name: 'SexTB', template: 'https://sextb.net/search/{code_lower}' },
-];
-
-/** Built-in groups and the seed version that introduced each. */
-export const BUILT_IN_GROUPS: { name: string; since: number }[] = [
-  { name: 'Cheating', since: 2 },
-  { name: 'Cuckold', since: 2 },
-  { name: 'NTR', since: 2 },
-  { name: 'All Japanese', since: 5 },
-  { name: 'Subtitles', since: 10 },
-  { name: 'More sites', since: 10 },
-];
-/**
- * Bump when changing the built-ins above so existing installs receive them.
- * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
- * 4: Beeg. 5: "All Japanese" group (FapHouse, Pornhub, YouPorn). 6: "Open on" sites.
- * 7: Jav Guru English subbed. 8: 18JAV Chinese subtitle. 9: Jable (quick link + Open-on site).
- * 10: "Subtitles" / "More sites" groups, SupJav, BestJavPorn, SexTB, 7MMTV, Korean Porn Movie, ThePornDude.
- */
-const QUICK_LINKS_SEED_VERSION = 10;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
@@ -159,31 +75,18 @@ export function onSettingsChanged(callback: (settings: Settings) => void): void 
 }
 
 /**
- * Add built-in quick links and groups the user doesn't have yet. Each step runs once,
- * so anything the user removes or renames later isn't brought back.
+ * Offer the built-in sites, pages and groups (sites.ts) this install hasn't been offered yet. Each is
+ * offered once, so anything the user removes or renames later isn't brought back.
  */
-export async function seedQuickLinks(): Promise<void> {
-  const { quickLinksSeedVersion: version = 0 } = await chrome.storage.local.get<{ quickLinksSeedVersion?: number }>(
-    'quickLinksSeedVersion',
-  );
-  if (version >= QUICK_LINKS_SEED_VERSION) return;
-  let { quickLinks, linkGroups, openOnSites } = await getSettings();
-
-  const newGroups = BUILT_IN_GROUPS.filter((g) => g.since > version && !hasGroup(linkGroups, g.name));
-  linkGroups = [...linkGroups, ...newGroups.map((g) => g.name)];
-  // Put built-in links the user already has (and hasn't grouped) into a group they got since.
-  quickLinks = quickLinks.map((l) => {
-    const built = !l.group && BUILT_IN_QUICK_LINKS.find((b) => b.url === l.url);
-    return built && built.group && (built.groupSince ?? 2) > version ? { ...l, group: built.group } : l;
+export async function seedBuiltIns(): Promise<void> {
+  const local = await chrome.storage.local.get<{ seededBuiltIns: string[]; quickLinksSeedVersion: number }>({
+    seededBuiltIns: [],
+    quickLinksSeedVersion: 0, // set by installs from before keys; see offeredByVersion
   });
-  const added = BUILT_IN_QUICK_LINKS.filter((b) => b.since > version && !quickLinks.some((l) => l.url === b.url));
-  quickLinks = [...quickLinks, ...added.map(({ since: _since, groupSince: _groupSince, ...link }) => link)];
-
-  const newSites = BUILT_IN_SITES.filter(
-    (b) => b.since > version && !openOnSites.some((x) => x.id === b.id || x.template === b.template),
-  );
-  openOnSites = [...openOnSites, ...newSites.map(({ since: _since, ...site }) => site)];
-
-  await setSettings({ quickLinks, linkGroups, openOnSites });
-  await chrome.storage.local.set({ quickLinksSeedVersion: QUICK_LINKS_SEED_VERSION });
+  const offered = [...local.seededBuiltIns, ...offeredByVersion(local.quickLinksSeedVersion)];
+  const { quickLinks, linkGroups, openOnSites } = await getSettings();
+  const result = seed({ quickLinks, linkGroups, openOnSites }, offered);
+  if (!result) return;
+  await setSettings(result.state);
+  await chrome.storage.local.set({ seededBuiltIns: result.offered });
 }
