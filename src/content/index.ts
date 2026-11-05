@@ -7,9 +7,11 @@ import { activeCode } from './editable';
 import { disableFavouriteMarks, enableFavouriteMarks } from './favourite-marks';
 import { startFavourites } from './favourites';
 import { disableFieldChip, enableFieldChip } from './field-chip';
+import { serveFrames } from './frame-bridge';
 import { disableInline, enableInline } from './inline';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
 import { setSeenMarks } from './seen';
+import { setVideoTools } from './video-auto';
 
 function pageCodes(): VideoCode[] {
   const seen = new Map<string, VideoCode>();
@@ -25,25 +27,8 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
 });
 // Everywhere, javtrailers.com too: its actress links can be saved from the right-click menu.
 watchContextLinks();
-
-let stopWaitingForVideo: (() => void) | null = null;
-let videoToolsLoaded = false;
-
-/** Calls `found` once the page has a <video> (now, or when one is added). Returns a cancel function. */
-function whenPageHasVideo(found: () => void): () => void {
-  const videos = document.getElementsByTagName('video'); // live: checking it is cheap
-  if (videos.length) {
-    found();
-    return () => {};
-  }
-  const observer = new MutationObserver(() => {
-    if (!videos.length) return;
-    observer.disconnect();
-    found();
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-  return () => observer.disconnect();
-}
+// "Save as" and translation for video players embedded from other sites (frame-bridge.ts).
+serveFrames();
 
 async function init() {
   // javtrailers.com has its own search and links; don't add our UI there.
@@ -55,7 +40,7 @@ async function init() {
   const initial = await getSettings();
   await setSeenMarks(initial.rememberSeen).catch(() => {});
 
-  const state = { inlineButtons: false, fieldChip: false, video: false, seen: initial.rememberSeen };
+  const state = { inlineButtons: false, fieldChip: false, seen: initial.rememberSeen };
   const apply = (settings: Settings) => {
     if (settings.rememberSeen !== state.seen) {
       state.seen = settings.rememberSeen;
@@ -76,24 +61,8 @@ async function init() {
     state.fieldChip = fieldChip;
     if (isSiteOff(location.hostname, settings.popupBlockSites)) enablePopupGuard();
     else disablePopupGuard();
-    // Video tools: on every site unless turned off; their code (the downloader is large) loads only once
-    // the page has a video.
-    const video = settings.videoTools && !isSiteOff(location.hostname, settings.videoOffSites);
-    if (video !== state.video) {
-      state.video = video;
-      stopWaitingForVideo?.();
-      stopWaitingForVideo = null;
-      const toggle = () => void import('./video-tools').then((m) => (state.video ? m.enableVideoTools() : m.disableVideoTools()));
-      if (!video) {
-        if (videoToolsLoaded) toggle();
-      } else {
-        stopWaitingForVideo = whenPageHasVideo(() => {
-          stopWaitingForVideo = null;
-          videoToolsLoaded = true;
-          toggle();
-        });
-      }
-    }
+    // Video tools: on every site unless turned off (frames, e.g. embedded players: frame.ts).
+    setVideoTools(settings.videoTools && !isSiteOff(location.hostname, settings.videoOffSites));
   };
   apply(initial);
   onSettingsChanged(apply);

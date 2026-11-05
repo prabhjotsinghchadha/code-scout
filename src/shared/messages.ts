@@ -26,7 +26,18 @@ export type Message =
   | { type: 'OCR_STRIP'; image: string }
   /** Video tools: translate a subtitle line to English in the offscreen document (used when the page's
    * content script has no Translator API). */
-  | { type: 'TRANSLATE'; text: string; from: SubtitleLang };
+  | { type: 'TRANSLATE'; text: string; from: SubtitleLang }
+  /** Video tools in a frame from another site (an embedded player, see frame-bridge.ts): the tab's address and title. */
+  | { type: 'TAB_PAGE' }
+  /** …translate a line in the tab's top page, which may use Chrome's translator (the frame may not). */
+  | { type: 'TRANSLATE_IN_PAGE'; text: string; from: SubtitleLang }
+  /** …show "Save as" in the tab's top page (the frame may not); the page then writes what the frame sends. */
+  | { type: 'SAVE_IN_PAGE'; name: string }
+  /** Pop-up blocker in a frame from another site: also run its page-side script here (if it's on for the tab's site). */
+  | { type: 'BLOCK_POPUPS_IN_FRAME' }
+  /** Background → the tab's top page: TRANSLATE_IN_PAGE and SAVE_IN_PAGE for one of its frames. */
+  | { type: 'PAGE_TRANSLATE'; text: string; from: SubtitleLang }
+  | { type: 'PAGE_SAVE'; token: string; name: string };
 
 export interface MessageResponses {
   OPEN_CODE: { ok: true };
@@ -39,6 +50,12 @@ export interface MessageResponses {
   POPUP_BLOCKED: { ok: true };
   OCR_STRIP: OcrResult;
   TRANSLATE: TranslateResult;
+  TAB_PAGE: { url: string; title: string };
+  TRANSLATE_IN_PAGE: TranslateResult;
+  SAVE_IN_PAGE: SaveAnswer;
+  BLOCK_POPUPS_IN_FRAME: { ok: true };
+  PAGE_TRANSLATE: TranslateResult;
+  PAGE_SAVE: SaveAnswer;
 }
 
 /** A link on a page: its address and its text (or its image's alt text). */
@@ -49,6 +66,8 @@ export interface ContextLink {
 
 export type OcrResult = { lines: OcrLine[] } | { error: string };
 export type TranslateResult = { text: string } | { error: string };
+/** The top page's "Save as" for a frame: the file's name, with the token that pairs the frame's channel to it. */
+export type SaveAnswer = { name: string; token: string } | { cancelled: true } | { error: string };
 
 /** Background → offscreen document (only it handles these). */
 export type OffscreenMessage =

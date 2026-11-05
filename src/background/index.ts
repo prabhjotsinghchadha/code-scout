@@ -8,7 +8,7 @@ import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { recordSeen, seenPage, videoPageCode, type SeenPage } from '../shared/seen';
 import { addTag, isTagKey, TAG_LINK_PATTERNS, tagNameFromUrl } from '../shared/tags';
 import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
-import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
+import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
 
@@ -148,12 +148,32 @@ function syncPageScripts() {
           ...(videoOffSites.length ? { excludeMatches: sitePatterns(videoOffSites) } : {}),
           runAt: 'document_start',
           world: 'MAIN',
+          allFrames: true, // players embedded from other sites
         });
       }
       if (scripts.length) await chrome.scripting.registerContentScripts(scripts);
     })
     .catch((err) => console.error('Page script registration failed', err));
   return pageScriptSync;
+}
+
+/**
+ * A frame from another site on a page with the pop-up blocker on (an embedded video player, with its ad
+ * overlays): the blocker's page script, registered for the page's site only, goes into the frame too.
+ */
+async function blockPopupsInFrame(tab: chrome.tabs.Tab | undefined, frameId: number | undefined) {
+  if (tab?.id === undefined || !frameId) return;
+  const { popupBlockSites } = await getSettings();
+  let host: string;
+  try {
+    host = new URL(tab.url ?? '').hostname;
+  } catch {
+    return;
+  }
+  if (!isSiteOff(host, popupBlockSites)) return;
+  await chrome.scripting
+    .executeScript({ target: { tabId: tab.id, frameIds: [frameId] }, files: [popupBlockScript], world: 'MAIN', injectImmediately: true })
+    .catch(() => {});
 }
 
 /** Tabs we are about to open, per opener tab, so the backstop leaves them alone. */
@@ -456,6 +476,24 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
         sendResponse,
       );
       return true;
+    // Video tools in a player embedded from another site: the tab's top page helps (frame-bridge.ts).
+    case 'TAB_PAGE':
+      sendResponse({ url: sender.tab?.url ?? '', title: sender.tab?.title ?? '' });
+      return false;
+    case 'TRANSLATE_IN_PAGE':
+      if (sender.tab?.id === undefined) return false;
+      void sendToTab(sender.tab.id, { type: 'PAGE_TRANSLATE', text: message.text, from: message.from }, 0)
+        .catch((): TranslateResult => ({ error: 'Reload the page to use EN subs here.' }))
+        .then(sendResponse);
+      return true;
+    case 'SAVE_IN_PAGE':
+      if (sender.tab?.id === undefined) return false;
+      void sendToTab(sender.tab.id, { type: 'PAGE_SAVE', token: crypto.randomUUID(), name: message.name }, 0)
+        .catch((): SaveAnswer => ({ error: 'Reload the page, then try again.' }))
+        .then(sendResponse);
+      return true;
+    case 'BLOCK_POPUPS_IN_FRAME':
+      return reply(blockPopupsInFrame(sender.tab, sender.frameId));
   }
   return false;
 });

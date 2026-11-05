@@ -9,6 +9,7 @@
 // Buttons get their clicks through the click shield (markUi/onUi), so the site's ad scripts never see them.
 import { formatCode, parseCode } from '../shared/codes';
 import { shortDuration } from '../shared/range-fetch';
+import { pageInfo } from './frame-bridge';
 import { SubtitleReader } from './subs';
 import { markUi, onUi } from './ui-events';
 import { CancelledError, downloadFileName, VideoDownload, type DownloadProgress, type DownloadSource } from './video-download';
@@ -109,10 +110,17 @@ function levelName(level: VideoInfo['levels'][number]): string {
   return level.bitrate ? `${Math.round(level.bitrate / 1000)} kbps` : '?';
 }
 
-/** The page's video code (PMX-046.mp4), else its title. */
-function suggestedFileName(): string {
-  const code = parseCode(decodeURIComponent(location.pathname)) ?? parseCode(document.title);
-  const title = document.title.split(/\s[|–—-]\s/)[0];
+/** The page's video code (PMX-046.mp4), else its title. In an embedded player, the page's around it. */
+async function suggestedFileName(): Promise<string> {
+  const page = await pageInfo();
+  let path = '';
+  try {
+    path = decodeURIComponent(new URL(page.url).pathname);
+  } catch {
+    // Not a valid address or encoding: the title still has the code, usually.
+  }
+  const code = parseCode(path) ?? parseCode(page.title) ?? parseCode(document.title);
+  const title = page.title.split(/\s[|–—-]\s/)[0];
   return downloadFileName(code ? formatCode(code) : null, title);
 }
 
@@ -346,15 +354,14 @@ class VideoUi {
       this.say('Couldn’t find the video file. Play the video for a moment, then try again.');
       return;
     }
-    const name = suggestedFileName();
-    const download = new VideoDownload(source, name, (p) => this.showProgress(p));
+    const download = new VideoDownload(source, suggestedFileName(), (p) => this.showProgress(p));
     this.download = download;
     this.downloadBtn.textContent = '⬇ Choose where to save…';
     // Runs straight away: its first step is the "Save as" dialog, which needs this click.
     download
       .run()
       .then(
-        () => this.say(`Saved ${name}`, false),
+        (name) => this.say(`Saved ${name}`, false),
         (err: unknown) => {
           if (err instanceof CancelledError) this.say('Download cancelled.');
           else this.say(`Download failed: ${err instanceof Error ? err.message : String(err)}`, true);

@@ -5,7 +5,8 @@
 // file is written to disk as it goes, so memory stays small even for a 2 GB video. A plain video file
 // (<video src="….mp4">) is streamed to disk as is.
 //
-// Runs in the page (the same requests the site's player makes), so the tab has to stay open. Video
+// Runs in the page (the same requests the site's player makes), so the tab has to stay open. In a player
+// embedded from another site, the top page shows "Save as" and writes the file (frame-bridge.ts). Video
 // links often carry a token that expires (18JAV: about 2 hours); when a segment says 403, a fresh copy of
 // the page is fetched for a new link to the same playlist and the download carries on.
 import { Conversion, Input, MPEG_TS, Mp4OutputFormat, Output, ReadableStreamSource, StreamTarget, type StreamTargetChunk } from 'mediabunny';
@@ -19,6 +20,7 @@ import {
   type MediaPlaylist,
 } from '../shared/hls-playlist';
 import { AbortError, fetchInRanges, Limiter, LinkExpiredError } from '../shared/range-fetch';
+import { fileTarget, inForeignFrame, saveInPage, type SaveTarget } from './frame-bridge';
 
 export interface DownloadSource {
   /** Master or media playlist (.m3u8). */
@@ -55,10 +57,10 @@ export class VideoDownload {
   private bytes = 0;
   private readonly started = Date.now();
   private readonly source: DownloadSource;
-  private readonly filename: string;
+  private readonly filename: string | Promise<string>;
   private readonly onProgress: (p: DownloadProgress) => void;
 
-  constructor(source: DownloadSource, filename: string, onProgress: (p: DownloadProgress) => void) {
+  constructor(source: DownloadSource, filename: string | Promise<string>, onProgress: (p: DownloadProgress) => void) {
     this.source = source;
     this.filename = filename;
     this.onProgress = onProgress;
@@ -69,36 +71,46 @@ export class VideoDownload {
     void this.conversion?.cancel().catch(() => {});
   }
 
-  /** Call from a click: it starts with the "Save as" dialog, which needs one. Resolves when saved. */
-  async run(): Promise<void> {
-    const picker = (window as Window & { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
-    if (!picker) throw new Error('This browser can’t save files from a page (needs Chrome 86 or newer).');
-    let handle: FileSystemFileHandle;
-    try {
-      handle = await picker({
-        suggestedName: this.filename,
-        types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }],
-      });
-    } catch {
-      throw new CancelledError(); // closed the dialog
-    }
+  /** Call from a click: it starts with the "Save as" dialog, which needs one. Resolves to the file's name once saved. */
+  async run(): Promise<string> {
+    const name = await this.filename;
+    const target = inForeignFrame() ? await this.saveInPage(name) : await this.saveHere(name);
     // Written through our own writer, so a failed or cancelled download discards the half-written file:
     // the MP4 writer *closes* its stream when cancelled, which would keep it.
-    const writer = (await handle.createWritable()).getWriter();
     const writable = new WritableStream<unknown>({
-      write: (chunk) => writer.write(chunk as FileSystemWriteChunkType),
-      close: () => (this.failed || this.controller.signal.aborted ? writer.abort() : writer.close()),
-      abort: (reason) => writer.abort(reason),
+      write: (chunk) => target.write(chunk),
+      close: () => (this.failed || this.controller.signal.aborted ? target.abort() : target.close()),
+      abort: () => target.abort(),
     });
     try {
       if (this.source.fileUrl) await this.saveFile(this.source.fileUrl, writable);
       else if (this.source.playlistUrl) await this.saveHls(this.source.playlistUrl, writable);
       else throw new Error('No video found to download.');
     } catch (err) {
-      await writer.abort().catch(() => {});
-      await (handle as FileSystemFileHandle & { remove?: () => Promise<void> }).remove?.().catch(() => {});
+      await target.abort().catch(() => {});
       throw this.controller.signal.aborted ? new CancelledError() : err;
     }
+    return target.name;
+  }
+
+  private async saveHere(name: string): Promise<SaveTarget> {
+    const picker = (window as Window & { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
+    if (!picker) throw new Error('This browser can’t save files from a page (needs Chrome 86 or newer).');
+    let handle: FileSystemFileHandle;
+    try {
+      handle = await picker({ suggestedName: name, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw new CancelledError(); // closed the dialog
+      throw err;
+    }
+    return fileTarget(handle);
+  }
+
+  private async saveInPage(name: string): Promise<SaveTarget> {
+    const answer = await saveInPage(name);
+    if ('cancelled' in answer) throw new CancelledError();
+    if ('error' in answer) throw new Error(answer.error);
+    return answer;
   }
 
   private report(fraction: number) {

@@ -33,6 +33,7 @@ import {
   type Box,
 } from '../shared/subtitles';
 import { createTranslators, translatorApi, type SubtitleLang, type TranslateFn } from '../shared/translator';
+import { inForeignFrame, translateInPage } from './frame-bridge';
 
 const TICK_MS = 250;
 /** Once the original line has changed or gone, keep its English this much longer (it showed up late)… */
@@ -55,8 +56,15 @@ function debug(...args: unknown[]) {
   }
 }
 
-/** Translation in this page if Chrome offers it here, else through the offscreen document. */
+/**
+ * Translation in this page if Chrome offers it here, else through the offscreen document. In a player
+ * embedded from another site, Chrome keeps its translator from the frame: the top page translates.
+ */
 async function prepareTranslation(onStatus: (text: string) => void): Promise<TranslateFn> {
+  if (inForeignFrame()) {
+    await translateInPage('你好', 'zh'); // sets it up while this click still counts, or fails clearly
+    return translateInPage;
+  }
   if (translatorApi()) return createTranslators(onStatus);
   const viaExtension: TranslateFn = async (text, from) => {
     const result = await sendToBackground({ type: 'TRANSLATE', text, from });

@@ -26,15 +26,25 @@ export default defineManifest({
   content_scripts: [
     {
       // Must run before page scripts: a plain IIFE (not the async module loader) at document_start.
+      // In frames too: the video toolbar also goes on players embedded from other sites.
       matches: ['<all_urls>'],
       js: ['src/content/shield.iife.ts'],
       run_at: 'document_start',
+      all_frames: true,
     },
     {
       matches: ['<all_urls>'],
       js: ['src/content/index.ts'],
       css: ['src/content/content.css'],
       run_at: 'document_idle',
+    },
+    {
+      // Frames (players embedded from other sites): video tools and the pop-up blocker. Does nothing on the page itself.
+      matches: ['<all_urls>'],
+      js: ['src/content/frame.ts'],
+      css: ['src/content/content.css'],
+      run_at: 'document_start',
+      all_frames: true,
     },
   ],
   // scripting + host access: the pop-up blocker's and video tools' page scripts are registered per site

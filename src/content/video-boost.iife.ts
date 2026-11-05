@@ -1,6 +1,7 @@
 // Video tools, page side: faster loading and the quality menu for players built on hls.js.
-// Runs in the page's own JavaScript world at document_start, only on sites where "Video tools" is on
-// (the background registers it with chrome.scripting).
+// Runs in the page's own JavaScript world at document_start, in every frame of sites where "Video tools"
+// is on (the background registers it with chrome.scripting). A player embedded on a page where they're
+// turned off gets "javtr:video-off" from the content script, and loads normally from then on.
 //
 // Some video servers send each request slowly (18JAV's CDN: about 50 KB/s per request, while the video
 // needs about 250 KB/s) but let several requests run at once. So the site's hls.js gets a loader that
@@ -50,6 +51,13 @@ type Loose = any;
 
   const anyPlaying = () => [...players.keys()].some((m) => !m.paused);
 
+  let off = false;
+  window.addEventListener('javtr:video-off', () => {
+    off = true;
+    for (const job of jobs.values()) job.controller.abort();
+    jobs.clear();
+  });
+
   function recordPlaylist(text: string, url: string) {
     if (!isPlaylist(text) || isMasterPlaylist(text)) return;
     const playlist = parseMediaPlaylist(text, url);
@@ -80,7 +88,7 @@ type Loose = any;
   /** The player wants segment `url`: its bytes (fetched ahead, or now), or null to load it normally. */
   function want(url: string): Promise<Uint8Array> | null {
     const pos = positions.get(url);
-    if (!pos) return null;
+    if (!pos || off) return null;
     const now = Date.now();
     lastAsked.set(pos.list, now);
     for (const [u, job] of jobs) {
