@@ -252,7 +252,9 @@ select:focus {
   color: var(--muted);
 }
 .field input[type='text'],
-.field input[type='text']:focus {
+.field input[type='search'],
+.field input[type='text']:focus,
+.field input[type='search']:focus {
   flex: 1;
   height: 100%;
   padding: 0;
@@ -487,4 +489,103 @@ kbd {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
+}
+
+/* Pop-up menu (menu.ts) */
+.menu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  animation: menu-in 0.1s ease-out;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.menu-item > :first-child {
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--muted);
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  outline: none;
+  background: var(--surface-2);
+}
+.menu-item[aria-checked='true'] > :first-child {
+  color: var(--accent-text);
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+.menu-item.danger > :first-child {
+  color: var(--danger);
+}
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.menu-heading {
+  padding: 6px 10px 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: var(--border);
+}
+
+/* Site icon (site-icon.ts): the site's favicon, or its first letter on a colour from its name */
+.site-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--size, 16px);
+  height: var(--size, 16px);
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: calc(var(--size, 16px) * 0.62);
+  font-weight: 700;
+  line-height: 1;
+}
+.site-icon.letter {
+  background: hsl(var(--hue) 55% 46%);
+  color: #fff;
+}
+.site-icon.img {
+  background: transparent;
+}
+.site-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }

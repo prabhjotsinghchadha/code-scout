@@ -99,30 +99,25 @@
         </section>
 
         <section class="card" id="quick-links">
-          <h2>Quick links</h2>
+          <div class="card-head">
+            <h2>Quick links</h2>
+            <button type="button" id="new-group" class="btn sm"><i data-icon="folder" data-size="14"></i>New group</button>
+          </div>
           <p class="desc">
-            Sites or pages one click away in the popup’s Links tab. Tip: use <em>Add this page</em> in the popup while
-            you’re on a page.
+            Sites or pages one click away in the popup’s Links tab. Drag links by their handle to reorder them or move
+            them to another group, or use the ⋯ menus. Tip: use <em>Add page</em> in the popup while you’re on a page.
           </p>
-
-          <h3>Groups</h3>
-          <p class="hint">Organize links by category, like Cheating, Cuckold or NTR. Deleting a group keeps its links.</p>
-          <ul id="groups" class="rows"></ul>
-          <form id="add-group" class="add">
-            <input id="group-name" type="text" placeholder="Affair" aria-label="New group name" maxlength="30" required />
-            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add group</button>
-          </form>
-          <p id="group-error" class="error" hidden></p>
-
-          <h3>Links</h3>
-          <ul id="links" class="rows links"></ul>
-          <form id="add-link" class="add">
-            <input id="link-url" type="text" placeholder="https://example.com/category/…" aria-label="Web address" required />
-            <input id="link-name" class="narrow" type="text" placeholder="Name (optional)" aria-label="Name" />
-            <select id="link-group" aria-label="Group"></select>
-            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add</button>
-          </form>
-          <p id="link-error" class="error" hidden></p>
+          <label class="setting" for="mostVisited">
+            <span>
+              <strong>Most visited</strong>
+              <small>
+                Shows the sites you open most at the top of the Links tab. Visits to your quick-link sites are counted on
+                this computer only. <button type="button" id="clear-visits" class="link-btn">Clear visit history</button>
+              </small>
+            </span>
+            <input type="checkbox" class="switch" id="mostVisited" />
+          </label>
+          <div id="link-groups" class="link-groups"></div>
         </section>
 
         <section class="card" id="popups">

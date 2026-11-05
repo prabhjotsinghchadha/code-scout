@@ -41,7 +41,7 @@ export default defineManifest({
   // at runtime, and the backstop reads which site opened a new tab. (Content scripts already run on all
   // sites.) offscreen: the page that reads and translates subtitles (OCR model in WebAssembly).
   // bookmarks: favourites are backed up to a bookmarks folder, which survives removing the extension.
-  permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'offscreen', 'bookmarks'],
+  permissions: ['storage', 'contextMenus', 'activeTab', 'scripting', 'offscreen', 'bookmarks', 'favicon'],
   // 'wasm-unsafe-eval': lets extension pages run WebAssembly (the subtitle OCR model). No other code.
   content_security_policy: {
     extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",

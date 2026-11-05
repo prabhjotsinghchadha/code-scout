@@ -14,8 +14,8 @@ import { siteKey } from '../shared/hosts';
 import { hydrateIcons, icon, type IconName } from '../shared/icons';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
-import { addGroup, groupLinks, validateGroupName, type LinkState, type QuickLink } from '../shared/quick-links';
-import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
+import { getSettings, setSettings, type Settings } from '../shared/storage';
+import { setupLinks } from './links';
 
 hydrateIcons();
 
@@ -364,142 +364,6 @@ async function openLinks(urls: string[]) {
   window.close();
 }
 
-// Which groups are collapsed is a per-browser convenience, so localStorage is enough.
-const COLLAPSED_KEY = 'collapsedGroups';
-function collapsedGroups(): Set<string> {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]'));
-  } catch {
-    return new Set();
-  }
-}
-function setCollapsed(group: string, collapsed: boolean) {
-  const set = collapsedGroups();
-  if (collapsed) set.add(group);
-  else set.delete(group);
-  try {
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
-  } catch {
-    // Storage unavailable; collapsing just won't be remembered.
-  }
-}
-
-function linkChip({ name, url }: QuickLink) {
-  const a = Object.assign(document.createElement('a'), { className: 'chip', href: url, textContent: name, title: url });
-  a.addEventListener('click', (e) => {
-    e.preventDefault();
-    void openLinks([url]);
-  });
-  return a;
-}
-
-function renderLinks(state: LinkState) {
-  const container = $('links');
-  container.replaceChildren();
-  $('links-empty').hidden = state.quickLinks.length > 0;
-  const collapsed = collapsedGroups();
-
-  for (const { group, links } of groupLinks(state)) {
-    if (links.length === 0) continue; // empty groups only show in Settings / the group picker
-    if (group === null) {
-      const row = Object.assign(document.createElement('div'), { className: 'links' });
-      row.append(...links.map(linkChip));
-      container.append(row);
-      continue;
-    }
-    const details = Object.assign(document.createElement('details'), { className: 'group', open: !collapsed.has(group) });
-    const summary = document.createElement('summary');
-    const chev = icon('chevronRight', 14);
-    chev.classList.add('chev');
-    summary.append(
-      chev,
-      group,
-      Object.assign(document.createElement('span'), { className: 'count', textContent: `${links.length}` }),
-    );
-    if (links.length > 1) {
-      const all = textButton('Open all', 'link-btn open-all', () => {
-        if (links.length <= 8 || confirm(`Open ${links.length} tabs?`)) void openLinks(links.map((l) => l.url));
-      });
-      all.addEventListener('click', (e) => e.preventDefault()); // don't toggle the <details>
-      summary.append(all);
-    }
-    details.addEventListener('toggle', () => setCollapsed(group, !details.open));
-    const body = Object.assign(document.createElement('div'), { className: 'group-links' });
-    body.append(...links.map(linkChip));
-    details.append(summary, body);
-    container.append(details);
-  }
-}
-
-const NEW_GROUP = '\u0000new';
-
-/** "+ Add this page": activeTab gives us the current tab's URL/title while the popup is open. */
-function setupAddPage(state: LinkState, tab: chrome.tabs.Tab | undefined) {
-  const btn = $<HTMLButtonElement>('add-page');
-  const form = $<HTMLFormElement>('add-page-form');
-  const select = $<HTMLSelectElement>('add-page-group');
-  const newGroup = $<HTMLInputElement>('add-page-new-group');
-  const addError = $<HTMLParagraphElement>('add-page-error');
-
-  const url = tab?.url && /^https?:/.test(tab.url) ? normalizeUrl(tab.url) : null;
-  if (!tab || !url) {
-    btn.hidden = true;
-    return;
-  }
-  const mark = (added: boolean) => {
-    btn.disabled = added;
-    btn.replaceChildren(icon(added ? 'check' : 'plus', 14), added ? 'Added' : 'Add this page');
-  };
-  mark(state.quickLinks.some((l) => l.url === url));
-
-  const showForm = (show: boolean) => {
-    form.hidden = !show;
-    addError.hidden = true;
-    btn.hidden = show;
-  };
-
-  btn.addEventListener('click', () => {
-    select.replaceChildren(
-      new Option('No group', ''),
-      ...state.linkGroups.map((g) => new Option(g, g)),
-      new Option('+ New group…', NEW_GROUP),
-    );
-    newGroup.hidden = true;
-    newGroup.value = '';
-    showForm(true);
-    select.focus();
-  });
-  select.addEventListener('change', () => {
-    newGroup.hidden = select.value !== NEW_GROUP;
-    if (!newGroup.hidden) newGroup.focus();
-  });
-  $('add-page-cancel').addEventListener('click', () => showForm(false));
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const latest = await getSettings();
-    let next: LinkState = { quickLinks: latest.quickLinks, linkGroups: latest.linkGroups };
-    let group = select.value;
-    if (group === NEW_GROUP) {
-      const problem = validateGroupName(next.linkGroups, newGroup.value);
-      if (problem) {
-        addError.textContent = problem;
-        addError.hidden = false;
-        return;
-      }
-      group = newGroup.value.trim();
-      next = addGroup(next, group);
-    }
-    const name = tab.title?.trim().slice(0, 60) || defaultLinkName(url);
-    next = { ...next, quickLinks: [...next.quickLinks, { name, url, ...(group && { group }) }] };
-    await setSettings(next);
-    state = next;
-    renderLinks(next);
-    showForm(false);
-    mark(true);
-  });
-}
-
 /**
  * The site bar: switches for the current tab's site. "Buttons" is on unless the site is in offSites; "Block
  * pop-ups" and "Video tools" are on when it's in their list.
@@ -563,9 +427,7 @@ async function init() {
   setupTypedStar();
   setupSiteToggles(settings, tab);
 
-  const linkState: LinkState = { quickLinks: settings.quickLinks, linkGroups: settings.linkGroups };
-  renderLinks(linkState);
-  setupAddPage(linkState, tab);
+  void setupLinks(settings, tab, openLinks);
 
   for (const id of ['open-options', 'add-links']) {
     $(id).addEventListener('click', (e) => {

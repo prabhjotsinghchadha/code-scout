@@ -33,6 +33,8 @@ export interface Settings {
   subSize: number;
   /** English subtitles: how opaque the box behind them is, %. 100 hides the original line; 0 is text only. */
   subBackground: number;
+  /** Count visits to quick-link sites (on this computer) and show the most visited in the popup. */
+  mostVisited: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -49,6 +51,7 @@ export const defaultSettings: Settings = {
   videoOffSites: [],
   subSize: 100,
   subBackground: 100,
+  mostVisited: true,
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */

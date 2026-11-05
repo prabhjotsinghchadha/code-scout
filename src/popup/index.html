@@ -72,8 +72,12 @@
       </section>
 
       <section id="panel-links" class="panel" role="tabpanel" aria-labelledby="tab-links" hidden>
-        <div class="panel-head">
-          <button type="button" id="add-page" class="link-btn" title="Save the current page as a quick link"></button>
+        <div class="links-bar">
+          <div class="field sm">
+            <i data-icon="search" data-size="14"></i>
+            <input id="links-search" type="search" placeholder="Find a link" aria-label="Find a link" autocomplete="off" spellcheck="false" />
+          </div>
+          <button type="button" id="add-page" class="btn sm"></button>
         </div>
         <form id="add-page-form" class="add-page" hidden>
           <select id="add-page-group" aria-label="Group"></select>
@@ -82,7 +86,9 @@
           <button type="button" id="add-page-cancel" class="btn ghost sm">Cancel</button>
         </form>
         <p id="add-page-error" class="error pad" hidden></p>
+        <div id="group-pills" class="group-pills" role="toolbar" aria-label="Groups" hidden></div>
         <div id="links"></div>
+        <p id="links-none" class="none" hidden>No links match.</p>
         <div id="links-empty" class="empty" hidden>
           <i data-icon="link" data-size="28"></i>
           <p>No quick links yet.</p>

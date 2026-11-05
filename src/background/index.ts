@@ -4,6 +4,7 @@ import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } fr
 import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
 import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
+import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
 import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
@@ -182,10 +183,32 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
   }
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
+  tabSite.delete(tabId);
   blockedCount.delete(tabId);
   allowNewTabsUntil.delete(tabId);
   ownTabsPending.delete(tabId);
 });
+
+// --- Most visited: count visits to quick-link sites (kept in local storage, on this computer only) ---
+/** The site each tab is on, so moving around one site counts as one visit. */
+const tabSite = new Map<number, string>();
+let visitWrite = Promise.resolve();
+
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (!info.url) return;
+  const site = siteOf(info.url);
+  if (!site || tabSite.get(tabId) === site) return;
+  tabSite.set(tabId, site);
+  // One write at a time, so visits in two tabs at once both count.
+  visitWrite = visitWrite.then(() => countVisit(site)).catch((err) => console.warn('Counting a visit failed', err));
+});
+
+async function countVisit(site: string) {
+  const { mostVisited, quickLinks } = await getSettings();
+  if (!mostVisited || !quickLinks.some((l) => siteOf(l.url) === site)) return;
+  const stored = await chrome.storage.local.get<{ [VISITS_KEY]: Visits }>({ [VISITS_KEY]: {} });
+  await chrome.storage.local.set({ [VISITS_KEY]: addVisit(stored[VISITS_KEY], site, Date.now()) });
+}
 
 /** Open URLs in new tabs right after the source tab; only the first takes focus. */
 async function openUrls(urls: string[], sourceTab?: chrome.tabs.Tab) {

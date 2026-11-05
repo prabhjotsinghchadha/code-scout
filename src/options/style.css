@@ -453,3 +453,162 @@ small {
     scroll-margin-top: 120px;
   }
 }
+
+/* Quick links editor: a card per group, links dragged by their handle */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.card-head h2 {
+  margin: 0;
+}
+.link-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.lgroup {
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  transition: border-color 0.12s, box-shadow 0.12s, opacity 0.12s;
+}
+.lgroup.other {
+  background: var(--surface);
+}
+.lgroup-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+.lgroup-head > .ico {
+  margin: 0 4px 0 2px;
+  color: var(--muted);
+}
+.lgroup-head .inline-name,
+.lgroup-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+.lgroup-head .count {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.lgroup .inline-name {
+  height: auto;
+  padding: 2px 6px;
+  margin-left: -2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+.lgroup .inline-name:hover {
+  border-color: var(--border-strong);
+}
+.lgroup .inline-name:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.lrows {
+  margin: 8px 0 0;
+  background: var(--bg);
+}
+.lrows:empty {
+  display: none;
+}
+.lrows li {
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 6px 6px 4px;
+}
+.lrow-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lrow-text .inline-name {
+  font-weight: 600;
+}
+.lrow-text small {
+  margin: 0;
+  padding-left: 5px;
+  font-size: 12px;
+}
+.grip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 28px;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+.grip:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.lgroup-head .grip {
+  margin-left: -4px;
+}
+.ldrop-empty {
+  margin: 8px 0 0;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+.ladd {
+  margin-top: 8px;
+}
+.ladd .add {
+  margin-top: 0;
+}
+.lgroup > .error:not([hidden]) {
+  margin: 6px 0 0;
+}
+
+/* While dragging: the thing being moved fades; a line shows where it will go. */
+.dragging {
+  opacity: 0.45;
+}
+.lrows li.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.lrows li.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.lgroup.drop-into {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.lgroup.drop-into .ldrop-empty {
+  border-color: var(--accent-line);
+  color: var(--accent-text);
+}
+.lgroup.drop-before {
+  box-shadow: 0 -3px 0 var(--accent);
+}
+.lgroup.drop-after {
+  box-shadow: 0 3px 0 var(--accent);
+}
+.link-groups.dragging-link .lrows li:hover {
+  background: none;
+}
+.rows.lrows li > span:not(.lrow-text) {
+  flex: none;
+}
