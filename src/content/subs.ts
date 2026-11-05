@@ -35,6 +35,12 @@ import {
 import { createTranslators, translatorApi, type SubtitleLang, type TranslateFn } from '../shared/translator';
 import { inForeignFrame, translateInPage } from './frame-bridge';
 
+/**
+ * How long a toolbar message stays: a note its few seconds, an error a little longer (then it's gone
+ * too), and a wait ("Setting up translation…") until the next message.
+ */
+export type StatusKind = 'note' | 'error' | 'wait';
+
 const TICK_MS = 250;
 /** Once the original line has changed or gone, keep its English this much longer (it showed up late)… */
 const LINGER_MS = 600;
@@ -101,7 +107,7 @@ onSettingsChanged(applyLook);
 
 export class SubtitleReader {
   private readonly video: HTMLVideoElement;
-  private readonly onStatus: (text: string, sticky?: boolean) => void;
+  private readonly onStatus: (text: string, kind?: StatusKind) => void;
   private readonly el: HTMLDivElement;
   private readonly canvas = document.createElement('canvas');
   private readonly ctx: CanvasRenderingContext2D;
@@ -132,7 +138,7 @@ export class SubtitleReader {
     this.hide();
   };
 
-  constructor(video: HTMLVideoElement, layer: HTMLElement, onStatus: (text: string, sticky?: boolean) => void) {
+  constructor(video: HTMLVideoElement, layer: HTMLElement, onStatus: (text: string, kind?: StatusKind) => void) {
     this.video = video;
     this.onStatus = onStatus;
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true })!;
@@ -144,8 +150,8 @@ export class SubtitleReader {
 
   /** Call from the click that turned it on (the translator's first download needs one). */
   async start() {
-    this.onStatus('Setting up translation…', true);
-    this.translate = await prepareTranslation((text) => this.onStatus(text, true));
+    this.onStatus('Setting up translation…', 'wait');
+    this.translate = await prepareTranslation((text) => this.onStatus(text, 'wait'));
     if (this.stopped) return; // turned off while setting up
     this.onStatus('Reading subtitles…');
     readers.add(this);
@@ -184,7 +190,7 @@ export class SubtitleReader {
       this.ctx.drawImage(video, 0, vh - sourceHeight, vw, sourceHeight, 0, 0, width, height);
       pixels = this.ctx.getImageData(0, 0, width, height);
     } catch {
-      this.onStatus('This site doesn’t let the video picture be read, so subtitles can’t be translated here.', true);
+      this.onStatus('This site doesn’t let the video picture be read, so subtitles can’t be translated here.', 'error');
       this.stop();
       return;
     }
@@ -276,7 +282,7 @@ export class SubtitleReader {
       debug('error', err);
       this.lastRead = null; // try this line again
       if (++this.errors >= 3) {
-        this.onStatus(`EN subs stopped: ${err instanceof Error ? err.message : String(err)}`, true);
+        this.onStatus(`EN subs stopped: ${err instanceof Error ? err.message : String(err)}`, 'error');
         this.stop();
       }
     } finally {

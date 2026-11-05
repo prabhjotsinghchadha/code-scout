@@ -11,7 +11,7 @@
 import { formatCode, parseCode } from '../shared/codes';
 import { shortDuration } from '../shared/range-fetch';
 import { pageInfo } from './frame-bridge';
-import { SubtitleReader } from './subs';
+import { SubtitleReader, type StatusKind } from './subs';
 import { markUi, onUi } from './ui-events';
 import { CancelledError, downloadFileName, VideoDownload, type DownloadProgress, type DownloadSource } from './video-download';
 
@@ -31,6 +31,8 @@ const MIN_WIDTH = 240;
 const MIN_HEIGHT = 135;
 const HIDE_AFTER_MS = 2500;
 const STATUS_MS = 5000;
+/** Errors stay a little longer, to be read. */
+const ERROR_MS = 12000;
 /** How often to look for something else drawn where the toolbar sits, while it's shown. */
 const OVERLAP_CHECK_MS = 600;
 const GAP = 8;
@@ -254,9 +256,9 @@ class VideoUi {
       this.avoidOverlays(r);
     }
     this.shown = show;
-    // A message shows for its few seconds, longer while the pointer is over the video, and then it's gone
-    // (not back each time the toolbar shows, which while paused is all the time). Sticky ones (errors,
-    // "Setting up translation…") stay until the next message.
+    // A message shows for its few seconds (an error a little longer), longer while the pointer is over
+    // the video, and then it's gone (not back each time the toolbar shows, which while paused is all the
+    // time). A wait ("Setting up translation…") stays until the next message.
     if (this.status.textContent && now > this.statusUntil && now >= this.hoverUntil) this.status.textContent = '';
     this.status.hidden = !this.status.textContent;
   }
@@ -296,9 +298,9 @@ class VideoUi {
     });
   }
 
-  private say(text: string, sticky = false) {
+  private say(text: string, kind: StatusKind = 'note') {
     this.status.textContent = text;
-    this.statusUntil = sticky ? Infinity : Date.now() + STATUS_MS;
+    this.statusUntil = kind === 'wait' ? Infinity : Date.now() + (kind === 'error' ? ERROR_MS : STATUS_MS);
   }
 
   private renderInfo() {
@@ -393,10 +395,10 @@ class VideoUi {
     download
       .run()
       .then(
-        (name) => this.say(`Saved ${name}`, false),
+        (name) => this.say(`Saved ${name}`),
         (err: unknown) => {
           if (err instanceof CancelledError) this.say('Download cancelled.');
-          else this.say(`Download failed: ${err instanceof Error ? err.message : String(err)}`, true);
+          else this.say(`Download failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
         },
       )
       .finally(() => {
@@ -439,12 +441,12 @@ class VideoUi {
       this.say('EN subs off.');
       return;
     }
-    const reader = new SubtitleReader(this.video, this.layer, (text, sticky) => this.say(text, sticky));
+    const reader = new SubtitleReader(this.video, this.layer, (text, kind) => this.say(text, kind));
     this.setSubs(reader);
     // Started from this click: Chrome's first translator download needs it.
     reader.start().catch((err: unknown) => {
       reader.stop();
-      this.say(err instanceof Error ? err.message : String(err), true);
+      this.say(err instanceof Error ? err.message : String(err), 'error');
     });
   }
 }
