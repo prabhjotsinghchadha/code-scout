@@ -281,48 +281,63 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.openOnSites && !editing) void loadSites();
 });
 
-// --- Sites where the ▶ buttons and chip are off ---
-let offSites: string[] = [];
-
-function renderOffSites() {
-  $('off-empty').hidden = offSites.length > 0;
-  $('off-sites').replaceChildren(
-    ...offSites.map((host) => {
-      const li = el('li');
-      li.append(
-        el('span', { textContent: host }),
-        actionButton('Turn back on', `Show ▶ buttons and chip on ${host} again`, () => {
-          offSites = offSites.filter((s) => s !== host);
-          renderOffSites();
-          void save({ offSites });
-        }),
-      );
-      return li;
-    }),
-  );
+// --- Per-site lists: ▶ buttons/chip off, pop-up blocker ---
+function siteListEditor(
+  key: 'offSites' | 'popupBlockSites',
+  prefix: string,
+  text: { remove: string; removeTitle: (host: string) => string; already: (host: string) => string },
+) {
+  let sites: string[] = [];
+  const render = () => {
+    $(`${prefix}-empty`).hidden = sites.length > 0;
+    $(`${prefix}-sites`).replaceChildren(
+      ...sites.map((host) => {
+        const li = el('li');
+        li.append(
+          el('span', { textContent: host }),
+          actionButton(text.remove, text.removeTitle(host), () => {
+            showError($<HTMLParagraphElement>(`${prefix}-error`), null);
+            sites = sites.filter((s) => s !== host);
+            render();
+            void save({ [key]: sites });
+          }),
+        );
+        return li;
+      }),
+    );
+  };
+  $(`add-${prefix}-site`).addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $<HTMLInputElement>(`${prefix}-site`);
+    const error = $<HTMLParagraphElement>(`${prefix}-error`);
+    const host = siteKey(input.value);
+    if (!host) return showError(error, 'Enter a site like javtiful.com.');
+    if (sites.includes(host)) return showError(error, text.already(host));
+    showError(error, null);
+    sites = [...sites, host];
+    render();
+    void save({ [key]: sites });
+    input.value = '';
+  });
+  const load = () =>
+    getSettings().then((s) => {
+      sites = s[key];
+      render();
+    });
+  void load();
+  chrome.storage.onChanged.addListener((changes) => changes[key] && void load());
 }
 
-$('add-off-site').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const input = $<HTMLInputElement>('off-site');
-  const host = siteKey(input.value);
-  const error = $<HTMLParagraphElement>('off-error');
-  if (!host) return showError(error, 'Enter a site like javtiful.com.');
-  if (offSites.includes(host)) return showError(error, `${host} is already turned off.`);
-  showError(error, null);
-  offSites = [...offSites, host];
-  renderOffSites();
-  void save({ offSites });
-  input.value = '';
+siteListEditor('offSites', 'off', {
+  remove: 'Turn back on',
+  removeTitle: (host) => `Show ▶ buttons and chip on ${host} again`,
+  already: (host) => `${host} is already turned off.`,
 });
-
-const loadOffSites = () =>
-  getSettings().then((s) => {
-    offSites = s.offSites;
-    renderOffSites();
-  });
-void loadOffSites();
-chrome.storage.onChanged.addListener((changes) => changes.offSites && void loadOffSites());
+siteListEditor('popupBlockSites', 'popup', {
+  remove: 'Allow pop-ups',
+  removeTitle: (host) => `Stop blocking pop-ups on ${host}`,
+  already: (host) => `Pop-ups are already blocked on ${host}.`,
+});
 
 // Show the shortcuts actually assigned (the user may have changed or cleared them).
 async function showShortcuts() {

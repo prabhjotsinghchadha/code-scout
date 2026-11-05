@@ -37,7 +37,10 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'contextMenus', 'activeTab'],
+  // scripting + host access: the pop-up blocker's page script is registered per site at runtime, and
+  // the backstop reads which site opened a new tab. (Content scripts already run on all sites.)
+  permissions: ['storage', 'contextMenus', 'activeTab', 'scripting'],
+  host_permissions: ['<all_urls>'],
   commands: {
     'open-trailer': {
       suggested_key: { default: 'Alt+Shift+J' },

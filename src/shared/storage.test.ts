@@ -58,14 +58,15 @@ test('seeds everything on a fresh install', async () => {
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
     'Jav Guru · English subbed',
+    '18JAV · Chinese subtitle',
   ]);
-  assert.equal(local.quickLinksSeedVersion, 7);
+  assert.equal(local.quickLinksSeedVersion, 8);
   assert.deepEqual(
     sync.openOnSites!.map((x) => x.name),
     ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru'],
   );
   await seedQuickLinks(); // idempotent
-  assert.equal(sync.quickLinks!.length, 11);
+  assert.equal(sync.quickLinks!.length, 12);
 });
 
 test('upgrades a v1 install: groups existing built-ins, keeps removals and own links', async () => {
@@ -91,6 +92,7 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
     'Jav Guru · English subbed',
+    '18JAV · Chinese subtitle',
   ]);
   assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR', 'All Japanese']);
 });
@@ -111,6 +113,7 @@ test('upgrades a v2 install: only adds links from v3 on', async () => {
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
     'Jav Guru · English subbed',
+    '18JAV · Chinese subtitle',
   ]);
   assert.deepEqual(sync.linkGroups, ['NTR', 'Cheating', 'All Japanese']); // user's order kept, new group appended
 });
@@ -126,6 +129,7 @@ test('upgrades a v3 install: adds Beeg and the All Japanese group', async () => 
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
     'Jav Guru · English subbed',
+    '18JAV · Chinese subtitle',
   ]);
   // A user who deleted NTR before v3 doesn't get it back.
   assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese']);
@@ -139,12 +143,12 @@ test('upgrades a v5 install: adds Open-on sites, keeps a site the user already a
     sync.openOnSites!.map((x) => x.name),
     ['My MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru'],
   );
-  assert.deepEqual(names(sync), ['Jav Guru · English subbed']); // only links newer than v5
+  assert.deepEqual(names(sync), ['Jav Guru · English subbed', '18JAV · Chinese subtitle']); // only links newer than v5
 });
 
-test('upgrades a v6 install: adds only the Jav Guru link', async () => {
+test('upgrades a v6 install: adds only the newer links', async () => {
   const { sync } = fakeChrome({ quickLinks: [{ name: 'X', url: 'https://x.example/' }], linkGroups: [] }, { quickLinksSeedVersion: 6 });
   await seedQuickLinks();
-  assert.deepEqual(names(sync), ['X', 'Jav Guru · English subbed']);
+  assert.deepEqual(names(sync), ['X', 'Jav Guru · English subbed', '18JAV · Chinese subtitle']);
   assert.deepEqual(sync.openOnSites, []);
 });

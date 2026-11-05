@@ -10,10 +10,11 @@ Spot video codes like `NSFS-484` on any website and open their trailer on javtra
 - **Keyboard shortcuts** — select a code, or put the caret on one in a text box: `Alt+Shift+J` opens the trailer, `Alt+Shift+K` searches, `Alt+Shift+L` opens it on all your sites. Change them at `chrome://extensions/shortcuts`.
 - **Right-click menu** — on selected text: *Open trailer for "…"* / *Search javtrailers for "…"*. On links: looks for a code in the URL.
 - **Popup** — type a code (Open / Search), see every code on the current page, and your **Quick links**.
-- **Quick links in groups** — save sites or category pages (*+ Add this page* in the popup picks a group, or create a new one), organized into collapsible groups like Cheating / Cuckold / NTR / All Japanese, each with **Open all**. Rename, reorder and regroup in Settings. Comes with a few built-in links (MissAV, Jav Guru English subbed, JavLibrary, JavMost, Javtiful, JavTrailers categories, Beeg, and Japanese sections of FapHouse, Pornhub, YouPorn) — edit or remove freely.
+- **Quick links in groups** — save sites or category pages (*+ Add this page* in the popup picks a group, or create a new one), organized into collapsible groups like Cheating / Cuckold / NTR / All Japanese, each with **Open all**. Rename, reorder and regroup in Settings. Comes with a few built-in links (MissAV, Jav Guru English subbed, 18JAV Chinese subtitle, JavLibrary, JavMost, Javtiful, JavTrailers categories, Beeg, and Japanese sections of FapHouse, Pornhub, YouPorn) — edit or remove freely.
 - **Settings** — what "Open" does (direct video page by default, or search page), background tabs, turn the chip or ▶ buttons off.
 - **Off on this site** — turn the ▶ buttons and chip off for one site (and its subdomains) from the popup, or manage the list in Settings. Right-click and shortcuts keep working there.
-- **Ad-click shield** — clicks and keys on the extension's own ▶ buttons, chip and menu are hidden from the page, so a site's pop-under ad scripts can't open ad tabs when you use them. (Clicks on the site's own player or links still go to the site — use an ad blocker for those.)
+- **Ad-click shield** — clicks and keys on the extension's own ▶ buttons, chip and menu are hidden from the page, so a site's pop-under ad scripts can't open ad tabs when you use them. (Clicks on the site's own player or links still go to the site — see the pop-up blocker below.)
+- **Pop-up blocker (per site)** — tick *Block pop-ups on this site* in the popup (or list sites in Settings), then reload. On those sites it stops `window.open` pop-ups/pop-unders, invisible ad-overlay links to other sites, scripted new-tab clicks, and the "tab-under" trick (the video opens in a new tab while this tab is redirected to an ad). The site's own pages still open — if the site opened one by script after your click, the extension re-opens it. Ctrl/⌘/middle-click and *Open link in new tab* always work. Any other new tab the site still manages to open is closed. The toolbar badge counts what was blocked on the page.
 
 Built with **Vite + TypeScript** and [CRXJS](https://crxjs.dev/) (Manifest V3).
 
@@ -27,6 +28,7 @@ src/
   background/          # Service worker
   content/             # Content scripts (run on web pages)
   content/shield.iife.ts  # Runs at document_start: hides clicks on our UI from page scripts
+  content/popup-block.iife.ts  # Pop-up blocker, page side (registered per site at runtime)
   popup/               # Toolbar popup UI
   options/             # Options page
   shared/codes.ts      # Code detection + javtrailers URL building (unit-tested)

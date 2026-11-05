@@ -5,6 +5,7 @@ import { getSettings, onSettingsChanged, type Settings } from '../shared/storage
 import { activeCode } from './editable';
 import { disableFieldChip, enableFieldChip } from './field-chip';
 import { disableInline, enableInline } from './inline';
+import { disablePopupGuard, enablePopupGuard } from './popup-guard';
 
 function pageCodes(): VideoCode[] {
   const seen = new Map<string, VideoCode>();
@@ -32,6 +33,8 @@ async function init() {
     if (fieldChip !== state.fieldChip) (fieldChip ? enableFieldChip : disableFieldChip)();
     state.inlineButtons = inlineButtons;
     state.fieldChip = fieldChip;
+    if (isSiteOff(location.hostname, settings.popupBlockSites)) enablePopupGuard();
+    else disablePopupGuard();
   };
   apply(await getSettings());
   onSettingsChanged(apply);

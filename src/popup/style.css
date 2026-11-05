@@ -95,6 +95,19 @@ li button {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+}
+.toggles .row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toggles .reload {
+  align-self: flex-start;
+  margin-left: 20px;
+}
+footer > a {
+  flex-shrink: 0;
 }
 footer {
   display: flex;

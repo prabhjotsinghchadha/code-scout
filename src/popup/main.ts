@@ -3,7 +3,7 @@ import { siteKey } from '../shared/hosts';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { addGroup, groupLinks, validateGroupName, type LinkState, type QuickLink } from '../shared/quick-links';
-import { defaultLinkName, getSettings, normalizeUrl, setSettings } from '../shared/storage';
+import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -107,17 +107,9 @@ function setupTypedSites() {
   update();
 }
 
+/** Opened by the background (next to this tab), so the pop-up blocker knows they're ours. */
 async function openLinks(urls: string[]) {
-  const { openInBackground } = await getSettings();
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  for (const [i, url] of urls.entries()) {
-    // With several links, only the first one takes focus (unless background tabs are on).
-    await chrome.tabs.create({
-      url,
-      active: !openInBackground && i === 0,
-      ...(tab && { index: tab.index + 1 + i, openerTabId: tab.id }),
-    });
-  }
+  await sendToBackground({ type: 'OPEN_URLS', urls });
   window.close();
 }
 
@@ -255,18 +247,31 @@ async function setupAddPage(state: LinkState) {
   });
 }
 
-/** "Off on javtiful.com": turn the ▶ buttons and chip off for the current site. */
-async function setupSiteOff(offSites: string[]) {
+/** Per-site toggles for the current tab's site: "Off on javtiful.com" and "Block pop-ups on javtiful.com". */
+async function setupSiteToggles(settings: Settings) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const host = tab?.url && /^https?:/.test(tab.url) ? siteKey(tab.url) : null;
   if (!host) return;
-  const box = $<HTMLInputElement>('site-off');
-  $('site-off-host').textContent = host;
-  $('site-off-row').hidden = false;
-  box.checked = offSites.includes(host);
-  box.addEventListener('change', async () => {
-    const current = (await getSettings()).offSites.filter((s) => s !== host);
-    await setSettings({ offSites: box.checked ? [...current, host] : current });
+  document.querySelectorAll('.site-host').forEach((el) => (el.textContent = host));
+  document.querySelectorAll<HTMLElement>('.site-toggle').forEach((el) => (el.hidden = false));
+
+  const toggles = [
+    ['site-off', 'offSites'],
+    ['site-popups', 'popupBlockSites'],
+  ] as const;
+  for (const [id, key] of toggles) {
+    const box = $<HTMLInputElement>(id);
+    box.checked = settings[key].includes(host);
+    box.addEventListener('change', async () => {
+      const current = (await getSettings())[key].filter((s) => s !== host);
+      await setSettings({ [key]: box.checked ? [...current, host] : current });
+      // The page-side blocker only loads with the page.
+      if (key === 'popupBlockSites') $('reload-tab').hidden = false;
+    });
+  }
+  $('reload-tab').addEventListener('click', async () => {
+    if (tab.id !== undefined) await chrome.tabs.reload(tab.id);
+    window.close();
   });
 }
 
@@ -278,7 +283,7 @@ async function init() {
   chip.checked = settings.fieldChip;
   inline.addEventListener('change', () => setSettings({ inlineButtons: inline.checked }));
   chip.addEventListener('change', () => setSettings({ fieldChip: chip.checked }));
-  await setupSiteOff(settings.offSites);
+  await setupSiteToggles(settings);
 
   const linkState: LinkState = { quickLinks: settings.quickLinks, linkGroups: settings.linkGroups };
   renderLinks(linkState);

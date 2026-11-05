@@ -80,6 +80,23 @@
       </fieldset>
 
       <fieldset>
+        <legend>Pop-up blocker</legend>
+        <p class="hint">
+          On these sites (and their subdomains), stop ad pop-ups and new ad tabs, and stop the page from being sent
+          to another site by a script (the “video opens in a new tab, this tab goes to an ad” trick). Links you
+          click on the same site still open; Ctrl/⌘-click or middle-click always opens a new tab.
+          Tip: use <em>Block pop-ups on this site</em> in the popup, then reload the page.
+        </p>
+        <ul id="popup-sites" class="rows"></ul>
+        <p id="popup-empty" class="hint" hidden><small>None.</small></p>
+        <form id="add-popup-site" class="add-link">
+          <input id="popup-site" type="text" placeholder="e.g. javtiful.com" required />
+          <button type="submit">Block pop-ups</button>
+        </form>
+        <p id="popup-error" class="error" hidden></p>
+      </fieldset>
+
+      <fieldset>
         <legend>Open on other sites</legend>
         <p class="hint">
           Sites a code can be opened on — from the chip’s <em>Sites ▾</em>, right-clicking a ▶ button, the right-click

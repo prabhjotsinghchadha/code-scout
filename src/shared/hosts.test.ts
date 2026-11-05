@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isSiteOff, siteKey } from './hosts.ts';
+import { baseDomain, isSiteOff, sameSite, siteKey, sitePatterns } from './hosts.ts';
 
 test('turns URLs and hostnames into site keys', () => {
   assert.equal(siteKey('https://javtiful.com/video/114229/cawb-040-reducing-mosaic'), 'javtiful.com');
@@ -19,4 +19,19 @@ test('matches sites and their subdomains only', () => {
   assert.equal(isSiteOff('m.javtiful.com', off), true);
   assert.equal(isSiteOff('notjavtiful.com', off), false);
   assert.equal(isSiteOff('missav.ws', off), false);
+});
+
+test('sameSite treats subdomains as the same site, ad networks as different', () => {
+  assert.equal(baseDomain('m.javtiful.com'), 'javtiful.com');
+  assert.ok(sameSite('https://javtiful.com/', 'https://www.javtiful.com/video/1'));
+  assert.ok(!sameSite('https://javtiful.com/', 'https://superchatlive.com/girls'));
+  assert.ok(!sameSite('not a url', 'https://javtiful.com/'));
+});
+
+test('sitePatterns covers subdomains, keeps localhost and IPs exact', () => {
+  assert.deepEqual(sitePatterns(['javtiful.com', 'localhost', '127.0.0.1']), [
+    '*://*.javtiful.com/*',
+    '*://localhost/*',
+    '*://127.0.0.1/*',
+  ]);
 });

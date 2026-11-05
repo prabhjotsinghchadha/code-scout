@@ -9,7 +9,11 @@ export type Message =
   | { type: 'GET_ACTIVE_CODE' }
   /** Open web URLs in new tabs next to the sender (first one focused unless background tabs are on). */
   | { type: 'OPEN_URLS'; urls: string[] }
-  | { type: 'OPEN_OPTIONS' };
+  | { type: 'OPEN_OPTIONS' }
+  /** Pop-up blocker: the user is about to open a new tab themselves (Ctrl/middle-click, a same-site link). */
+  | { type: 'ALLOW_NEW_TAB'; ms: number }
+  /** Pop-up blocker: something was blocked on the sender's page (counted on the toolbar badge). */
+  | { type: 'POPUP_BLOCKED' };
 
 export interface MessageResponses {
   OPEN_CODE: { ok: true };
@@ -17,6 +21,8 @@ export interface MessageResponses {
   GET_ACTIVE_CODE: { code: VideoCode | null; text: string };
   OPEN_URLS: { ok: true };
   OPEN_OPTIONS: { ok: true };
+  ALLOW_NEW_TAB: { ok: true };
+  POPUP_BLOCKED: { ok: true };
 }
 
 export function sendToBackground<M extends Message>(message: M): Promise<MessageResponses[M['type']]> {
