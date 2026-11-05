@@ -1,6 +1,6 @@
 import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
 import { sendToTab, type Message } from '../shared/messages';
-import { defaultSettings, getSettings } from '../shared/storage';
+import { defaultSettings, getSettings, seedQuickLinks } from '../shared/storage';
 
 const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
@@ -10,6 +10,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
     await chrome.storage.sync.set(defaultSettings);
   }
+  await seedQuickLinks();
   chrome.contextMenus.removeAll(() => {
     // "selection" also covers text selected inside inputs and textareas.
     chrome.contextMenus.create({ id: MENU_OPEN, title: 'Open trailer for “%s”', contexts: ['selection'] });

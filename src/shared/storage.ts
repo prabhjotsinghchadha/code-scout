@@ -19,6 +19,15 @@ export interface Settings {
   quickLinks: QuickLink[];
 }
 
+/** Built-in quick links, added once on install/update (see seedQuickLinks). */
+export const BUILT_IN_QUICK_LINKS: QuickLink[] = [
+  { name: 'MissAV · English subtitle', url: 'https://missav.ws/dm23/en/english-subtitle' },
+  { name: 'JavMost · Cuckold', url: 'https://www.javmost.ws/category/Cuckold/' },
+  { name: 'Javtiful · Affair (popular)', url: 'https://javtiful.com/category/affair?sort=popular' },
+];
+/** Bump when adding entries above so existing installs receive the new ones. */
+const QUICK_LINKS_SEED_VERSION = 1;
+
 export const defaultSettings: Settings = {
   inlineButtons: true,
   fieldChip: true,
@@ -60,4 +69,19 @@ export function onSettingsChanged(callback: (settings: Settings) => void): void 
   chrome.storage.onChanged.addListener((_changes, area) => {
     if (area === 'sync') void getSettings().then(callback);
   });
+}
+
+/**
+ * Append built-in quick links the user doesn't have yet. Runs once per seed version,
+ * so links the user removes later don't come back.
+ */
+export async function seedQuickLinks(): Promise<void> {
+  const { quickLinksSeedVersion = 0 } = await chrome.storage.local.get<{ quickLinksSeedVersion?: number }>(
+    'quickLinksSeedVersion',
+  );
+  if (quickLinksSeedVersion >= QUICK_LINKS_SEED_VERSION) return;
+  const { quickLinks } = await getSettings();
+  const missing = BUILT_IN_QUICK_LINKS.filter((b) => !quickLinks.some((l) => l.url === b.url));
+  if (missing.length) await setSettings({ quickLinks: [...quickLinks, ...missing] });
+  await chrome.storage.local.set({ quickLinksSeedVersion: QUICK_LINKS_SEED_VERSION });
 }

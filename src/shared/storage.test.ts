@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultLinkName, normalizeUrl } from './storage.ts';
+import { BUILT_IN_QUICK_LINKS, defaultLinkName, normalizeUrl } from './storage.ts';
 
 test('normalizes quick-link URLs', () => {
   assert.equal(
@@ -17,4 +17,8 @@ test('builds readable default link names', () => {
   assert.equal(defaultLinkName('https://www.javmost.ws/category/Cuckold/'), 'javmost.ws › Cuckold');
   assert.equal(defaultLinkName('https://javtiful.com/category/affair?sort=popular'), 'javtiful.com › affair');
   assert.equal(defaultLinkName('https://example.com/'), 'example.com');
+});
+
+test('built-in quick links are valid, normalized URLs', () => {
+  for (const { url } of BUILT_IN_QUICK_LINKS) assert.equal(normalizeUrl(url), url);
 });
