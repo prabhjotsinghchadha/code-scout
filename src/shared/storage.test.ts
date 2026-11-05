@@ -42,12 +42,26 @@ function fakeChrome(sync: Record<string, unknown>, local: Record<string, unknown
 
 const names = (s: Partial<Settings>) => s.quickLinks!.map((l) => `${l.name}${l.group ? ` [${l.group}]` : ''}`);
 
+const SUBS = '[Subtitles]';
+const MORE = '[More sites]';
+/** Links added from v10 on (they all come with a group). */
+const V10_LINKS = [
+  `SupJav · English subtitles ${SUBS}`,
+  `BestJavPorn · English subtitle ${SUBS}`,
+  `SexTB ${MORE}`,
+  `7MMTV ${MORE}`,
+  `Korean Porn Movie ${MORE}`,
+  `ThePornDude · All sites ${MORE}`,
+];
+const ALL_GROUPS = ['Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
+const ALL_SITES = ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru', 'Jable', 'SupJav', 'BestJavPorn', 'SexTB'];
+
 test('seeds everything on a fresh install', async () => {
   const { sync, local } = fakeChrome({}, {});
   await seedQuickLinks();
-  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR', 'All Japanese']);
+  assert.deepEqual(sync.linkGroups, ALL_GROUPS);
   assert.deepEqual(names(sync), [
-    'MissAV · English subtitle',
+    `MissAV · English subtitle ${SUBS}`,
     'JavMost · Cuckold [Cuckold]',
     'Javtiful · Affair (popular) [Cheating]',
     'JavLibrary · Most wanted',
@@ -57,17 +71,15 @@ test('seeds everything on a fresh install', async () => {
     'FapHouse · Japanese [All Japanese]',
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
-    'Jav Guru · English subbed',
-    '18JAV · Chinese subtitle',
-    'Jable · Home (English)',
+    `Jav Guru · English subbed ${SUBS}`,
+    `18JAV · Chinese subtitle ${SUBS}`,
+    `Jable · Home (English) ${MORE}`,
+    ...V10_LINKS,
   ]);
-  assert.equal(local.quickLinksSeedVersion, 9);
-  assert.deepEqual(
-    sync.openOnSites!.map((x) => x.name),
-    ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru', 'Jable'],
-  );
+  assert.equal(local.quickLinksSeedVersion, 10);
+  assert.deepEqual(sync.openOnSites!.map((x) => x.name), ALL_SITES);
   await seedQuickLinks(); // idempotent
-  assert.equal(sync.quickLinks!.length, 13);
+  assert.equal(sync.quickLinks!.length, 19);
 });
 
 test('upgrades a v1 install: groups existing built-ins, keeps removals and own links', async () => {
@@ -76,7 +88,8 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
       quickLinks: [
         { name: 'My site', url: 'https://mine.example/' },
         { name: 'Renamed JavMost', url: 'https://www.javmost.ws/category/Cuckold/' },
-        // user removed MissAV and Javtiful earlier
+        { name: 'MissAV · English subtitle', url: 'https://missav.ws/dm23/en/english-subtitle' },
+        // user removed Javtiful earlier
       ],
     },
     { quickLinksSeedVersion: 1 },
@@ -85,6 +98,7 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
   assert.deepEqual(names(sync), [
     'My site',
     'Renamed JavMost [Cuckold]',
+    `MissAV · English subtitle ${SUBS}`,
     'JavLibrary · Most wanted',
     'JavTrailers · Cheating Wife [Cheating]',
     'JavTrailers · Adultery [Cheating]',
@@ -92,67 +106,63 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
     'FapHouse · Japanese [All Japanese]',
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
-    'Jav Guru · English subbed',
-    '18JAV · Chinese subtitle',
-    'Jable · Home (English)',
+    `Jav Guru · English subbed ${SUBS}`,
+    `18JAV · Chinese subtitle ${SUBS}`,
+    `Jable · Home (English) ${MORE}`,
+    ...V10_LINKS,
   ]);
-  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR', 'All Japanese']);
+  assert.deepEqual(sync.linkGroups, ALL_GROUPS);
 });
 
-test('upgrades a v2 install: only adds links from v3 on', async () => {
-  const { sync } = fakeChrome(
-    { quickLinks: [{ name: 'X', url: 'https://x.example/', group: 'NTR' }], linkGroups: ['NTR', 'Cheating'] },
-    { quickLinksSeedVersion: 2 },
-  );
-  await seedQuickLinks();
-  assert.deepEqual(names(sync), [
-    'X [NTR]',
-    'JavLibrary · Most wanted',
-    'JavTrailers · Cheating Wife [Cheating]',
-    'JavTrailers · Adultery [Cheating]',
-    'Beeg · Cuckold Japanese [Cuckold]',
-    'FapHouse · Japanese [All Japanese]',
-    'Pornhub · Japanese [All Japanese]',
-    'YouPorn · Japanese [All Japanese]',
-    'Jav Guru · English subbed',
-    '18JAV · Chinese subtitle',
-    'Jable · Home (English)',
-  ]);
-  assert.deepEqual(sync.linkGroups, ['NTR', 'Cheating', 'All Japanese']); // user's order kept, new group appended
-});
-
-test('upgrades a v3 install: adds Beeg and the All Japanese group', async () => {
+test('upgrades a v3 install: adds newer links and groups, keeps deleted groups deleted', async () => {
   const { sync } = fakeChrome(
     { quickLinks: [{ name: 'X', url: 'https://x.example/' }], linkGroups: ['Cuckold'] },
     { quickLinksSeedVersion: 3 },
   );
   await seedQuickLinks();
-  assert.deepEqual(names(sync), ['X', 'Beeg · Cuckold Japanese [Cuckold]', 
+  assert.deepEqual(names(sync), [
+    'X',
+    'Beeg · Cuckold Japanese [Cuckold]',
     'FapHouse · Japanese [All Japanese]',
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
-    'Jav Guru · English subbed',
-    '18JAV · Chinese subtitle',
-    'Jable · Home (English)',
+    `Jav Guru · English subbed ${SUBS}`,
+    `18JAV · Chinese subtitle ${SUBS}`,
+    `Jable · Home (English) ${MORE}`,
+    ...V10_LINKS,
   ]);
   // A user who deleted NTR before v3 doesn't get it back.
-  assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese']);
+  assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese', 'Subtitles', 'More sites']);
 });
 
 test('upgrades a v5 install: adds Open-on sites, keeps a site the user already added', async () => {
   const mine = { id: 'mine', name: 'My MissAV', template: 'https://missav.ws/en/{code_lower}' };
   const { sync } = fakeChrome({ quickLinks: [], linkGroups: [], openOnSites: [mine] }, { quickLinksSeedVersion: 5 });
   await seedQuickLinks();
-  assert.deepEqual(
-    sync.openOnSites!.map((x) => x.name),
-    ['My MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru', 'Jable'],
-  );
-  assert.deepEqual(names(sync), ['Jav Guru · English subbed', '18JAV · Chinese subtitle', 'Jable · Home (English)']); // only links newer than v5
+  assert.deepEqual(sync.openOnSites!.map((x) => x.name), ['My MissAV', ...ALL_SITES.slice(1)]);
 });
 
-test('upgrades a v6 install: adds only the newer links', async () => {
-  const { sync } = fakeChrome({ quickLinks: [{ name: 'X', url: 'https://x.example/' }], linkGroups: [] }, { quickLinksSeedVersion: 6 });
+test('upgrades a v9 install: groups ungrouped built-ins, leaves the user\'s grouping alone', async () => {
+  const { sync } = fakeChrome(
+    {
+      quickLinks: [
+        { name: 'MissAV · English subtitle', url: 'https://missav.ws/dm23/en/english-subtitle' },
+        { name: 'Jav Guru', url: 'https://jav.guru/category/english-subbed/', group: 'NTR' }, // user's choice
+        { name: 'Jable · Home (English)', url: 'https://jable.tv/?lang=en' },
+        { name: 'JavLibrary · Most wanted', url: 'https://www.javlibrary.com/en/vl_mostwanted.php' },
+      ],
+      linkGroups: ['NTR'],
+    },
+    { quickLinksSeedVersion: 9 },
+  );
   await seedQuickLinks();
-  assert.deepEqual(names(sync), ['X', 'Jav Guru · English subbed', '18JAV · Chinese subtitle', 'Jable · Home (English)']);
-  assert.deepEqual(sync.openOnSites!.map((x) => x.name), ['Jable']);
+  assert.deepEqual(names(sync), [
+    `MissAV · English subtitle ${SUBS}`,
+    'Jav Guru [NTR]',
+    `Jable · Home (English) ${MORE}`,
+    'JavLibrary · Most wanted',
+    ...V10_LINKS,
+  ]);
+  assert.deepEqual(sync.linkGroups, ['NTR', 'Subtitles', 'More sites']);
+  assert.deepEqual(sync.openOnSites!.map((x) => x.name), ['SupJav', 'BestJavPorn', 'SexTB']);
 });
