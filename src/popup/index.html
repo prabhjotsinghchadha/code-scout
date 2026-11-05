@@ -3,69 +3,110 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JAV Trailer Opener</title>
+    <title>Code Scout</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main>
-      <form id="search">
-        <input id="code-input" type="text" placeholder="Enter a code, e.g. NSFS-484" autocomplete="off" autofocus />
-        <button type="submit" title="Open the video page">Open</button>
-        <button type="button" id="search-btn" class="secondary" title="Search javtrailers.com">Search</button>
-        <button type="button" id="star-btn" class="secondary star" title="Add to favourites" aria-label="Add to favourites" disabled>☆</button>
+    <main class="popup">
+      <header class="top">
+        <span class="logo" aria-hidden="true"><i data-icon="play" data-size="12"></i></span>
+        <h1>Code Scout</h1>
+        <button type="button" id="open-options" class="icon-btn" title="Settings" aria-label="Settings">
+          <i data-icon="settings"></i>
+        </button>
+      </header>
+
+      <form id="search" class="search">
+        <div class="field">
+          <input
+            id="code-input"
+            type="text"
+            placeholder="Code, like NSFS-484"
+            aria-label="Video code"
+            autocomplete="off"
+            spellcheck="false"
+            autofocus
+          />
+          <button type="button" id="star-btn" class="icon-btn star" title="Add to favourites" aria-label="Add to favourites" disabled></button>
+          <button type="button" id="search-btn" class="icon-btn" title="Search javtrailers.com (Shift+Enter)" aria-label="Search javtrailers.com">
+            <i data-icon="search"></i>
+          </button>
+        </div>
+        <button type="submit" class="btn primary go" title="Open the video page (Enter)"><i data-icon="play" data-size="12"></i>Open</button>
       </form>
       <p id="error" class="error" hidden></p>
-      <div id="typed-sites" class="site-row" hidden></div>
+      <div id="typed-sites" class="site-row typed" hidden></div>
+      <p class="hint">Enter opens · Shift+Enter searches</p>
 
-      <section>
-        <h2>On this page</h2>
-        <ul id="codes"></ul>
-        <p id="empty" class="muted" hidden>No codes found on this page.</p>
-      </section>
+      <nav class="tabs" role="tablist" aria-label="Lists">
+        <button type="button" class="tab" role="tab" id="tab-page" data-tab="page" aria-controls="panel-page" aria-selected="false">
+          This page <span id="codes-count" class="count"></span>
+        </button>
+        <button type="button" class="tab" role="tab" id="tab-favs" data-tab="favs" aria-controls="panel-favs" aria-selected="false">
+          Favourites <span id="favs-count" class="count"></span>
+        </button>
+        <button type="button" class="tab" role="tab" id="tab-links" data-tab="links" aria-controls="panel-links" aria-selected="false">
+          Links
+        </button>
+      </nav>
 
-      <section>
-        <div class="section-head">
-          <h2>Favourites <span id="favs-count" class="count"></span></h2>
-          <button type="button" id="fav-page" class="link-button" hidden>☆ Star this page</button>
+      <section id="panel-page" class="panel" role="tabpanel" aria-labelledby="tab-page" hidden>
+        <ul id="codes" class="list"></ul>
+        <div id="empty" class="empty" hidden>
+          <i data-icon="search" data-size="28"></i>
+          <p>No codes on this page.<br />Type one above.</p>
         </div>
-        <ul id="favs"></ul>
-        <p id="favs-empty" class="muted" hidden>Star a code, or this page, with ☆ to keep it here.</p>
       </section>
 
-      <section>
-        <div class="section-head">
-          <h2>Quick links</h2>
-          <button type="button" id="add-page" class="link-button" title="Save the current page as a quick link">+ Add this page</button>
+      <section id="panel-favs" class="panel" role="tabpanel" aria-labelledby="tab-favs" hidden>
+        <div class="panel-head">
+          <input id="favs-filter" type="search" placeholder="Filter favourites" aria-label="Filter favourites" hidden />
+          <button type="button" id="fav-page" class="link-btn" hidden></button>
+        </div>
+        <ul id="favs" class="list"></ul>
+        <p id="favs-none" class="none" hidden>No favourites match.</p>
+        <div id="favs-empty" class="empty" hidden>
+          <i data-icon="star" data-size="28"></i>
+          <p>Star a code, or this page, to keep it here.</p>
+        </div>
+      </section>
+
+      <section id="panel-links" class="panel" role="tabpanel" aria-labelledby="tab-links" hidden>
+        <div class="panel-head">
+          <button type="button" id="add-page" class="link-btn" title="Save the current page as a quick link"></button>
         </div>
         <form id="add-page-form" class="add-page" hidden>
           <select id="add-page-group" aria-label="Group"></select>
-          <input id="add-page-new-group" type="text" placeholder="New group name" maxlength="30" hidden />
-          <button type="submit">Save</button>
-          <button type="button" id="add-page-cancel" class="secondary">Cancel</button>
+          <input id="add-page-new-group" type="text" placeholder="New group name" aria-label="New group name" maxlength="30" hidden />
+          <button type="submit" class="btn primary sm">Save</button>
+          <button type="button" id="add-page-cancel" class="btn ghost sm">Cancel</button>
         </form>
-        <p id="add-page-error" class="error" hidden></p>
+        <p id="add-page-error" class="error pad" hidden></p>
         <div id="links"></div>
-        <p id="links-empty" class="muted" hidden>
-          No quick links yet. <a href="#" id="add-links">Add sites in Settings</a>
-        </p>
+        <div id="links-empty" class="empty" hidden>
+          <i data-icon="link" data-size="28"></i>
+          <p>No quick links yet.</p>
+          <a href="#" id="add-links">Add sites in Settings</a>
+        </div>
       </section>
 
-      <footer>
-        <div class="toggles">
-          <label class="row"><input type="checkbox" id="inline" /> ▶ buttons on pages</label>
-          <label class="row"><input type="checkbox" id="chip" /> Chip when typing a code</label>
-          <label class="row site-toggle" hidden>
-            <input type="checkbox" id="site-off" /> <span>Off on <strong class="site-host"></strong></span>
-          </label>
-          <label class="row site-toggle" hidden title="Stops pop-ups, ad tabs and redirects to ad sites on this site">
-            <input type="checkbox" id="site-popups" /> <span>Block pop-ups on <strong class="site-host"></strong></span>
-          </label>
-          <label class="row site-toggle" hidden title="Faster loading, quality menu, download and English subtitles on this site's videos">
-            <input type="checkbox" id="site-video" /> <span>Video tools on <strong class="site-host"></strong></span>
-          </label>
-          <button type="button" id="reload-tab" class="link-button reload" hidden>↻ Reload the page to apply</button>
+      <footer id="site-bar" class="site-bar" hidden>
+        <div class="site-name">
+          <i data-icon="globe" data-size="14"></i>
+          <strong class="site-host"></strong>
         </div>
-        <a href="#" id="open-options">Settings</a>
+        <div class="pills">
+          <label class="pill" title="▶ buttons next to codes, and the chip when you type a code">
+            <input type="checkbox" id="site-buttons" /><i data-icon="play" data-size="12"></i>Buttons
+          </label>
+          <label class="pill" title="Stops pop-ups, ad tabs and redirects to ad sites on this site">
+            <input type="checkbox" id="site-popups" /><i data-icon="shield" data-size="14"></i>Block pop-ups
+          </label>
+          <label class="pill" title="Faster loading, quality menu, download and English subtitles on this site's videos">
+            <input type="checkbox" id="site-video" /><i data-icon="film" data-size="14"></i>Video tools
+          </label>
+        </div>
+        <button type="button" id="reload-tab" class="link-btn" hidden><i data-icon="refresh" data-size="13"></i>Reload the page to apply</button>
       </footer>
     </main>
     <script type="module" src="./main.ts"></script>
