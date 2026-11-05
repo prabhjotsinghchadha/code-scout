@@ -14,13 +14,19 @@
       #status { color: #16a34a; min-height: 1.2em; }
       .hint { margin: 4px 0; opacity: 0.8; }
       .shortcuts { margin: 6px 0 10px; padding-left: 0; list-style: none; line-height: 1.9; }
-      .links { list-style: none; padding: 0; margin: 6px 0 10px; }
-      .links li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent); }
-      .links li span { flex: 1; min-width: 0; }
-      .links li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .links li button { padding: 2px 8px; }
+      h3 { margin: 14px 0 2px; font-size: 14px; }
+      .rows { list-style: none; padding: 0; margin: 6px 0 10px; }
+      .rows li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent); }
+      .rows li > span { flex: 1; min-width: 0; }
+      .rows li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rows li button { padding: 2px 8px; }
+      .rows input.inline-name { width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: inherit; font: inherit; font-weight: 600; }
+      .rows input.inline-name:hover, .rows input.inline-name:focus { border-color: color-mix(in srgb, currentColor 30%, transparent); }
+      .rows .count { opacity: 0.6; font-size: 12px; white-space: nowrap; }
+      .rows select { max-width: 130px; }
       .add-link { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
       .add-link input { flex: 1 1 160px; padding: 5px 8px; font: inherit; }
+      .add-link select { padding: 5px 6px; font: inherit; }
       .error { color: #dc2626; }
       kbd { display: inline-block; min-width: 92px; padding: 1px 6px; margin-right: 6px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; font: 12px ui-monospace, monospace; }
     </style>
@@ -71,10 +77,22 @@
       <fieldset>
         <legend>Quick links</legend>
         <p class="hint">Sites or pages you want one click away in the popup. Tip: use <em>+ Add this page</em> in the popup while you’re on a page.</p>
-        <ul id="links" class="links"></ul>
+
+        <h3>Groups</h3>
+        <p class="hint">Organize links by category, e.g. Cheating, Cuckold, NTR. Deleting a group keeps its links.</p>
+        <ul id="groups" class="rows"></ul>
+        <form id="add-group" class="add-link">
+          <input id="group-name" type="text" placeholder="New group, e.g. Affair" maxlength="30" required />
+          <button type="submit">Add group</button>
+        </form>
+        <p id="group-error" class="error" hidden></p>
+
+        <h3>Links</h3>
+        <ul id="links" class="rows links"></ul>
         <form id="add-link" class="add-link">
           <input id="link-url" type="text" placeholder="https://example.com/category/…" required />
           <input id="link-name" type="text" placeholder="Name (optional)" />
+          <select id="link-group" aria-label="Group"></select>
           <button type="submit">Add</button>
         </form>
         <p id="link-error" class="error" hidden></p>

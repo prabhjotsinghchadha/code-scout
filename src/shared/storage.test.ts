@@ -22,3 +22,76 @@ test('builds readable default link names', () => {
 test('built-in quick links are valid, normalized URLs', () => {
   for (const { url } of BUILT_IN_QUICK_LINKS) assert.equal(normalizeUrl(url), url);
 });
+
+// --- seedQuickLinks against an in-memory chrome.storage ---
+import { seedQuickLinks, type Settings } from './storage.ts';
+
+function fakeChrome(sync: Record<string, unknown>, local: Record<string, unknown>) {
+  const area = (data: Record<string, unknown>) => ({
+    async get(keys: string | Record<string, unknown>) {
+      if (typeof keys === 'string') return keys in data ? { [keys]: data[keys] } : {};
+      return { ...keys, ...structuredClone(data) };
+    },
+    async set(patch: Record<string, unknown>) {
+      Object.assign(data, structuredClone(patch));
+    },
+  });
+  (globalThis as unknown as { chrome: unknown }).chrome = { storage: { sync: area(sync), local: area(local) } };
+  return { sync: sync as Partial<Settings>, local };
+}
+
+const names = (s: Partial<Settings>) => s.quickLinks!.map((l) => `${l.name}${l.group ? ` [${l.group}]` : ''}`);
+
+test('seeds everything on a fresh install', async () => {
+  const { sync, local } = fakeChrome({}, {});
+  await seedQuickLinks();
+  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR']);
+  assert.deepEqual(names(sync), [
+    'MissAV · English subtitle',
+    'JavMost · Cuckold [Cuckold]',
+    'Javtiful · Affair (popular) [Cheating]',
+    'JavLibrary · Most wanted',
+    'JavTrailers · Cheating Wife [Cheating]',
+    'JavTrailers · Adultery [Cheating]',
+  ]);
+  assert.equal(local.quickLinksSeedVersion, 3);
+  await seedQuickLinks(); // idempotent
+  assert.equal(sync.quickLinks!.length, 6);
+});
+
+test('upgrades a v1 install: groups existing built-ins, keeps removals and own links', async () => {
+  const { sync } = fakeChrome(
+    {
+      quickLinks: [
+        { name: 'My site', url: 'https://mine.example/' },
+        { name: 'Renamed JavMost', url: 'https://www.javmost.ws/category/Cuckold/' },
+        // user removed MissAV and Javtiful earlier
+      ],
+    },
+    { quickLinksSeedVersion: 1 },
+  );
+  await seedQuickLinks();
+  assert.deepEqual(names(sync), [
+    'My site',
+    'Renamed JavMost [Cuckold]',
+    'JavLibrary · Most wanted',
+    'JavTrailers · Cheating Wife [Cheating]',
+    'JavTrailers · Adultery [Cheating]',
+  ]);
+  assert.deepEqual(sync.linkGroups, ['Cheating', 'Cuckold', 'NTR']);
+});
+
+test('upgrades a v2 install: only adds the new v3 links', async () => {
+  const { sync } = fakeChrome(
+    { quickLinks: [{ name: 'X', url: 'https://x.example/', group: 'NTR' }], linkGroups: ['NTR', 'Cheating'] },
+    { quickLinksSeedVersion: 2 },
+  );
+  await seedQuickLinks();
+  assert.deepEqual(names(sync), [
+    'X [NTR]',
+    'JavLibrary · Most wanted',
+    'JavTrailers · Cheating Wife [Cheating]',
+    'JavTrailers · Adultery [Cheating]',
+  ]);
+  assert.deepEqual(sync.linkGroups, ['NTR', 'Cheating']); // user's group order untouched
+});

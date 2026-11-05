@@ -1,10 +1,8 @@
 // Typed wrapper around chrome.storage.sync.
 import type { OpenMode } from './codes';
+import { hasGroup, type QuickLink } from './quick-links.ts';
 
-export interface QuickLink {
-  name: string;
-  url: string;
-}
+export type { QuickLink } from './quick-links';
 
 export interface Settings {
   /** Show a ▶ button next to codes found on pages. */
@@ -17,16 +15,33 @@ export interface Settings {
   openInBackground: boolean;
   /** Sites/pages the user wants one click away in the popup. */
   quickLinks: QuickLink[];
+  /** Quick-link group names in display order (e.g. "Cheating", "Cuckold", "NTR"). */
+  linkGroups: string[];
 }
 
-/** Built-in quick links, added once on install/update (see seedQuickLinks). */
-export const BUILT_IN_QUICK_LINKS: QuickLink[] = [
-  { name: 'MissAV · English subtitle', url: 'https://missav.ws/dm23/en/english-subtitle' },
-  { name: 'JavMost · Cuckold', url: 'https://www.javmost.ws/category/Cuckold/' },
-  { name: 'Javtiful · Affair (popular)', url: 'https://javtiful.com/category/affair?sort=popular' },
+/**
+ * Built-in quick links and groups, added once on install/update (see seedQuickLinks).
+ * `since` is the seed version that introduced each link, so updates only add new ones.
+ */
+export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number })[] = [
+  { since: 1, name: 'MissAV · English subtitle', url: 'https://missav.ws/dm23/en/english-subtitle' },
+  { since: 1, name: 'JavMost · Cuckold', url: 'https://www.javmost.ws/category/Cuckold/', group: 'Cuckold' },
+  {
+    since: 1,
+    name: 'Javtiful · Affair (popular)',
+    url: 'https://javtiful.com/category/affair?sort=popular',
+    group: 'Cheating',
+  },
+  { since: 3, name: 'JavLibrary · Most wanted', url: 'https://www.javlibrary.com/en/vl_mostwanted.php' },
+  { since: 3, name: 'JavTrailers · Cheating Wife', url: 'https://javtrailers.com/categories/cheating-wife', group: 'Cheating' },
+  { since: 3, name: 'JavTrailers · Adultery', url: 'https://javtrailers.com/categories/adultery', group: 'Cheating' },
 ];
-/** Bump when adding entries above so existing installs receive the new ones. */
-const QUICK_LINKS_SEED_VERSION = 1;
+export const BUILT_IN_GROUPS = ['Cheating', 'Cuckold', 'NTR'];
+/**
+ * Bump when changing the built-ins above so existing installs receive them.
+ * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
+ */
+const QUICK_LINKS_SEED_VERSION = 3;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
@@ -34,6 +49,7 @@ export const defaultSettings: Settings = {
   openMode: 'video',
   openInBackground: false,
   quickLinks: [],
+  linkGroups: [],
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */
@@ -72,16 +88,27 @@ export function onSettingsChanged(callback: (settings: Settings) => void): void 
 }
 
 /**
- * Append built-in quick links the user doesn't have yet. Runs once per seed version,
- * so links the user removes later don't come back.
+ * Add built-in quick links and groups the user doesn't have yet. Each step runs once,
+ * so anything the user removes or renames later isn't brought back.
  */
 export async function seedQuickLinks(): Promise<void> {
-  const { quickLinksSeedVersion = 0 } = await chrome.storage.local.get<{ quickLinksSeedVersion?: number }>(
+  const { quickLinksSeedVersion: version = 0 } = await chrome.storage.local.get<{ quickLinksSeedVersion?: number }>(
     'quickLinksSeedVersion',
   );
-  if (quickLinksSeedVersion >= QUICK_LINKS_SEED_VERSION) return;
-  const { quickLinks } = await getSettings();
-  const missing = BUILT_IN_QUICK_LINKS.filter((b) => !quickLinks.some((l) => l.url === b.url));
-  if (missing.length) await setSettings({ quickLinks: [...quickLinks, ...missing] });
+  if (version >= QUICK_LINKS_SEED_VERSION) return;
+  let { quickLinks, linkGroups } = await getSettings();
+
+  if (version < 2) {
+    linkGroups = [...linkGroups, ...BUILT_IN_GROUPS.filter((g) => !hasGroup(linkGroups, g))];
+    // Put built-in links the user already has (and hasn't grouped) into their group.
+    quickLinks = quickLinks.map((l) => {
+      const group = !l.group && BUILT_IN_QUICK_LINKS.find((b) => b.url === l.url)?.group;
+      return group ? { ...l, group } : l;
+    });
+  }
+  const added = BUILT_IN_QUICK_LINKS.filter((b) => b.since > version && !quickLinks.some((l) => l.url === b.url));
+  quickLinks = [...quickLinks, ...added.map(({ since: _since, ...link }) => link)];
+
+  await setSettings({ quickLinks, linkGroups });
   await chrome.storage.local.set({ quickLinksSeedVersion: QUICK_LINKS_SEED_VERSION });
 }

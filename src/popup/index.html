@@ -26,7 +26,14 @@
           <h2>Quick links</h2>
           <button type="button" id="add-page" class="link-button" title="Save the current page as a quick link">+ Add this page</button>
         </div>
-        <div id="links" class="links"></div>
+        <form id="add-page-form" class="add-page" hidden>
+          <select id="add-page-group" aria-label="Group"></select>
+          <input id="add-page-new-group" type="text" placeholder="New group name" maxlength="30" hidden />
+          <button type="submit">Save</button>
+          <button type="button" id="add-page-cancel" class="secondary">Cancel</button>
+        </form>
+        <p id="add-page-error" class="error" hidden></p>
+        <div id="links"></div>
         <p id="links-empty" class="muted" hidden>
           No quick links yet. <a href="#" id="add-links">Add sites in Settings</a>
         </p>

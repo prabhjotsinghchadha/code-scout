@@ -1,6 +1,7 @@
 import { formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
 import { sendToBackground, sendToTab } from '../shared/messages';
-import { defaultLinkName, getSettings, normalizeUrl, setSettings, type QuickLink } from '../shared/storage';
+import { addGroup, groupLinks, validateGroupName, type LinkState, type QuickLink } from '../shared/quick-links';
+import { defaultLinkName, getSettings, normalizeUrl, setSettings } from '../shared/storage';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -64,30 +65,94 @@ async function loadPageCodes() {
   }
 }
 
-async function openLink(url: string) {
+async function openLinks(urls: string[]) {
   const { openInBackground } = await getSettings();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  await chrome.tabs.create({ url, active: !openInBackground, ...(tab && { index: tab.index + 1, openerTabId: tab.id }) });
+  for (const [i, url] of urls.entries()) {
+    // With several links, only the first one takes focus (unless background tabs are on).
+    await chrome.tabs.create({
+      url,
+      active: !openInBackground && i === 0,
+      ...(tab && { index: tab.index + 1 + i, openerTabId: tab.id }),
+    });
+  }
   window.close();
 }
 
-function renderLinks(links: QuickLink[]) {
-  const container = $('links');
-  container.replaceChildren();
-  $('links-empty').hidden = links.length > 0;
-  for (const { name, url } of links) {
-    const a = Object.assign(document.createElement('a'), { href: url, textContent: name, title: url });
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      void openLink(url);
-    });
-    container.append(a);
+// Which groups are collapsed is a per-browser convenience, so localStorage is enough.
+const COLLAPSED_KEY = 'collapsedGroups';
+function collapsedGroups(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]'));
+  } catch {
+    return new Set();
+  }
+}
+function setCollapsed(group: string, collapsed: boolean) {
+  const set = collapsedGroups();
+  if (collapsed) set.add(group);
+  else set.delete(group);
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
+  } catch {
+    // Storage unavailable; collapsing just won't be remembered.
   }
 }
 
+function linkChip({ name, url }: QuickLink) {
+  const a = Object.assign(document.createElement('a'), { href: url, textContent: name, title: url });
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    void openLinks([url]);
+  });
+  return a;
+}
+
+function renderLinks(state: LinkState) {
+  const container = $('links');
+  container.replaceChildren();
+  $('links-empty').hidden = state.quickLinks.length > 0;
+  const collapsed = collapsedGroups();
+
+  for (const { group, links } of groupLinks(state)) {
+    if (links.length === 0) continue; // empty groups only show in Settings / the group picker
+    if (group === null) {
+      const row = Object.assign(document.createElement('div'), { className: 'links' });
+      row.append(...links.map(linkChip));
+      container.append(row);
+      continue;
+    }
+    const details = Object.assign(document.createElement('details'), { className: 'group', open: !collapsed.has(group) });
+    const summary = document.createElement('summary');
+    summary.append(
+      group,
+      Object.assign(document.createElement('span'), { className: 'count', textContent: `${links.length}` }),
+    );
+    if (links.length > 1) {
+      const all = smallButton('Open all', 'link-button open-all', () => {
+        if (links.length <= 8 || confirm(`Open ${links.length} tabs?`)) void openLinks(links.map((l) => l.url));
+      });
+      all.addEventListener('click', (e) => e.preventDefault()); // don't toggle the <details>
+      summary.append(all);
+    }
+    details.addEventListener('toggle', () => setCollapsed(group, !details.open));
+    const body = Object.assign(document.createElement('div'), { className: 'group-links' });
+    body.append(...links.map(linkChip));
+    details.append(summary, body);
+    container.append(details);
+  }
+}
+
+const NEW_GROUP = '\u0000new';
+
 /** "+ Add this page": activeTab gives us the current tab's URL/title while the popup is open. */
-async function setupAddPage(links: QuickLink[]) {
+async function setupAddPage(state: LinkState) {
   const btn = $<HTMLButtonElement>('add-page');
+  const form = $<HTMLFormElement>('add-page-form');
+  const select = $<HTMLSelectElement>('add-page-group');
+  const newGroup = $<HTMLInputElement>('add-page-new-group');
+  const addError = $<HTMLParagraphElement>('add-page-error');
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url && /^https?:/.test(tab.url) ? normalizeUrl(tab.url) : null;
   if (!url) {
@@ -98,12 +163,52 @@ async function setupAddPage(links: QuickLink[]) {
     btn.disabled = added;
     btn.textContent = added ? '✓ Added' : '+ Add this page';
   };
-  mark(links.some((l) => l.url === url));
-  btn.addEventListener('click', async () => {
+  mark(state.quickLinks.some((l) => l.url === url));
+
+  const showForm = (show: boolean) => {
+    form.hidden = !show;
+    addError.hidden = true;
+    btn.hidden = show;
+  };
+
+  btn.addEventListener('click', () => {
+    select.replaceChildren(
+      new Option('No group', ''),
+      ...state.linkGroups.map((g) => new Option(g, g)),
+      new Option('+ New group…', NEW_GROUP),
+    );
+    newGroup.hidden = true;
+    newGroup.value = '';
+    showForm(true);
+    select.focus();
+  });
+  select.addEventListener('change', () => {
+    newGroup.hidden = select.value !== NEW_GROUP;
+    if (!newGroup.hidden) newGroup.focus();
+  });
+  $('add-page-cancel').addEventListener('click', () => showForm(false));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const latest = await getSettings();
+    let next: LinkState = { quickLinks: latest.quickLinks, linkGroups: latest.linkGroups };
+    let group = select.value;
+    if (group === NEW_GROUP) {
+      const problem = validateGroupName(next.linkGroups, newGroup.value);
+      if (problem) {
+        addError.textContent = problem;
+        addError.hidden = false;
+        return;
+      }
+      group = newGroup.value.trim();
+      next = addGroup(next, group);
+    }
     const name = tab.title?.trim().slice(0, 60) || defaultLinkName(url);
-    const next = [...(await getSettings()).quickLinks, { name, url }];
-    await setSettings({ quickLinks: next });
+    next = { ...next, quickLinks: [...next.quickLinks, { name, url, ...(group && { group }) }] };
+    await setSettings(next);
+    state = next;
     renderLinks(next);
+    showForm(false);
     mark(true);
   });
 }
@@ -115,8 +220,9 @@ async function init() {
   inline.addEventListener('change', () => setSettings({ inlineButtons: inline.checked }));
   chip.addEventListener('change', () => setSettings({ fieldChip: chip.checked }));
 
-  renderLinks(settings.quickLinks);
-  await setupAddPage(settings.quickLinks);
+  const linkState: LinkState = { quickLinks: settings.quickLinks, linkGroups: settings.linkGroups };
+  renderLinks(linkState);
+  await setupAddPage(linkState);
 
   for (const id of ['open-options', 'add-links']) {
     $(id).addEventListener('click', (e) => {

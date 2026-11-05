@@ -1,10 +1,20 @@
 :root {
   color-scheme: light dark;
   --accent: #4f46e5;
+  --link: #4338ca;
   --muted: #6b7280;
   --border: color-mix(in srgb, currentColor 18%, transparent);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --link: #a5b4fc;
+  }
+}
+/* Author display rules (e.g. .add-page { display: flex }) would otherwise beat [hidden]. */
+[hidden] {
+  display: none !important;
 }
 body {
   margin: 0;
@@ -99,14 +109,23 @@ footer {
   gap: 6px;
 }
 a {
-  color: var(--accent);
+  color: var(--link);
 }
-.links {
+.links,
+.group-links {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.links a {
+#links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.links a,
+.group-links a {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -114,10 +133,12 @@ a {
   padding: 4px 10px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--link);
   font-weight: 500;
   text-decoration: none;
 }
-.links a:hover {
+.links a:hover,
+.group-links a:hover {
   background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 .section-head {
@@ -128,11 +149,61 @@ a {
 .link-button {
   padding: 0;
   background: none;
-  color: var(--accent);
+  color: var(--link);
   font-size: 12px;
   font-weight: 500;
 }
 .link-button:disabled {
   color: var(--muted);
   cursor: default;
+}
+details.group summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+  font-weight: 600;
+}
+details.group summary::-webkit-details-marker {
+  display: none;
+}
+details.group summary::before {
+  content: '▸';
+  color: var(--muted);
+  font-size: 10px;
+  transition: transform 0.1s;
+}
+details.group[open] summary::before {
+  transform: rotate(90deg);
+}
+details.group summary .count {
+  color: var(--muted);
+  font-weight: 400;
+}
+details.group summary .open-all {
+  margin-left: auto;
+}
+.group-links {
+  padding: 4px 0 4px 14px;
+}
+.add-page {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.add-page select,
+.add-page input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.add-page button {
+  padding: 4px 10px;
 }
