@@ -1,17 +1,22 @@
-// Video tools, page side: faster loading and the quality menu for players built on hls.js.
+// Video tools, page side: faster loading for HLS players, and the quality menu for hls.js ones.
 // Runs in the page's own JavaScript world at document_start, in every frame of sites where "Video tools"
 // is on (the background registers it with chrome.scripting). A player embedded on a page where they're
 // turned off gets "javtr:video-off" from the content script, and loads normally from then on.
 //
 // Some video servers send each request slowly (18JAV's CDN: about 50 KB/s per request, while the video
-// needs about 250 KB/s) but let several requests run at once. So the site's hls.js gets a loader that
-// downloads each segment as parallel byte ranges and fetches the next segments ahead, then hands hls.js
-// the finished bytes through a blob: URL, which hls.js's own loader reads instantly. Anything unusual
-// (byte-range segments, a failed range request) falls back to hls.js's normal loading.
+// needs about 250 KB/s) but let several requests run at once. So each segment is downloaded as parallel
+// byte ranges, with the next segments fetched ahead, and handed to the player from memory:
+//  - hls.js on the page (window.Hls): it gets a loader that hands it the bytes through a blob: URL, which
+//    its own loader reads instantly.
+//  - Any other player (hls.js bundled inside it, JW Player, Video.js, Shaka): the same at the network
+//    level. Playlists the page downloads (XMLHttpRequest or fetch) are remembered, and when the player
+//    then asks for one of their segments, the request is answered with the bytes fetched ahead.
+// Only finished videos (not live streams). Anything unusual (byte-range segments, a failed range
+// request) falls back to the player's normal loading.
 //
 // It also reports each player's state (qualities, how far ahead it has loaded, the playlist URL for
-// downloads) to the content script with a "javtr:video-info" event on the <video>, and switches
-// quality on "javtr:set-level". No chrome.* APIs here.
+// downloads) to the content script with a "javtr:video-info" event on the <video>, and switches hls.js's
+// quality on "javtr:set-level" (other players keep their own quality menu). No chrome.* APIs here.
 import { isMasterPlaylist, isPlaylist, parseMediaPlaylist } from '../shared/hls-playlist';
 import { fetchInRanges, Limiter } from '../shared/range-fetch';
 
@@ -29,6 +34,9 @@ type Loose = any;
   const AHEAD_PLAYING = 30;
   const AHEAD_PAUSED = 4;
   const limiter = new Limiter(PARALLEL);
+  // Untouched copies: our own range requests mustn't go through the wrappers below.
+  const nativeFetch = window.fetch;
+  const fetchNative: typeof fetch = (input, init) => nativeFetch.call(window, input, init);
 
   interface Position {
     list: string[];
@@ -48,8 +56,15 @@ type Loose = any;
   /** When the player last asked for a segment of each playlist. */
   const lastAsked = new Map<string[], number>();
   const players = new Map<HTMLMediaElement, Loose>();
+  /** Playlist each segment list came from, and the last master playlist seen (for downloads). */
+  const listUrls = new Map<string[], string>();
+  let lastMaster = '';
+  /** Players served at the network level: the list they're playing, for the toolbar. */
+  let generic: { list: string[] } | null = null;
+  /** Segments to load the player's way once (their fetch ahead failed). */
+  const plainOnce = new Set<string>();
 
-  const anyPlaying = () => [...players.keys()].some((m) => !m.paused);
+  const anyPlaying = () => [...players.keys(), ...document.getElementsByTagName('video')].some((m) => !m.paused);
 
   let off = false;
   window.addEventListener('javtr:video-off', () => {
@@ -59,10 +74,17 @@ type Loose = any;
   });
 
   function recordPlaylist(text: string, url: string) {
-    if (!isPlaylist(text) || isMasterPlaylist(text)) return;
+    if (!isPlaylist(text)) return;
+    if (isMasterPlaylist(text)) {
+      lastMaster = url;
+      return;
+    }
     const playlist = parseMediaPlaylist(text, url);
-    if (playlist.byteRanges) return;
+    if (playlist.byteRanges || !playlist.ended || !playlist.segments.length) return; // live: nothing to fetch ahead
     const list = playlist.segments;
+    const known = positions.get(list[0]);
+    if (known && known.list.length === list.length) return; // seen already (hls.js's loader and the wrapper both report it)
+    listUrls.set(list, url);
     list.forEach((segment, index) => positions.set(segment, { list, durations: playlist.durations, index }));
   }
 
@@ -73,7 +95,7 @@ type Loose = any;
       controller,
       done: false,
       duration: pos.durations[index] ?? 0,
-      promise: fetchInRanges(url, { limiter, priority: index, signal: controller.signal, parallel: 4 }),
+      promise: fetchInRanges(url, { limiter, priority: index, signal: controller.signal, parallel: 4, fetch: fetchNative }),
     };
     job.promise.then(
       () => (job.done = true),
@@ -161,7 +183,9 @@ type Loose = any;
                 });
               },
               () => {
-                if (this.javtrToken === token) super.load(context, config, callbacks);
+                if (this.javtrToken !== token) return;
+                plainOnce.add(context.url);
+                super.load(context, config, callbacks);
               },
             );
             return;
@@ -213,6 +237,23 @@ type Loose = any;
 
   function report() {
     const fetchedAhead = [...jobs.values()].reduce((sum, job) => sum + (job.done ? job.duration : 0), 0);
+    if (generic) {
+      // Players served at the network level: their <video> (fed by MediaSource, so a blob: source).
+      const media = listUrls.get(generic.list) ?? '';
+      for (const video of document.getElementsByTagName('video')) {
+        if (players.has(video) || !video.currentSrc.startsWith('blob:')) continue;
+        const info = {
+          manifestUrl: lastMaster || media,
+          levelUrl: media,
+          levels: [],
+          currentLevel: -1,
+          auto: false,
+          aheadSec: bufferedAhead(video) + fetchedAhead,
+          playerQuality: true, // the player's own menu switches quality
+        };
+        video.dispatchEvent(new CustomEvent('javtr:video-info', { detail: JSON.stringify(info) }));
+      }
+    }
     for (const [media, hls] of players) {
       if (hls.media !== media) {
         players.delete(media);
@@ -228,7 +269,7 @@ type Loose = any;
       };
       media.dispatchEvent(new CustomEvent('javtr:video-info', { detail: JSON.stringify(info) }));
     }
-    if (!players.size) {
+    if (!players.size && !generic) {
       clearInterval(reporting);
       reporting = undefined;
     }
@@ -270,6 +311,158 @@ type Loose = any;
     }
     return Hls;
   }
+
+  // --- Any other player: its requests ---
+  const absolute = (url: unknown) => {
+    try {
+      return new URL(String(url), location.href).href;
+    } catch {
+      return '';
+    }
+  };
+  const looksLikePlaylist = (text: string) => /^\uFEFF?\s*#EXTM3U/.test(text.slice(0, 64));
+
+  /** The bytes for a segment the player asked for, or null to let its request go ahead as usual. */
+  function serve(url: string): Promise<Uint8Array> | null {
+    if (off || !url || !positions.has(url) || plainOnce.delete(url)) return null;
+    let pending: Promise<Uint8Array> | null = null;
+    try {
+      pending = want(url);
+    } catch {
+      return null;
+    }
+    if (pending) {
+      generic = { list: positions.get(url)!.list };
+      reporting ??= setInterval(report, 1000);
+    }
+    return pending;
+  }
+
+  interface XhrState {
+    url: string;
+    method: string;
+    async: boolean;
+    range: boolean;
+    aborted: boolean;
+  }
+  const xhrStates = new WeakMap<XMLHttpRequest, XhrState>();
+  const watched = new WeakSet<XMLHttpRequest>();
+  const xhr = XMLHttpRequest.prototype;
+  const nativeOpen = xhr.open;
+  const nativeSend = xhr.send;
+  const nativeSetHeader = xhr.setRequestHeader;
+  const nativeAbort = xhr.abort;
+
+  function notePlaylist(this: XMLHttpRequest) {
+    if (this.readyState !== 4 || this.status < 200 || this.status >= 300) return;
+    if (this.responseType !== '' && this.responseType !== 'text') return;
+    try {
+      const text = this.responseText;
+      if (looksLikePlaylist(text)) recordPlaylist(text, this.responseURL || xhrStates.get(this)?.url || '');
+    } catch {
+      // Not readable, or not a playlist we understand.
+    }
+  }
+
+  xhr.open = function (this: XMLHttpRequest, ...args: Loose[]) {
+    // The same request object used again: forget what was set for the last one.
+    if (Object.prototype.hasOwnProperty.call(this, 'responseURL')) delete (this as Loose).responseURL;
+    // open(method, url) is async; with a third argument, that argument decides (undefined = not async).
+    const async = args.length < 3 || !!args[2];
+    xhrStates.set(this, { url: absolute(args[1]), method: String(args[0]).toUpperCase(), async, range: false, aborted: false });
+    if (!watched.has(this)) {
+      watched.add(this);
+      this.addEventListener('readystatechange', notePlaylist); // before the player's own handler, usually
+    }
+    return (nativeOpen as Loose).apply(this, args);
+  };
+
+  xhr.setRequestHeader = function (this: XMLHttpRequest, name: string, value: string) {
+    const state = xhrStates.get(this);
+    if (state && /^range$/i.test(name)) state.range = true;
+    return nativeSetHeader.call(this, name, value);
+  };
+
+  xhr.abort = function (this: XMLHttpRequest) {
+    const state = xhrStates.get(this);
+    if (state) state.aborted = true;
+    return nativeAbort.call(this);
+  };
+
+  xhr.send = function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
+    const state = xhrStates.get(this);
+    const pending = state && state.async && state.method === 'GET' && !state.range ? serve(state.url) : null;
+    if (!pending) return nativeSend.call(this, body);
+    // Until the bytes are here the request looks sent but unanswered (readyState 1), as usual. Then it's
+    // pointed at a blob: URL of them and really sent, so the player gets its normal events and response.
+    pending.then(
+      (bytes) => {
+        if (state!.aborted) return;
+        const blobUrl = URL.createObjectURL(new Blob([bytes as BlobPart]));
+        try {
+          nativeOpen.call(this, 'GET', blobUrl, true);
+          Object.defineProperty(this, 'responseURL', { configurable: true, get: () => state!.url });
+          this.addEventListener('loadend', () => URL.revokeObjectURL(blobUrl), { once: true });
+          nativeSend.call(this);
+        } catch {
+          URL.revokeObjectURL(blobUrl);
+        }
+      },
+      () => {
+        if (state!.aborted) return;
+        try {
+          nativeSend.call(this, body); // still opened for the original address
+        } catch {
+          // The player moved on meanwhile.
+        }
+      },
+    );
+  };
+
+  window.fetch = function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    let url = '';
+    try {
+      const request = input instanceof Request ? input : null;
+      url = absolute(request ? request.url : input);
+      const method = (init?.method ?? request?.method ?? 'GET').toUpperCase();
+      const ranged = new Headers(init?.headers ?? request?.headers).has('range');
+      const pending = method === 'GET' && !ranged ? serve(url) : null;
+      if (pending) {
+        const signal = init?.signal ?? request?.signal;
+        return new Promise<Response>((resolve, reject) => {
+          const onAbort = () => reject(new DOMException('The operation was aborted.', 'AbortError'));
+          if (signal?.aborted) return onAbort();
+          signal?.addEventListener('abort', onAbort, { once: true });
+          pending
+            .then(
+              (bytes) => {
+                const response = new Response(bytes as BodyInit, { status: 200, statusText: 'OK' });
+                Object.defineProperty(response, 'url', { value: url });
+                resolve(response);
+              },
+              () => resolve(fetchNative(input, init)),
+            )
+            .finally(() => signal?.removeEventListener('abort', onAbort));
+        });
+      }
+    } catch {
+      // Unusual arguments: leave them to the browser.
+    }
+    const result = fetchNative(input, init);
+    // Playlists fetched by the player: read a copy.
+    void result
+      .then((response) => {
+        const playlistType = /mpegurl/i.test(response.headers.get('content-type') ?? '') || /\.m3u8?(\?|#|$)/i.test(url);
+        if (!response.ok || !playlistType) return;
+        void response
+          .clone()
+          .text()
+          .then((text) => looksLikePlaylist(text) && recordPlaylist(text, response.url || url))
+          .catch(() => {});
+      })
+      .catch(() => {});
+    return result;
+  };
 
   // hls.js loaded as a plain <script> sets window.Hls: patch it the moment it's defined.
   let hls = patchHls((w as Loose).Hls);

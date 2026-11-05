@@ -21,6 +21,8 @@ interface VideoInfo {
   currentLevel: number;
   auto: boolean;
   aheadSec: number;
+  /** A player other than the page's hls.js (JW Player, say): its own menu switches quality. */
+  playerQuality?: boolean;
 }
 
 /** Videos smaller than this (ads, previews) get no toolbar. */
@@ -287,6 +289,13 @@ class VideoUi {
     this.ahead.hidden = false;
     this.ahead.textContent = `⚡ ${shortDuration(info.aheadSec)}`;
     this.ahead.title = 'Loaded ahead (faster loading is on)';
+    if (info.playerQuality) {
+      const height = this.video.videoHeight;
+      this.quality.hidden = !height;
+      this.quality.textContent = `${height}p`;
+      this.quality.title = 'Playing quality (change it in the player’s own settings)';
+      return;
+    }
     const levels = info.levels;
     if (levels.length < 2) {
       // One quality only (18JAV serves just 720p): say so, rather than leaving people looking for a menu.
@@ -310,6 +319,10 @@ class VideoUi {
     }
     const info = this.info;
     if (!info) return;
+    if (info.playerQuality) {
+      this.say(`Playing ${this.quality.textContent}. Change the quality in the player’s own settings (⚙). Faster loading (⚡) is on.`);
+      return;
+    }
     if (info.levels.length < 2) {
       this.say(`This site only offers ${this.quality.textContent}. Faster loading (⚡) is on instead.`);
       return;
