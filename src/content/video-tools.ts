@@ -251,7 +251,11 @@ class VideoUi {
       this.avoidOverlays(r);
     }
     this.shown = show;
-    this.status.hidden = !this.status.textContent || (now > this.statusUntil && !show);
+    // A message shows for its few seconds, longer while the pointer is over the video, and then it's gone
+    // (not back each time the toolbar shows, which while paused is all the time). Sticky ones (errors,
+    // "Setting up translation…") stay until the next message.
+    if (this.status.textContent && now > this.statusUntil && now >= this.hoverUntil) this.status.textContent = '';
+    this.status.hidden = !this.status.textContent;
   }
 
   /**
