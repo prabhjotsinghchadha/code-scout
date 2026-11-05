@@ -27,6 +27,56 @@ const MIN_WIDTH = 240;
 const MIN_HEIGHT = 135;
 const HIDE_AFTER_MS = 2500;
 const STATUS_MS = 5000;
+/** How often to look for something else drawn where the toolbar sits, while it's shown. */
+const OVERLAP_CHECK_MS = 600;
+const GAP = 8;
+
+/** Where the toolbar sits: px from the video's top and its left or right edge. */
+interface Spot {
+  side: 'left' | 'right';
+  x: number;
+  y: number;
+}
+const CORNER: Spot = { side: 'right', x: 10, y: 10 };
+
+/**
+ * What's drawn over the video at (x, y) besides the player itself and our layer: another extension's
+ * controls (a speed controller, say) or the site's badges. Full-size layers (poster, click catcher) are
+ * the player's own and don't count.
+ */
+function overlayAt(x: number, y: number, video: HTMLVideoElement, layer: HTMLElement, vr: DOMRect): Element | null {
+  for (const el of document.elementsFromPoint(x, y)) {
+    if (el === video || el.contains(video)) return null; // down to the video or its player: nothing on top
+    if (layer.contains(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width >= vr.width * 0.6 && r.height >= vr.height * 0.6) continue;
+    return el;
+  }
+  return null;
+}
+
+/** Everything overlayAt finds inside `box`, as one box, or null when the box is free. */
+function overlaysIn(box: DOMRect, video: HTMLVideoElement, layer: HTMLElement, vr: DOMRect): DOMRect | null {
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const y of [box.top + 6, box.bottom - 6]) {
+    for (let x = box.left + 4; x <= box.right - 4; x += 12) {
+      const el = overlayAt(x, y, video, layer, vr);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      // A zero-size host (its controls drawn outside it, or in a shadow root): the point, widened by the
+      // sampling step so the box doesn't come out smaller than what's there.
+      const hit = r.width && r.height ? r : new DOMRect(x - 12, y - 6, 24, 12);
+      left = Math.min(left, hit.left);
+      top = Math.min(top, hit.top);
+      right = Math.max(right, hit.right);
+      bottom = Math.max(bottom, hit.bottom);
+    }
+  }
+  return left === Infinity ? null : new DOMRect(left, top, right - left, bottom - top);
+}
 
 function button(className: string, text: string, title: string): HTMLButtonElement {
   const b = document.createElement('button');
@@ -83,6 +133,9 @@ class VideoUi {
   private hoverUntil = 0;
   private statusUntil = 0;
   private lastPlace = '';
+  private spot: Spot = CORNER;
+  private shown = false;
+  private overlapCheckAt = 0;
   private readonly warnBeforeLeaving = (e: BeforeUnloadEvent) => e.preventDefault();
 
   constructor(video: HTMLVideoElement) {
@@ -156,7 +209,10 @@ class VideoUi {
     const visible = video.isConnected && r.width >= MIN_WIDTH && r.height >= MIN_HEIGHT && (!fs || parent === fs);
     if (this.layer.parentElement !== parent) parent.append(this.layer);
     this.layer.hidden = !visible;
-    if (!visible) return;
+    if (!visible) {
+      this.shown = false;
+      return;
+    }
 
     const place = `${r.left},${r.top},${r.width},${r.height}`;
     if (place !== this.lastPlace) {
@@ -167,7 +223,47 @@ class VideoUi {
     // Like the player's own controls: shown while paused, and while the pointer is over the video.
     const show = now < this.hoverUntil || video.paused || !this.menu.hidden || this.busy;
     this.bar.classList.toggle('javtr-show', show);
+    if (show && (!this.shown || now >= this.overlapCheckAt)) {
+      this.overlapCheckAt = now + OVERLAP_CHECK_MS;
+      this.avoidOverlays(r);
+    }
+    this.shown = show;
     this.status.hidden = !this.status.textContent || (now > this.statusUntil && !show);
+  }
+
+  /**
+   * Keeps the toolbar clear of other things drawn over the video (another extension's speed control
+   * in the same corner, say): beside them, else the other top corner, else below them. It stays where
+   * it was moved to while that spot is free, so it doesn't jump about as they show and hide.
+   */
+  private avoidOverlays(vr: DOMRect) {
+    const w = this.bar.offsetWidth;
+    const h = this.bar.offsetHeight;
+    if (!w || !h) return;
+    const box = (s: Spot) => new DOMRect(s.side === 'right' ? vr.right - s.x - w : vr.left + s.x, vr.top + s.y, w, h);
+    const fits = (b: DOMRect) => b.left >= vr.left + 4 && b.right <= vr.right - 4 && b.bottom <= vr.bottom - 4;
+    const free = (s: Spot) => fits(box(s)) && !overlaysIn(box(s), this.video, this.layer, vr);
+    if (free(this.spot)) return;
+    const blocker = overlaysIn(box(CORNER), this.video, this.layer, vr);
+    const spots: Spot[] = [CORNER];
+    if (blocker) {
+      spots.push(
+        { side: 'right', x: vr.right - blocker.left + GAP, y: CORNER.y }, // beside it
+        { side: 'left', x: CORNER.x, y: CORNER.y }, // the other corner
+        { side: 'right', x: CORNER.x, y: blocker.bottom - vr.top + GAP }, // below it
+      );
+    }
+    this.moveBar(spots.find(free) ?? CORNER, h);
+  }
+
+  private moveBar(spot: Spot, barHeight: number) {
+    this.spot = spot;
+    const tops = [spot.y, spot.y + barHeight + GAP];
+    [this.bar, this.status].forEach((el, i) => {
+      el.style.top = `${tops[i]}px`;
+      el.style.left = spot.side === 'left' ? `${spot.x}px` : 'auto';
+      el.style.right = spot.side === 'right' ? `${spot.x}px` : 'auto';
+    });
   }
 
   private say(text: string, sticky = false) {
