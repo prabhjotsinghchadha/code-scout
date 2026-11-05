@@ -308,7 +308,7 @@ chrome.storage.onChanged.addListener((changes) => {
 
 // --- Per-site lists: ▶ buttons/chip off, pop-up blocker, video tools ---
 function siteListEditor(
-  key: 'offSites' | 'popupBlockSites' | 'videoSites',
+  key: 'offSites' | 'popupBlockSites' | 'videoOffSites',
   prefix: string,
   text: { remove: string; removeTitle: (host: string) => string; already: (host: string) => string },
 ) {
@@ -363,10 +363,17 @@ siteListEditor('popupBlockSites', 'popup', {
   removeTitle: (host) => `Stop blocking pop-ups on ${host}`,
   already: (host) => `Pop-ups are already blocked on ${host}.`,
 });
-siteListEditor('videoSites', 'video', {
-  remove: 'Remove',
-  removeTitle: (host) => `Turn video tools off on ${host}`,
-  already: (host) => `Video tools are already on for ${host}.`,
+// Video tools: on everywhere unless switched off here, or per site below.
+async function setupVideoToolsSwitch() {
+  const box = $<HTMLInputElement>('videoTools');
+  box.checked = (await getSettings()).videoTools;
+  box.addEventListener('change', () => save({ videoTools: box.checked }));
+}
+void setupVideoToolsSwitch();
+siteListEditor('videoOffSites', 'video', {
+  remove: 'Turn back on',
+  removeTitle: (host) => `Turn video tools back on for ${host}`,
+  already: (host) => `Video tools are already off on ${host}.`,
 });
 
 // English subtitles: Chrome downloads its Chinese/Japanese → English models once, which needs a click.

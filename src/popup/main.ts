@@ -513,7 +513,7 @@ function setupSiteToggles(settings: Settings, tab: chrome.tabs.Tab | undefined) 
   const toggles = [
     ['site-buttons', 'offSites', true],
     ['site-popups', 'popupBlockSites', false],
-    ['site-video', 'videoSites', false],
+    ['site-video', 'videoOffSites', true],
   ] as const;
   for (const [id, key, invert] of toggles) {
     const box = $<HTMLInputElement>(id);
@@ -530,6 +530,11 @@ function setupSiteToggles(settings: Settings, tab: chrome.tabs.Tab | undefined) 
     const box = $<HTMLInputElement>('site-buttons');
     box.disabled = true;
     box.closest('label')!.title = 'The ▶ buttons and chip are turned off everywhere. Turn them on in Settings.';
+  }
+  if (!settings.videoTools) {
+    const box = $<HTMLInputElement>('site-video');
+    box.disabled = true;
+    box.closest('label')!.title = 'Video tools are turned off everywhere. Turn them on in Settings.';
   }
   $('reload-tab').addEventListener('click', async () => {
     if (tab?.id !== undefined) await chrome.tabs.reload(tab.id);

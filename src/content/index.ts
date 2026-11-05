@@ -20,6 +20,25 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
   return false;
 });
 
+let stopWaitingForVideo: (() => void) | null = null;
+let videoToolsLoaded = false;
+
+/** Calls `found` once the page has a <video> (now, or when one is added). Returns a cancel function. */
+function whenPageHasVideo(found: () => void): () => void {
+  const videos = document.getElementsByTagName('video'); // live: checking it is cheap
+  if (videos.length) {
+    found();
+    return () => {};
+  }
+  const observer = new MutationObserver(() => {
+    if (!videos.length) return;
+    observer.disconnect();
+    found();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
+
 async function init() {
   // javtrailers.com has its own search and links; don't add our UI there.
   if (location.hostname.endsWith('javtrailers.com')) return;
@@ -38,11 +57,23 @@ async function init() {
     state.fieldChip = fieldChip;
     if (isSiteOff(location.hostname, settings.popupBlockSites)) enablePopupGuard();
     else disablePopupGuard();
-    // Video tools: loaded only on the sites that use them (the download code is large).
-    const video = isSiteOff(location.hostname, settings.videoSites);
+    // Video tools: on every site unless turned off; their code (the downloader is large) loads only once
+    // the page has a video.
+    const video = settings.videoTools && !isSiteOff(location.hostname, settings.videoOffSites);
     if (video !== state.video) {
       state.video = video;
-      void import('./video-tools').then((m) => (state.video ? m.enableVideoTools() : m.disableVideoTools()));
+      stopWaitingForVideo?.();
+      stopWaitingForVideo = null;
+      const toggle = () => void import('./video-tools').then((m) => (state.video ? m.enableVideoTools() : m.disableVideoTools()));
+      if (!video) {
+        if (videoToolsLoaded) toggle();
+      } else {
+        stopWaitingForVideo = whenPageHasVideo(() => {
+          stopWaitingForVideo = null;
+          videoToolsLoaded = true;
+          toggle();
+        });
+      }
     }
   };
   apply(await getSettings());

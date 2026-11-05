@@ -1,5 +1,5 @@
-// Video tools, content-script side (on sites where "Video tools" is on): a small toolbar on each video,
-// shown while it's paused or the pointer is over it.
+// Video tools, content-script side (every site, unless turned off): a small toolbar on each video, shown
+// while the pointer is over it or it's paused.
 //   ⚡ 1:20      how far ahead the video has loaded (parallel loading, video-boost.iife.ts)
 //   720p ▾       quality menu, when the stream has more than one (just "720p" when it hasn't)
 //   ⬇ Download   save the video as MP4 (video-download.ts)
@@ -220,8 +220,10 @@ class VideoUi {
       Object.assign(this.layer.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       this.subs?.place();
     }
-    // Like the player's own controls: shown while paused, and while the pointer is over the video.
-    const show = now < this.hoverUntil || video.paused || !this.menu.hidden || this.busy;
+    // Like the player's own controls: shown while the pointer is over the video, and while it's paused
+    // after playing (not on every not-yet-played video of a page full of them).
+    const pausedAfterPlaying = video.paused && video.played.length > 0;
+    const show = now < this.hoverUntil || pausedAfterPlaying || !this.menu.hidden || this.busy;
     this.bar.classList.toggle('javtr-show', show);
     if (show && (!this.shown || now >= this.overlapCheckAt)) {
       this.overlapCheckAt = now + OVERLAP_CHECK_MS;

@@ -79,7 +79,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.openOnSites) buildMenus((changes.openOnSites.newValue as OpenOnSite[]) ?? []);
-  if (area === 'sync' && (changes.popupBlockSites || changes.videoSites)) void syncPageScripts();
+  if (area === 'sync' && (changes.popupBlockSites || changes.videoTools || changes.videoOffSites)) void syncPageScripts();
   const unstarred = (key: string) => key.startsWith(UNSTARRED_PREFIX) && changes[key].newValue !== undefined;
   if (Object.keys(changes).some(area === 'sync' ? isFavKey : unstarred)) void backUpFavourites();
 });
@@ -91,7 +91,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // 2. As a backstop, any other new tab such a site opens is closed here, unless the user asked for
 //    it (Ctrl/middle-click, a same-site link — announced by the content script) or we opened it.
 // Video tools: video-boost.iife.ts patches the site's hls.js player for parallel loading and the
-// quality menu (the toolbar itself is the content script's video-tools.ts).
+// quality menu (the toolbar itself is the content script's video-tools.ts). On every site unless turned
+// off, so it's already in place when a page loads (it has to be there before the site's player starts).
 const POPUP_BLOCK_ID = 'javtr-popup-block';
 const VIDEO_BOOST_ID = 'javtr-video-boost';
 let pageScriptSync = Promise.resolve();
@@ -99,7 +100,7 @@ function syncPageScripts() {
   // Serialized: two quick changes must not register the same id twice.
   pageScriptSync = pageScriptSync
     .then(async () => {
-      const { popupBlockSites, videoSites } = await getSettings();
+      const { popupBlockSites, videoTools, videoOffSites } = await getSettings();
       // One at a time: unregistering several ids fails as a whole if one of them isn't registered.
       for (const id of [POPUP_BLOCK_ID, VIDEO_BOOST_ID]) {
         await chrome.scripting.unregisterContentScripts({ ids: [id] }).catch(() => {});
@@ -116,11 +117,12 @@ function syncPageScripts() {
           matchOriginAsFallback: true, // also about:blank frames the page creates
         });
       }
-      if (videoSites.length) {
+      if (videoTools) {
         scripts.push({
           id: VIDEO_BOOST_ID,
           js: [videoBoostScript],
-          matches: sitePatterns(videoSites),
+          matches: ['http://*/*', 'https://*/*'],
+          ...(videoOffSites.length ? { excludeMatches: sitePatterns(videoOffSites) } : {}),
           runAt: 'document_start',
           world: 'MAIN',
         });

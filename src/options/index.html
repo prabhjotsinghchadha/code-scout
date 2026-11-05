@@ -144,19 +144,27 @@
 
         <section class="card" id="video">
           <h2>Video tools</h2>
-          <p class="desc">On these sites, videos get a small toolbar at the top right when you point at them:</p>
+          <p class="desc">Videos on every site get a small toolbar at the top right when you point at them or pause:</p>
           <ul class="features">
             <li><strong>⚡ Faster loading</strong><span>Downloads several pieces of the video at once, for servers that send each piece slowly.</span></li>
             <li><strong>Quality</strong><span>A menu, when the video has more than one.</span></li>
             <li><strong>⬇ Download</strong><span>Saves an MP4. Keep the tab open while it runs.</span></li>
             <li><strong>EN subs</strong><span>Reads burned-in Chinese or Japanese subtitles on this computer and covers them with English. Size and background are below.</span></li>
           </ul>
-          <p class="hint">Tip: switch on <em>Video tools</em> in the popup, then reload the page.</p>
+          <label class="setting">
+            <span><strong>Video tools on all sites</strong><small>Switch off to hide the toolbar everywhere.</small></span>
+            <input type="checkbox" class="switch" id="videoTools" />
+          </label>
+          <h3>Turned off on these sites</h3>
+          <p class="hint">
+            No toolbar or faster loading on these sites and their subdomains. Tip: switch off <em>Video tools</em> in the
+            popup while you’re on the site.
+          </p>
           <ul id="video-sites" class="rows"></ul>
           <p id="video-empty" class="none" hidden>No sites yet.</p>
           <form id="add-video-site" class="add">
-            <input id="video-site" type="text" placeholder="18jav.tv" aria-label="Site" required />
-            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add video tools</button>
+            <input id="video-site" type="text" placeholder="youtube.com" aria-label="Site" required />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Turn off</button>
           </form>
           <p id="video-error" class="error" hidden></p>
           <div class="translation">
