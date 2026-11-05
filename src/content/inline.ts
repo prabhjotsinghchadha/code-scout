@@ -1,6 +1,7 @@
 // ▶ buttons next to codes found in page text (including content added later).
 import { findCodes, formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
+import { openSiteMenu } from './site-menu';
 
 const BUTTON_CLASS = 'javtr-open-btn';
 const SKIP_TAGS = new Set([
@@ -24,7 +25,7 @@ function createButton(code: VideoCode): HTMLElement {
   const btn = document.createElement('span');
   btn.className = BUTTON_CLASS;
   btn.textContent = '▶';
-  btn.title = `Open trailer for ${formatCode(code)}`;
+  btn.title = `Open trailer for ${formatCode(code)} · right-click for more sites`;
   btn.setAttribute('role', 'button');
   btn.tabIndex = 0;
 
@@ -35,6 +36,15 @@ function createButton(code: VideoCode): HTMLElement {
     void sendToBackground({ type: 'OPEN_CODE', code });
   };
   btn.addEventListener('click', open, true);
+  btn.addEventListener(
+    'contextmenu',
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void openSiteMenu(code, btn.getBoundingClientRect());
+    },
+    true,
+  );
   btn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') open(e);
   });

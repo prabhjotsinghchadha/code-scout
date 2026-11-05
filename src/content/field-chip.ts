@@ -2,6 +2,7 @@
 import { formatCode, type VideoCode } from '../shared/codes';
 import { sendToBackground } from '../shared/messages';
 import { codeInEditable, editableFrom, readEditable, type Editable } from './editable';
+import { closeSiteMenu, isSiteMenuOpen, openSiteMenu } from './site-menu';
 
 let chip: HTMLDivElement | null = null;
 let label: HTMLSpanElement;
@@ -32,10 +33,19 @@ function build(): HTMLDivElement {
   label.className = 'javtr-code';
   el.append(
     label,
-    button('▶ Open', 'javtr-primary', () => current && void sendToBackground({ type: 'OPEN_CODE', code: current.code })),
-    button('Search', 'javtr-secondary', () =>
-      current && void sendToBackground({ type: 'OPEN_CODE', code: current.code, mode: 'search' }),
-    ),
+    button('▶ Open', 'javtr-primary', () => {
+      closeSiteMenu();
+      if (current) void sendToBackground({ type: 'OPEN_CODE', code: current.code });
+    }),
+    button('Search', 'javtr-secondary', () => {
+      closeSiteMenu();
+      if (current) void sendToBackground({ type: 'OPEN_CODE', code: current.code, mode: 'search' });
+    }),
+    button('Sites ▾', 'javtr-secondary', () => {
+      if (!current || !chip) return;
+      if (isSiteMenuOpen()) return closeSiteMenu();
+      void openSiteMenu(current.code, chip.getBoundingClientRect(), { anchorEl: chip });
+    }),
     button('×', 'javtr-close', dismiss),
   );
   el.querySelector('.javtr-close')!.setAttribute('aria-label', 'Dismiss');
@@ -59,6 +69,7 @@ function position() {
 }
 
 function hide() {
+  closeSiteMenu();
   if (chip) chip.hidden = true;
   current = null;
 }
@@ -72,6 +83,7 @@ function update(el: Editable) {
   const code = codeInEditable(el);
   if (!code || (dismissed?.el === el && dismissed.text === readEditable(el).text)) return hide();
   chip ??= build();
+  if (current && formatCode(current.code) !== formatCode(code)) closeSiteMenu();
   current = { el, code };
   label.textContent = formatCode(code);
   chip.hidden = false;

@@ -24,6 +24,10 @@
       .rows input.inline-name:hover, .rows input.inline-name:focus { border-color: color-mix(in srgb, currentColor 30%, transparent); }
       .rows .count { opacity: 0.6; font-size: 12px; white-space: nowrap; }
       .rows select { max-width: 130px; }
+      .rows input.inline-template { width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: inherit; font: 12px ui-monospace, monospace; opacity: 0.8; }
+      .rows input.inline-template:hover, .rows input.inline-template:focus { border-color: color-mix(in srgb, currentColor 30%, transparent); opacity: 1; }
+      .placeholders { list-style: none; padding: 0; margin: 4px 0 8px; font-size: 13px; line-height: 1.7; }
+      .placeholders code { padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 10%, transparent); }
       .add-link { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
       .add-link input { flex: 1 1 160px; padding: 5px 8px; font: inherit; }
       .add-link select { padding: 5px 6px; font: inherit; }
@@ -64,12 +68,29 @@
       </fieldset>
 
       <fieldset>
+        <legend>Open on other sites</legend>
+        <p class="hint">
+          Sites a code can be opened on — from the chip’s <em>Sites ▾</em>, right-clicking a ▶ button, the right-click
+          menu, or the popup. Put a placeholder where the code goes:
+        </p>
+        <ul id="placeholders" class="placeholders"></ul>
+        <ul id="sites" class="rows"></ul>
+        <form id="add-site" class="add-link">
+          <input id="site-template" type="text" placeholder="https://example.com/search?q={code}" required />
+          <input id="site-name" type="text" placeholder="Name (optional)" />
+          <button type="submit">Add site</button>
+        </form>
+        <p id="site-error" class="error" hidden></p>
+      </fieldset>
+
+      <fieldset>
         <legend>Always available</legend>
         <p class="hint">Select a code (or put the caret on one in a text box), then:</p>
         <ul class="shortcuts">
           <li><kbd id="key-open">Alt+Shift+J</kbd> Open trailer</li>
           <li><kbd id="key-search">Alt+Shift+K</kbd> Search javtrailers.com</li>
-          <li>Right-click → <em>Open trailer for “…”</em> / <em>Search javtrailers for “…”</em></li>
+          <li><kbd id="key-all">Alt+Shift+L</kbd> Open on all your “Open on” sites</li>
+          <li>Right-click → <em>Open trailer for “…”</em> / <em>Search javtrailers for “…”</em> / <em>Open “…” on ▸</em></li>
         </ul>
         <button type="button" id="edit-shortcuts">Change shortcuts</button>
       </fieldset>

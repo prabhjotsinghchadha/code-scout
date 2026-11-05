@@ -1,5 +1,6 @@
 import { formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
 import { sendToBackground, sendToTab } from '../shared/messages';
+import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { addGroup, groupLinks, validateGroupName, type LinkState, type QuickLink } from '../shared/quick-links';
 import { defaultLinkName, getSettings, normalizeUrl, setSettings } from '../shared/storage';
 
@@ -61,8 +62,48 @@ async function loadPageCodes() {
       smallButton('▶ Open', '', () => void open(code)),
       smallButton('Search', 'secondary', () => void open(code, 'search')),
     );
+    let sitesRow: HTMLLIElement | null = null;
+    if (sites.length) {
+      li.append(
+        smallButton('Sites', 'secondary', () => {
+          if (sitesRow) {
+            sitesRow.remove();
+            sitesRow = null;
+            return;
+          }
+          sitesRow = Object.assign(document.createElement('li'), { className: 'sites' });
+          sitesRow.append(siteRow(() => code));
+          li.after(sitesRow);
+        }),
+      );
+    }
     list.append(li);
   }
+}
+
+let sites: OpenOnSite[] = [];
+
+/** A row of "Open on" site buttons for the code `getCode()` returns (null = nothing to open). */
+function siteRow(getCode: () => VideoCode | null, label?: string): HTMLDivElement {
+  const row = Object.assign(document.createElement('div'), { className: 'site-row' });
+  if (label) row.append(Object.assign(document.createElement('span'), { className: 'label', textContent: label }));
+  const go = (targets: OpenOnSite[]) => {
+    const code = getCode();
+    if (code) void openLinks(targets.map((s) => fillTemplate(s.template, code)));
+  };
+  for (const site of sites) row.append(smallButton(site.name, '', () => go([site])));
+  if (sites.length > 1) row.append(smallButton(`All ${sites.length}`, 'all', () => go(sites)));
+  return row;
+}
+
+/** Site buttons under the code box, shown once the typed text is a code. */
+function setupTypedSites() {
+  const row = $('typed-sites');
+  if (!sites.length) return;
+  row.replaceChildren(...siteRow(() => parseCode(input.value), 'Open on').childNodes);
+  const update = () => (row.hidden = !parseCode(input.value));
+  input.addEventListener('input', update);
+  update();
 }
 
 async function openLinks(urls: string[]) {
@@ -215,6 +256,8 @@ async function setupAddPage(state: LinkState) {
 
 async function init() {
   const settings = await getSettings();
+  sites = settings.openOnSites;
+  setupTypedSites();
   inline.checked = settings.inlineButtons;
   chip.checked = settings.fieldChip;
   inline.addEventListener('change', () => setSettings({ inlineButtons: inline.checked }));

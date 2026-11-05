@@ -58,7 +58,11 @@ test('seeds everything on a fresh install', async () => {
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
   ]);
-  assert.equal(local.quickLinksSeedVersion, 5);
+  assert.equal(local.quickLinksSeedVersion, 6);
+  assert.deepEqual(
+    sync.openOnSites!.map((x) => x.name),
+    ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru'],
+  );
   await seedQuickLinks(); // idempotent
   assert.equal(sync.quickLinks!.length, 10);
 });
@@ -121,4 +125,15 @@ test('upgrades a v3 install: adds Beeg and the All Japanese group', async () => 
   ]);
   // A user who deleted NTR before v3 doesn't get it back.
   assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese']);
+});
+
+test('upgrades a v5 install: adds Open-on sites, keeps a site the user already added', async () => {
+  const mine = { id: 'mine', name: 'My MissAV', template: 'https://missav.ws/en/{code_lower}' };
+  const { sync } = fakeChrome({ quickLinks: [], linkGroups: [], openOnSites: [mine] }, { quickLinksSeedVersion: 5 });
+  await seedQuickLinks();
+  assert.deepEqual(
+    sync.openOnSites!.map((x) => x.name),
+    ['My MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru'],
+  );
+  assert.deepEqual(sync.quickLinks, []); // no quick links re-added
 });

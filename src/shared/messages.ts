@@ -6,12 +6,17 @@ export type Message =
   | { type: 'OPEN_CODE'; code: VideoCode; mode?: OpenMode }
   | { type: 'GET_PAGE_CODES' }
   /** The code the user has selected, or is typing in the focused field. */
-  | { type: 'GET_ACTIVE_CODE' };
+  | { type: 'GET_ACTIVE_CODE' }
+  /** Open web URLs in new tabs next to the sender (first one focused unless background tabs are on). */
+  | { type: 'OPEN_URLS'; urls: string[] }
+  | { type: 'OPEN_OPTIONS' };
 
 export interface MessageResponses {
   OPEN_CODE: { ok: true };
   GET_PAGE_CODES: { codes: VideoCode[] };
   GET_ACTIVE_CODE: { code: VideoCode | null; text: string };
+  OPEN_URLS: { ok: true };
+  OPEN_OPTIONS: { ok: true };
 }
 
 export function sendToBackground<M extends Message>(message: M): Promise<MessageResponses[M['type']]> {

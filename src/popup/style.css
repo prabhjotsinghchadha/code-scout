@@ -207,3 +207,32 @@ details.group summary .open-all {
 .add-page button {
   padding: 4px 10px;
 }
+.site-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.site-row .label {
+  color: var(--muted);
+  font-size: 11px;
+  margin-right: 2px;
+}
+.site-row button {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+}
+.site-row button:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.site-row button.all {
+  color: var(--link);
+  font-weight: 600;
+}
+li.sites {
+  padding: 2px 0 6px;
+}

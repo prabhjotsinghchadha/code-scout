@@ -41,5 +41,9 @@ export default defineManifest({
       suggested_key: { default: 'Alt+Shift+K' },
       description: 'Search javtrailers.com for the selected or typed code',
     },
+    'open-on-all': {
+      suggested_key: { default: 'Alt+Shift+L' },
+      description: 'Open the selected or typed code on all your "Open on" sites',
+    },
   },
 });

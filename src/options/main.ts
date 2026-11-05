@@ -1,5 +1,13 @@
 import type { OpenMode } from '../shared/codes';
 import {
+  newSiteId,
+  PLACEHOLDERS,
+  siteNameFromTemplate,
+  validateTemplate,
+  fillTemplate,
+  type OpenOnSite,
+} from '../shared/open-on';
+import {
   addGroup,
   deleteGroup,
   groupLinks,
@@ -193,10 +201,93 @@ chrome.storage.onChanged.addListener((changes) => {
   if ((changes.quickLinks || changes.linkGroups) && !editing) void loadLinks();
 });
 
+// --- Open on sites ---
+const siteList = $<HTMLUListElement>('sites');
+const siteTemplate = $<HTMLInputElement>('site-template');
+const siteName = $<HTMLInputElement>('site-name');
+const siteError = $<HTMLParagraphElement>('site-error');
+let sites: OpenOnSite[] = [];
+const SAMPLE = { prefix: 'nsfs', number: 484 };
+
+$('placeholders').replaceChildren(
+  ...PLACEHOLDERS.map(({ token, example, describe }) => {
+    const li = el('li');
+    li.append(el('code', { textContent: token }), ` → ${example} `, el('small', { textContent: `(${describe})` }));
+    (li.lastChild as HTMLElement).style.display = 'inline';
+    return li;
+  }),
+);
+
+async function commitSites(next: OpenOnSite[]) {
+  sites = next;
+  renderSites();
+  await save({ openOnSites: next });
+}
+
+function renderSites() {
+  siteList.replaceChildren(
+    ...sites.map((site, i) => {
+      const name = el('input', { className: 'inline-name', value: site.name, title: 'Click to rename' });
+      name.addEventListener('change', () => {
+        const value = name.value.trim() || siteNameFromTemplate(site.template);
+        void commitSites(sites.map((x) => (x.id === site.id ? { ...x, name: value } : x)));
+      });
+      const template = el('input', { className: 'inline-template', value: site.template, title: 'URL pattern' });
+      template.addEventListener('change', () => {
+        const problem = validateTemplate(template.value);
+        showError(siteError, problem && `${site.name}: ${problem}`);
+        if (problem) return void (template.value = site.template);
+        void commitSites(sites.map((x) => (x.id === site.id ? { ...x, template: template.value.trim() } : x)));
+      });
+      const text = el('span');
+      text.append(name, template);
+      const li = el('li');
+      li.append(
+        text,
+        actionButton('Test', 'Open with NSFS-484', () => {
+          void chrome.tabs.create({ url: fillTemplate(site.template, SAMPLE) });
+        }),
+        actionButton('↑', 'Move up', () => commitSites(moveItem(sites, i, -1)), i === 0),
+        actionButton('↓', 'Move down', () => commitSites(moveItem(sites, i, 1)), i === sites.length - 1),
+        actionButton('Remove', 'Remove site', () => commitSites(sites.filter((x) => x.id !== site.id))),
+      );
+      return li;
+    }),
+  );
+}
+
+$('add-site').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const template = siteTemplate.value.trim();
+  const problem =
+    validateTemplate(template) ?? (sites.some((x) => x.template === template) ? 'That site is already in the list.' : null);
+  showError(siteError, problem);
+  if (problem) return;
+  const site = { id: newSiteId(), name: siteName.value.trim() || siteNameFromTemplate(template), template };
+  void commitSites([...sites, site]);
+  siteTemplate.value = '';
+  siteName.value = '';
+});
+
+const loadSites = () =>
+  getSettings().then((s) => {
+    sites = s.openOnSites;
+    renderSites();
+  });
+void loadSites();
+chrome.storage.onChanged.addListener((changes) => {
+  const editing = document.activeElement instanceof HTMLInputElement && document.activeElement.closest('#sites');
+  if (changes.openOnSites && !editing) void loadSites();
+});
+
 // Show the shortcuts actually assigned (the user may have changed or cleared them).
 async function showShortcuts() {
   const commands = await chrome.commands.getAll();
-  for (const [name, id] of [['open-trailer', 'key-open'], ['search-trailer', 'key-search']]) {
+  for (const [name, id] of [
+    ['open-trailer', 'key-open'],
+    ['search-trailer', 'key-search'],
+    ['open-on-all', 'key-all'],
+  ]) {
     const shortcut = commands.find((c) => c.name === name)?.shortcut;
     document.getElementById(id)!.textContent = shortcut || 'Not set';
   }

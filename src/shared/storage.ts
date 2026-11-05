@@ -1,5 +1,6 @@
 // Typed wrapper around chrome.storage.sync.
 import type { OpenMode } from './codes';
+import type { OpenOnSite } from './open-on.ts';
 import { hasGroup, type QuickLink } from './quick-links.ts';
 
 export type { QuickLink } from './quick-links';
@@ -17,6 +18,8 @@ export interface Settings {
   quickLinks: QuickLink[];
   /** Quick-link group names in display order (e.g. "Cheating", "Cuckold", "NTR"). */
   linkGroups: string[];
+  /** Other sites a code can be opened on ("Open on"), in display order. */
+  openOnSites: OpenOnSite[];
 }
 
 /**
@@ -40,6 +43,15 @@ export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number })[] = [
   { since: 5, name: 'Pornhub · Japanese', url: 'https://www.pornhub.com/categories/japanese', group: 'All Japanese' },
   { since: 5, name: 'YouPorn · Japanese', url: 'https://www.youporn.com/category/japanese/', group: 'All Japanese' },
 ];
+/** Built-in "Open on" sites (URL patterns checked with NSFS-484) and the seed version that added them. */
+export const BUILT_IN_SITES: (OpenOnSite & { since: number })[] = [
+  { since: 6, id: 'missav', name: 'MissAV', template: 'https://missav.ws/en/{code_lower}' },
+  { since: 6, id: 'javlibrary', name: 'JavLibrary', template: 'https://www.javlibrary.com/en/vl_searchbyid.php?keyword={code}' },
+  { since: 6, id: 'javmost', name: 'JavMost', template: 'https://www.javmost.ws/{code}/' },
+  { since: 6, id: 'javtiful', name: 'Javtiful', template: 'https://javtiful.com/search?q={code_lower}' },
+  { since: 6, id: 'javguru', name: 'Jav Guru', template: 'https://jav.guru/?s={code}' },
+];
+
 /** Built-in groups and the seed version that introduced each. */
 export const BUILT_IN_GROUPS: { name: string; since: number }[] = [
   { name: 'Cheating', since: 2 },
@@ -50,9 +62,9 @@ export const BUILT_IN_GROUPS: { name: string; since: number }[] = [
 /**
  * Bump when changing the built-ins above so existing installs receive them.
  * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
- * 4: Beeg. 5: "All Japanese" group (FapHouse, Pornhub, YouPorn).
+ * 4: Beeg. 5: "All Japanese" group (FapHouse, Pornhub, YouPorn). 6: "Open on" sites.
  */
-const QUICK_LINKS_SEED_VERSION = 5;
+const QUICK_LINKS_SEED_VERSION = 6;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
@@ -61,6 +73,7 @@ export const defaultSettings: Settings = {
   openInBackground: false,
   quickLinks: [],
   linkGroups: [],
+  openOnSites: [],
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */
@@ -107,7 +120,7 @@ export async function seedQuickLinks(): Promise<void> {
     'quickLinksSeedVersion',
   );
   if (version >= QUICK_LINKS_SEED_VERSION) return;
-  let { quickLinks, linkGroups } = await getSettings();
+  let { quickLinks, linkGroups, openOnSites } = await getSettings();
 
   const newGroups = BUILT_IN_GROUPS.filter((g) => g.since > version && !hasGroup(linkGroups, g.name));
   linkGroups = [...linkGroups, ...newGroups.map((g) => g.name)];
@@ -121,6 +134,11 @@ export async function seedQuickLinks(): Promise<void> {
   const added = BUILT_IN_QUICK_LINKS.filter((b) => b.since > version && !quickLinks.some((l) => l.url === b.url));
   quickLinks = [...quickLinks, ...added.map(({ since: _since, ...link }) => link)];
 
-  await setSettings({ quickLinks, linkGroups });
+  const newSites = BUILT_IN_SITES.filter(
+    (b) => b.since > version && !openOnSites.some((x) => x.id === b.id || x.template === b.template),
+  );
+  openOnSites = [...openOnSites, ...newSites.map(({ since: _since, ...site }) => site)];
+
+  await setSettings({ quickLinks, linkGroups, openOnSites });
   await chrome.storage.local.set({ quickLinksSeedVersion: QUICK_LINKS_SEED_VERSION });
 }
