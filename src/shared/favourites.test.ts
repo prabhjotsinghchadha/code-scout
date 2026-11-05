@@ -67,9 +67,8 @@ test('quota errors say favourites are full', () => {
   assert.notEqual(favouriteError(new Error('offline')), FAVOURITES_FULL);
 });
 
-function fakeSync() {
-  const data: Record<string, unknown> = { quickLinks: [] };
-  const sync = {
+function fakeArea(data: Record<string, unknown>) {
+  return {
     async get(keys: string | null) {
       if (keys === null) return structuredClone(data);
       return keys in data ? { [keys]: structuredClone(data[keys]) } : {};
@@ -81,9 +80,17 @@ function fakeSync() {
       delete data[key];
     },
   };
-  (globalThis as unknown as { chrome: unknown }).chrome = { storage: { sync } };
+}
+
+/** Sync storage (returned) and local storage (`unstarred`: the keys noted as un-starred there). */
+function fakeSync() {
+  const data: Record<string, unknown> = { quickLinks: [] };
+  const local: Record<string, unknown> = {};
+  (globalThis as unknown as { chrome: unknown }).chrome = { storage: { sync: fakeArea(data), local: fakeArea(local) } };
+  unstarred = () => Object.keys(local).map((k) => k.replace('unstarred:', ''));
   return data;
 }
+let unstarred = (): string[] => [];
 
 test('add, toggle and list against sync storage', async () => {
   const data = fakeSync();
@@ -94,9 +101,11 @@ test('add, toggle and list against sync storage', async () => {
   assert.equal(await toggleFavourite(mium), true);
   assert.equal(await isFavourite(mium), true);
   assert.deepEqual((await getFavourites()).map((f) => formatCode(f.code)), ['300MIUM-1234', 'NSFS-484']);
+  assert.deepEqual(unstarred(), []);
   assert.equal(await toggleFavourite(nsfs), false);
   assert.equal('fav:NSFS-484' in data, false);
   assert.deepEqual(Object.keys(data).sort(), ['fav:300MIUM-1234', 'quickLinks']);
+  assert.deepEqual(unstarred(), ['fav:NSFS-484']); // so its bookmark in the backup can go
 });
 
 test('page keys drop the #fragment and refuse non-web or overlong addresses', () => {
@@ -148,4 +157,5 @@ test('starring the page you are on', async () => {
   assert.equal(await togglePageFavourite(md), false);
   assert.equal(await togglePageFavourite(page), false);
   assert.deepEqual(Object.keys(data), ['quickLinks']);
+  assert.deepEqual(unstarred(), ['fav:MD-273', 'favurl:https://x.example/v?id=1']);
 });

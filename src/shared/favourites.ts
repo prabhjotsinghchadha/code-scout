@@ -52,6 +52,21 @@ export function isFavKey(key: string): boolean {
   return key.startsWith(PREFIX) || key.startsWith(PAGE_PREFIX);
 }
 
+/** A favourite's sync key: "fav:NSFS-484" or "favurl:https://…". */
+export function favouriteKey(fav: Favourite): string {
+  return fav.code ? favKey(fav.code) : PAGE_PREFIX + fav.url;
+}
+
+/**
+ * chrome.storage.local "unstarred:<sync key>": un-starred on this device, so its bookmark in the backup can
+ * go (see fav-backup.ts). Local, because a favourite deleted by sync or a wipe must stay in the backup.
+ */
+export const UNSTARRED_PREFIX = 'unstarred:';
+
+async function noteUnstarred(key: string): Promise<void> {
+  await chrome.storage.local.set({ [UNSTARRED_PREFIX + key]: Date.now() });
+}
+
 /** The stored record: the page only if it's an http(s) URL, with its title tidied and trimmed. */
 export function makeFavourite(page: FavouritePage | null | undefined, now: number): FavouriteData {
   const data: FavouriteData = { added: now };
@@ -126,6 +141,7 @@ export async function addFavourite(code: VideoCode, page?: FavouritePage | null,
 
 export async function removeFavourite(code: VideoCode): Promise<void> {
   await chrome.storage.sync.remove(favKey(code));
+  await noteUnstarred(favKey(code));
 }
 
 /** Stars or un-stars `code`; true if it is a favourite afterwards. */
@@ -155,8 +171,9 @@ export async function addPageFavourite(page: FavouritePage, now = Date.now()): P
 /** Un-stars a favourite, a code or a page. */
 export async function removeFavouriteEntry(fav: Favourite): Promise<void> {
   if (fav.code) return removeFavourite(fav.code);
-  const key = pageKey(fav.url);
-  if (key) await chrome.storage.sync.remove(key);
+  const key = favouriteKey(fav);
+  await chrome.storage.sync.remove(key);
+  await noteUnstarred(key);
 }
 
 /** Stars or un-stars the page you're on (see addPageFavourite); true if it is a favourite afterwards. */

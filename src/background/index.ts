@@ -1,7 +1,8 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
 import { parseCode, rawSearchUrl, trailerUrl, type OpenMode, type VideoCode } from '../shared/codes';
-import { addFavourite, addPageFavourite, favouriteError } from '../shared/favourites';
+import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
+import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
@@ -48,18 +49,39 @@ function buildMenus(sites: OpenOnSite[]) {
   });
 }
 
+// --- Favourites backup (a bookmarks folder; see fav-backup.ts) ---
+// One run at a time, so two runs never add the same bookmark twice.
+let backupRun: Promise<void> = Promise.resolve();
+function backUpFavourites({ restore = false } = {}): Promise<void> {
+  backupRun = backupRun
+    .then(async () => {
+      await updateBackup();
+      // A reinstall starts with no favourites: bring them back from the backup.
+      if (restore) await restoreFromBackup();
+    })
+    .catch((err) => console.warn('Favourites backup failed', err));
+  return backupRun;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   // No defaults are written on install: getSettings() fills them in on read, and a write here could
   // overwrite the data synced from the user's other devices.
   await seedBuiltIns().catch((err) => console.error('Offering built-ins failed', err));
   buildMenus((await getSettings()).openOnSites);
   await syncPageScripts();
+  await backUpFavourites({ restore: true });
 });
-chrome.runtime.onStartup.addListener(() => void syncPageScripts());
+chrome.runtime.onStartup.addListener(() => {
+  void syncPageScripts();
+  // Also here: a first sync right after a reinstall can replace the restored favourites with none.
+  void backUpFavourites({ restore: true });
+});
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.openOnSites) buildMenus((changes.openOnSites.newValue as OpenOnSite[]) ?? []);
   if (area === 'sync' && (changes.popupBlockSites || changes.videoSites)) void syncPageScripts();
+  const unstarred = (key: string) => key.startsWith(UNSTARRED_PREFIX) && changes[key].newValue !== undefined;
+  if (Object.keys(changes).some(area === 'sync' ? isFavKey : unstarred)) void backUpFavourites();
 });
 
 // --- Page-world scripts, registered only on the sites that use them ---
