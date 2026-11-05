@@ -44,6 +44,7 @@ export const BUILT_IN_QUICK_LINKS: (QuickLink & { since: number })[] = [
   { since: 5, name: 'FapHouse · Japanese', url: 'https://faphouse2.com/c/japanese/videos', group: 'All Japanese' },
   { since: 5, name: 'Pornhub · Japanese', url: 'https://www.pornhub.com/categories/japanese', group: 'All Japanese' },
   { since: 5, name: 'YouPorn · Japanese', url: 'https://www.youporn.com/category/japanese/', group: 'All Japanese' },
+  { since: 7, name: 'Jav Guru · English subbed', url: 'https://jav.guru/category/english-subbed/' },
 ];
 /** Built-in "Open on" sites (URL patterns checked with NSFS-484) and the seed version that added them. */
 export const BUILT_IN_SITES: (OpenOnSite & { since: number })[] = [
@@ -65,8 +66,9 @@ export const BUILT_IN_GROUPS: { name: string; since: number }[] = [
  * Bump when changing the built-ins above so existing installs receive them.
  * 1: first links. 2: built-in groups (+ grouping existing built-in links). 3: JavLibrary + javtrailers categories.
  * 4: Beeg. 5: "All Japanese" group (FapHouse, Pornhub, YouPorn). 6: "Open on" sites.
+ * 7: Jav Guru English subbed.
  */
-const QUICK_LINKS_SEED_VERSION = 6;
+const QUICK_LINKS_SEED_VERSION = 7;
 
 export const defaultSettings: Settings = {
   inlineButtons: true,
