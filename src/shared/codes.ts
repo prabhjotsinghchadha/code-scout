@@ -70,6 +70,35 @@ export function codeInUrl(url: string): VideoCode | null {
   return m ? toCode(m[1], m[2]) : null;
 }
 
+/**
+ * The code a right-clicked link is about. In order: a hyphenated code in its address
+ * ("/1074279/start-656-subs-…"); one in its text or image's alt text (sextb's card badge "JUR-628-RM");
+ * its address ending in a code ("/videos/MD0273"); a hyphenated code in the card around it (a thumbnail
+ * whose own text is just its length, beside the title); a code its text starts with ("BLX0006 委屈少婦…").
+ * Never a guess from random letters and digits: sextb's "/njftn65h" isn't NJFTN-65, SupJav's
+ * "/312345.html" isn't anything, and "…For 16 Years…" in a title isn't FOR-16.
+ */
+export function codeForLink(url: string, text = '', around = ''): VideoCode | null {
+  let path = '';
+  try {
+    const { pathname, search } = new URL(url);
+    path = pathname + search;
+    path = decodeURIComponent(path);
+  } catch {
+    // a malformed escape: what's there undecoded is still worth a look
+  }
+  const hyphenated = path.match(HYPHEN_PATTERN);
+  const leading = text.trim().split(/\s+/)[0]?.match(SEGMENT_PATTERN);
+  return (
+    (hyphenated && toCode(hyphenated[1], hyphenated[2])) ||
+    findCodes(text)[0]?.code ||
+    codeInUrl(url) ||
+    findCodes(around)[0]?.code ||
+    (leading && toCode(leading[1], leading[2])) ||
+    null
+  );
+}
+
 export interface CodeMatch {
   code: VideoCode;
   index: number;

@@ -1,6 +1,6 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
-import { formatCode, parseCode, rawSearchUrl, searchUrl, trailerUrl, videoUrlIn, type OpenMode, type VideoCode } from '../shared/codes';
+import { codeForLink, formatCode, parseCode, rawSearchUrl, searchUrl, trailerUrl, videoUrlIn, type OpenMode, type VideoCode } from '../shared/codes';
 import { ACTRESS_LINK_PATTERNS, addActress, capitalized, cleanName, isActressKey, looksLikeActressUrl, nameFromUrl } from '../shared/actresses';
 import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
 import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
@@ -8,7 +8,7 @@ import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { recordSeen, seenPage, videoPageCode, type SeenPage } from '../shared/seen';
 import { addTag, isTagKey, TAG_LINK_PATTERNS, tagNameFromUrl } from '../shared/tags';
 import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
-import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
+import { sendToTab, type ContextLink, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
 import { findSubtitles, getSubtitleFile } from './subtitle-search';
@@ -355,6 +355,22 @@ async function nameOfLink(
   return cleanName(text) ?? fromUrl(linkUrl);
 }
 
+/**
+ * "Open trailer for this link": the code in its address, else in its text or the card it's in (asked of
+ * the page, as the menu only gets the address). Else, if it has a title, javtrailers' search for that.
+ */
+async function openLink(linkUrl: string, tab: chrome.tabs.Tab | undefined, frameId: number | undefined) {
+  let link: ContextLink | null = null;
+  if (tab?.id !== undefined) {
+    link = await sendToTab(tab.id, { type: 'GET_CONTEXT_LINK' }, frameId).catch(() => null);
+    if (link?.url !== linkUrl) link = null;
+  }
+  const code = codeForLink(linkUrl, link?.text, link?.around);
+  if (code) await openCode(code, tab);
+  else if (/\p{L}{3}/u.test(link?.text ?? '')) await openUrls([rawSearchUrl(link!.text.replace(/\s+/g, ' ').trim().slice(0, 100))], tab);
+  else console.warn('No code in this link:', linkUrl);
+}
+
 /** Saves the actress whose link was right-clicked, with the link as her page. */
 async function addActressFromLink(linkUrl: string, tab: chrome.tabs.Tab | undefined, frameId: number | undefined) {
   const name = await nameOfLink(linkUrl, tab, frameId, nameFromUrl);
@@ -403,9 +419,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     const code = parseCode(info.selectionText);
     if (code) void openOn(code, id === MENU_SITES_ALL ? undefined : id.slice(MENU_SITE_PREFIX.length), tab);
   } else if (id === MENU_LINK && info.linkUrl) {
-    // Link text isn't available here, so look for a code in the link's URL.
-    const code = parseCode(decodeURIComponent(info.linkUrl));
-    if (code) void openCode(code, tab);
+    void openLink(info.linkUrl, tab, info.frameId);
   }
 });
 

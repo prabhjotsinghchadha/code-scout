@@ -69,6 +69,8 @@ export interface MessageResponses {
 export interface ContextLink {
   url: string;
   text: string;
+  /** Text of the card the link is in (a thumbnail's title beside it), if any. */
+  around?: string;
 }
 
 export type OcrResult = { lines: OcrLine[] } | { error: string };

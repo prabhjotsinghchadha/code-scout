@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  codeForLink,
   codeInUrl,
   codeNearCaret,
   findCodes,
@@ -104,6 +105,33 @@ test('picks the code nearest the caret', () => {
   assert.equal(at(15), 'NSFS-484');
   assert.equal(at(text.length), 'IPX-123');
   assert.equal(codeNearCaret('nothing here', 3), null);
+});
+
+test('finds the code a right-clicked link is about', () => {
+  const link = (url: string, text?: string, around?: string) => {
+    const c = codeForLink(url, text, around);
+    return c && formatCode(c);
+  };
+  assert.equal(link('https://18jav.tv/videos/BLX0006', '33:24'), 'BLX-006');
+  assert.equal(link('https://jav.guru/1074279/start-656-subs-outdoor-exposure/'), 'START-656');
+  assert.equal(link('https://missav.ws/en/nsfs-484'), 'NSFS-484');
+  // Only a number in the address: the link's text, its image's alt text, or the card around it.
+  assert.equal(link('https://supjav.com/312345.html', '[中文字幕] SSIS-123 美女'), 'SSIS-123');
+  assert.equal(link('https://supjav.com/312345.html', 'BLX0006 委屈少婦的NTR復仇'), 'BLX-006');
+  assert.equal(link('https://supjav.com/312345.html', '1:58:03', 'HD 1:58:03 IPX-123 Title 2024-05-01'), 'IPX-123');
+  // sextb: random IDs in the address; the code is the card's badge, inside the link.
+  assert.equal(link('https://sextb.net/njftn65h', '"Your Wife Was Amazing." An Unexpected NTR (Netorare - Cheating) Story HD 150 min JUR-806'), 'JUR-806');
+  assert.equal(link('https://sextb.net/ikcsqjr23', 'I Wanted To Make My Horny Co-worker Admit… HD 120 min JUR-589'), 'JUR-589');
+  assert.equal(link('https://sextb.net/07jajsd9b', 'Decensored [Reducing Mosaic] My Wife, Whom I Thought Was A Tuna For 16 Years… HD 150 min ROE-475-RM'), 'ROE-475');
+  assert.equal(link('https://sextb.net/jur-635-sub', 'English Subtitle Female Teacher NTR HD 140 min JUR-635-SUB'), 'JUR-635');
+  // No code anywhere: nothing, rather than a guess from the address or a number in the title.
+  assert.equal(link('https://sextb.net/njftn65h', 'An Unexpected NTR Story'), null);
+  assert.equal(link('https://sextb.net/ox4llnmg', 'My Wife Was A Tuna For 16 Years'), null);
+  assert.equal(link('https://av01.tv/video/12345/', 'Episode one'), null);
+  assert.equal(link('https://supjav.com/312345.html', '33:24'), null);
+  assert.equal(link('not a url %E0', ''), null);
+  // A code in the address beats another in the link's text.
+  assert.equal(link('https://example.com/v/nsfs-484/', 'ABP-100 is similar'), 'NSFS-484');
 });
 
 test('finds the code a page address is about', () => {
