@@ -22,3 +22,19 @@ export function onUi(
 ) {
   el.addEventListener(`javtr:${type}`, (e) => handler((e as CustomEvent<UiEventDetail>).detail ?? {}));
 }
+
+/** A button for the video toolbar and its menus (inside a markUi element). */
+export function button(className: string, text: string, title: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = className;
+  b.textContent = text;
+  b.title = title;
+  return b;
+}
+
+/** Click or Enter/Space (the shield cancels the key's default, so no click follows it). */
+export function onActivate(el: HTMLElement, action: () => void) {
+  onUi(el, 'click', ({ button }) => button === 0 && action());
+  onUi(el, 'keydown', ({ key }) => (key === 'Enter' || key === ' ') && action());
+}

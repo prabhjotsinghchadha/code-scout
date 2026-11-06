@@ -26,6 +26,7 @@ The extension's visible name and wording are kept neutral: *Code Scout*, *Search
   - **Quality ▾** when the stream has more than one quality (players other than the page's own hls.js keep their own quality menu; the toolbar shows the quality playing); a plain *720p* label when it has only one (as on 18JAV). Download saves the quality you picked, or the best one.
   - **⬇ Download** saves the video as an MP4 (`PMX-046.mp4`): a "Save as" dialog, then the stream is downloaded in parallel and repackaged as MP4 (no re-encoding) straight into the file. It starts with 6 requests at once and tries more (up to 24), keeping them only while they make it faster; the button shows the live speed, and its tooltip how many requests are running. While it runs, faster loading (⚡) fetches only a little ahead, and the download's requests yield to the playing video's; pausing the video leaves the download the most speed. Keep the tab open while it runs; if the video's link expires mid-download, a fresh one is fetched from the page. Encrypted and live streams can't be saved.
   - **EN subs** reads Chinese or Japanese subtitles burned into the picture, on this computer (PaddleOCR in an offscreen page), and covers them with an English line from Chrome's built-in translator (Chrome 138+; the first use downloads Chrome's language models, or use *Set up English subtitles* in Settings). Text size and background (solid to see-through) are in Settings.
+  - **CC ▾** for videos with no subtitles in the picture: subtitle files for the video's code (taken from the page's address or title; type another into the menu's box and press Enter). It lists what [SubtitleCat](https://www.subtitlecat.com) has for the code, English ones first, with downloads and 👍 for files its users rated good; pick one and its lines show over the video, in time with it, with the same text size and background as EN subs. A file only in Japanese or Chinese shows as it is until Chrome's translator is ready, then in English, translated a little ahead of the video. *Load a file from this computer…* shows an `.srt`, `.vtt` or `.ass` file you have (UTF-8, Shift-JIS or GBK), such as one from [javsub.ai](https://javsub.ai): *Find on javsub.ai ↗* opens the code there (it doesn't let the extension download its files itself). A file made from another cut of the video can be out of time: **◀ Earlier** / **Later ▶** in the menu move the lines by half a second, and the file you picked and its timing are remembered for that code (on this computer), so it comes back in time next time. Only one English line at a time: CC and EN subs turn each other off.
 
 Built with **Vite + TypeScript** and [CRXJS](https://crxjs.dev/) (Manifest V3).
 
@@ -42,6 +43,7 @@ src/
   content/popup-block.iife.ts  # Pop-up blocker, page side (registered per site at runtime)
   content/video-boost.iife.ts  # Video tools, page side: parallel loading for any HLS player (+ quality for hls.js)
   content/video-tools.ts       # Video tools toolbar; video-download.ts (MP4 download), subs.ts (EN subs)
+  content/cc-menu.ts           # CC menu: subtitle files for the video; subtitle-file.ts shows one in time with it
   content/frame.ts             # In frames (embedded players): video tools + pop-up blocker; frame-bridge.ts asks the page to save/translate
   offscreen/           # Offscreen page that runs the subtitle OCR model (and translation fallback)
   popup/               # Toolbar popup UI
@@ -56,6 +58,7 @@ src/
   shared/sites.ts      # Built-in sites: each one's "Open on" pattern and quick-link pages, defined once
   shared/seed.ts       # Offers new built-ins to each install once, so ones the user removed stay removed
   shared/hls-playlist.ts, range-fetch.ts, parallel-tuner.ts, subtitles.ts  # Video tools helpers (unit-tested)
+  shared/srt.ts, subtitle-cat.ts  # Reading subtitle files, and SubtitleCat's pages (unit-tested); background/subtitle-search.ts fetches them
 scripts/prepare-ocr.mjs  # Fetches the OCR models into public/ocr/ before dev/build (git-ignored)
   shared/              # Typed messaging + storage helpers
 ```

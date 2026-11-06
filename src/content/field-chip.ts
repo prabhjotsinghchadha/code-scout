@@ -4,7 +4,7 @@ import { sendToBackground } from '../shared/messages';
 import { codeInEditable, editableFrom, readEditable, type Editable } from './editable';
 import { isStarred, onStarredChange, shownOnPage, thisPage, toggleStar } from './favourites';
 import { closeSiteMenu, isSiteMenuOpen, openSiteMenu } from './site-menu';
-import { markUi, onUi } from './ui-events';
+import { markUi, onUi, UI_ATTR } from './ui-events';
 
 let chip: HTMLDivElement | null = null;
 let label: HTMLSpanElement;
@@ -112,7 +112,9 @@ function update(el: Editable) {
 }
 
 function targetOf(e: Event): Editable | null {
-  return editableFrom(e.composedPath()[0]);
+  const el = editableFrom(e.composedPath()[0]);
+  // Not the extension's own boxes (the CC menu's code box), which have their own buttons.
+  return el && !el.closest(`[${UI_ATTR}]`) ? el : null;
 }
 
 const onInput = (e: Event) => {

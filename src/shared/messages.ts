@@ -1,5 +1,6 @@
 // Typed messages passed between popup, background and content scripts.
 import type { OpenMode, VideoCode } from './codes';
+import type { FoundSubtitle } from './subtitle-cat';
 import type { OcrLine } from './subtitles';
 import type { SubtitleLang } from './translator';
 
@@ -33,6 +34,10 @@ export type Message =
   | { type: 'TRANSLATE_IN_PAGE'; text: string; from: SubtitleLang }
   /** …show "Save as" in the tab's top page (the frame may not); the page then writes what the frame sends. */
   | { type: 'SAVE_IN_PAGE'; name: string }
+  /** Video tools, CC menu: subtitle files for a code, from SubtitleCat (background/subtitle-search.ts). */
+  | { type: 'FIND_SUBTITLES'; code: VideoCode }
+  /** …the text of one of them (a SubtitleCat file URL from FIND_SUBTITLES). */
+  | { type: 'GET_SUBTITLE_FILE'; url: string }
   /** Pop-up blocker in a frame from another site: also run its page-side script here (if it's on for the tab's site). */
   | { type: 'BLOCK_POPUPS_IN_FRAME' }
   /** Background → the tab's top page: TRANSLATE_IN_PAGE and SAVE_IN_PAGE for one of its frames. */
@@ -53,6 +58,8 @@ export interface MessageResponses {
   TAB_PAGE: { url: string; title: string };
   TRANSLATE_IN_PAGE: TranslateResult;
   SAVE_IN_PAGE: SaveAnswer;
+  FIND_SUBTITLES: FindSubtitlesResult;
+  GET_SUBTITLE_FILE: SubtitleFileResult;
   BLOCK_POPUPS_IN_FRAME: { ok: true };
   PAGE_TRANSLATE: TranslateResult;
   PAGE_SAVE: SaveAnswer;
@@ -66,6 +73,13 @@ export interface ContextLink {
 
 export type OcrResult = { lines: OcrLine[] } | { error: string };
 export type TranslateResult = { text: string } | { error: string };
+/** A subtitle file found for a code: SubtitleCat's listing, plus the file to show and whether it's English. */
+export interface SubtitleChoice extends FoundSubtitle {
+  fileUrl: string;
+  english: boolean;
+}
+export type FindSubtitlesResult = { choices: SubtitleChoice[] } | { error: string };
+export type SubtitleFileResult = { text: string } | { error: string };
 /** The top page's "Save as" for a frame: the file's name, with the token that pairs the frame's channel to it. */
 export type SaveAnswer = { name: string; token: string } | { cancelled: true } | { error: string };
 

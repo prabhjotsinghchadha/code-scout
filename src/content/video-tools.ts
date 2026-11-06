@@ -5,14 +5,15 @@
 //   720p ▾       quality menu, when the stream has more than one (just "720p" when it hasn't)
 //   ⬇ Download   save the video as MP4 (video-download.ts)
 //   EN subs      English over burned-in Chinese/Japanese subtitles (subs.ts)
+//   CC ▾         subtitle files for the video, from SubtitleCat or this computer (cc-menu.ts)
 // The toolbar sits in a layer that follows the video on screen (pointer-events: none except the buttons);
 // when the player goes full screen, the layer moves into the full-screen element so it stays visible.
 // Buttons get their clicks through the click shield (markUi/onUi), so the site's ad scripts never see them.
-import { formatCode, parseCode } from '../shared/codes';
+import { formatCode } from '../shared/codes';
 import { shortDuration } from '../shared/range-fetch';
-import { pageInfo } from './frame-bridge';
+import { CcMenu, pageCode } from './cc-menu';
 import { SubtitleReader, type StatusKind } from './subs';
-import { markUi, onUi } from './ui-events';
+import { button, markUi, onActivate } from './ui-events';
 import { CancelledError, downloadFileName, VideoDownload, type DownloadProgress, type DownloadSource } from './video-download';
 
 interface VideoInfo {
@@ -84,21 +85,6 @@ function overlaysIn(box: DOMRect, video: HTMLVideoElement, layer: HTMLElement, v
   return left === Infinity ? null : new DOMRect(left, top, right - left, bottom - top);
 }
 
-function button(className: string, text: string, title: string): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = className;
-  b.textContent = text;
-  b.title = title;
-  return b;
-}
-
-/** Click or Enter/Space (the shield cancels the key's default, so no click follows it). */
-function onActivate(el: HTMLElement, action: () => void) {
-  onUi(el, 'click', ({ button }) => button === 0 && action());
-  onUi(el, 'keydown', ({ key }) => (key === 'Enter' || key === ' ') && action());
-}
-
 function eta(seconds: number | null): string {
   if (seconds === null) return '';
   if (seconds < 60) return ' · <1 min left';
@@ -128,16 +114,8 @@ function levelName(level: VideoInfo['levels'][number]): string {
 
 /** The page's video code (PMX-046.mp4), else its title. In an embedded player, the page's around it. */
 async function suggestedFileName(): Promise<string> {
-  const page = await pageInfo();
-  let path = '';
-  try {
-    path = decodeURIComponent(new URL(page.url).pathname);
-  } catch {
-    // Not a valid address or encoding: the title still has the code, usually.
-  }
-  const code = parseCode(path) ?? parseCode(page.title) ?? parseCode(document.title);
-  const title = page.title.split(/\s[|–—-]\s/)[0];
-  return downloadFileName(code ? formatCode(code) : null, title);
+  const { code, title } = await pageCode();
+  return downloadFileName(code ? formatCode(code) : null, title.split(/\s[|–—-]\s/)[0]);
 }
 
 class VideoUi {
@@ -150,10 +128,14 @@ class VideoUi {
   private readonly downloadBtn = button('javtr-download', '⬇ Download', 'Save this video as an MP4 file');
   private readonly cancelBtn = button('javtr-cancel', '✕', 'Cancel the download');
   private readonly subsBtn = button('javtr-subs-btn', 'EN subs', 'Cover Chinese/Japanese subtitles with English');
+  private readonly ccBtn = button('javtr-cc-btn', 'CC ▾', 'Subtitle files for this video (SubtitleCat, or one on this computer)');
   private readonly status = document.createElement('div');
   private info: VideoInfo | null = null;
   private download: VideoDownload | null = null;
   private subs: SubtitleReader | null = null;
+  private readonly cc: CcMenu;
+  /** Whose menu is open, quality or CC (they share one). */
+  private menuOwner: 'quality' | 'cc' | null = null;
   private hoverUntil = 0;
   private statusUntil = 0;
   private lastPlace = '';
@@ -172,18 +154,29 @@ class VideoUi {
     this.quality.hidden = true;
     this.cancelBtn.hidden = true;
     this.subsBtn.setAttribute('aria-pressed', 'false');
+    this.ccBtn.setAttribute('aria-pressed', 'false');
     this.menu.className = 'javtr-video-menu';
     this.menu.hidden = true;
     this.status.className = 'javtr-video-status';
     this.status.hidden = true;
-    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.menu);
+    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.ccBtn, this.menu);
     this.layer.append(this.bar, this.status);
     document.documentElement.append(this.layer);
+    this.cc = new CcMenu(video, this.layer, this.menu, (text, kind) => this.say(text, kind), (on) => {
+      this.ccBtn.setAttribute('aria-pressed', String(on));
+      this.ccBtn.classList.toggle('javtr-on', on);
+      if (on && this.subs) {
+        // One English line at a time: the file's replaces EN subs.
+        this.subs.stop();
+        this.setSubs(null);
+      }
+    });
 
     onActivate(this.quality, () => this.toggleMenu());
     onActivate(this.downloadBtn, () => this.startDownload());
     onActivate(this.cancelBtn, () => this.download?.cancel());
     onActivate(this.subsBtn, () => this.toggleSubs());
+    onActivate(this.ccBtn, () => this.toggleCcMenu());
     video.addEventListener('javtr:video-info', this.onInfo);
   }
 
@@ -204,6 +197,7 @@ class VideoUi {
     this.video.removeEventListener('javtr:video-info', this.onInfo);
     this.download?.cancel();
     this.subs?.stop();
+    this.cc.turnOff();
     this.layer.remove();
     window.removeEventListener('beforeunload', this.warnBeforeLeaving);
   }
@@ -218,9 +212,14 @@ class VideoUi {
   }
 
   closeMenuUnless(target: EventTarget | null) {
-    if (!this.menu.hidden && !(target instanceof Node && (this.menu.contains(target) || this.quality.contains(target)))) {
-      this.menu.hidden = true;
-    }
+    const inside = (el: HTMLElement) => target instanceof Node && el.contains(target);
+    if (!this.menu.hidden && !inside(this.menu) && !inside(this.quality) && !inside(this.ccBtn)) this.closeMenu();
+  }
+
+  private closeMenu() {
+    if (this.menuOwner === 'cc') this.cc.close();
+    this.menu.hidden = true;
+    this.menuOwner = null;
   }
 
   /** Every frame: follow the video on screen, show or hide the toolbar. `main`: the page's main video. */
@@ -243,7 +242,9 @@ class VideoUi {
       this.lastPlace = place;
       Object.assign(this.layer.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       this.subs?.place();
+      this.cc.file?.place();
     }
+    this.cc.file?.update();
     // Like the player's own controls: shown while the pointer is over the video and while it's paused.
     // The main video has it from the start, before it's played; others (a page full of previews) once
     // they've played. While the main video plays, the ⚡ stays, faint, so the tools are seen to be there.
@@ -334,8 +335,9 @@ class VideoUi {
 
   private toggleMenu() {
     if (!this.menu.hidden) {
-      this.menu.hidden = true;
-      return;
+      const mine = this.menuOwner === 'quality';
+      this.closeMenu();
+      if (mine) return;
     }
     const info = this.info;
     if (!info) return;
@@ -351,17 +353,31 @@ class VideoUi {
       const b = button('javtr-menu-item', `${current ? '✓ ' : ''}${label}`, '');
       onActivate(b, () => {
         this.video.dispatchEvent(new CustomEvent('javtr:set-level', { detail: String(level) }));
-        this.menu.hidden = true;
+        this.closeMenu();
         this.say(level < 0 ? 'Quality: automatic' : `Quality: ${label}`);
       });
       return b;
     };
     const sorted = info.levels.map((level, index) => ({ level, index })).sort((a, b) => b.level.height - a.level.height || b.level.bitrate - a.level.bitrate);
+    this.menu.classList.remove('javtr-cc-menu');
+    this.menu.style.maxHeight = '';
     this.menu.replaceChildren(
       item('Auto', -1, info.auto),
       ...sorted.map(({ level, index }) => item(levelName(level), index, !info.auto && index === info.currentLevel)),
     );
     this.menu.hidden = false;
+    this.menuOwner = 'quality';
+  }
+
+  private toggleCcMenu() {
+    if (!this.menu.hidden) {
+      const mine = this.menuOwner === 'cc';
+      this.closeMenu();
+      if (mine) return;
+    }
+    this.status.textContent = ''; // it would sit under the menu
+    this.cc.open();
+    this.menuOwner = 'cc';
   }
 
   private source(): DownloadSource | null {
@@ -441,6 +457,7 @@ class VideoUi {
       this.say('EN subs off.');
       return;
     }
+    this.cc.turnOff(); // one English line at a time: EN subs replaces a subtitle file
     const reader = new SubtitleReader(this.video, this.layer, (text, kind) => this.say(text, kind));
     this.setSubs(reader);
     // Started from this click: Chrome's first translator download needs it.

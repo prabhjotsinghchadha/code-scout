@@ -66,7 +66,7 @@ function debug(...args: unknown[]) {
  * Translation in this page if Chrome offers it here, else through the offscreen document. In a player
  * embedded from another site, Chrome keeps its translator from the frame: the top page translates.
  */
-async function prepareTranslation(onStatus: (text: string) => void): Promise<TranslateFn> {
+export async function prepareTranslation(onStatus: (text: string) => void): Promise<TranslateFn> {
   if (inForeignFrame()) {
     await translateInPage('你好', 'zh'); // sets it up while this click still counts, or fails clearly
     return translateInPage;
@@ -96,8 +96,14 @@ interface Shown {
 }
 
 // The look from Settings (text size, background), shared by every reader and applied as it changes.
+// Also the look of subtitle files shown from the CC menu (subtitle-file.ts).
 let look = { size: defaultSettings.subSize, background: defaultSettings.subBackground };
-const readers = new Set<SubtitleReader>();
+const readers = new Set<{ place(): void }>();
+/** The subtitle look from Settings: text size (percent) and background opacity (percent). */
+export const subtitleLook = () => look;
+/** Calls `item.place()` whenever the look changes in Settings, until unwatchLook. */
+export const watchLook = (item: { place(): void }) => readers.add(item);
+export const unwatchLook = (item: { place(): void }) => readers.delete(item);
 const applyLook = (settings: Settings) => {
   look = { size: settings.subSize, background: settings.subBackground };
   for (const reader of readers) reader.place();

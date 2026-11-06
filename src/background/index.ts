@@ -11,6 +11,7 @@ import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
 import { sendToTab, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
+import { findSubtitles, getSubtitleFile } from './subtitle-search';
 
 const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
@@ -517,6 +518,12 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
       void sendToTab(sender.tab.id, { type: 'PAGE_SAVE', token: crypto.randomUUID(), name: message.name }, 0)
         .catch((): SaveAnswer => ({ error: 'Reload the page, then try again.' }))
         .then(sendResponse);
+      return true;
+    case 'FIND_SUBTITLES':
+      void findSubtitles(message.code).then(sendResponse);
+      return true;
+    case 'GET_SUBTITLE_FILE':
+      void getSubtitleFile(message.url).then(sendResponse);
       return true;
     case 'BLOCK_POPUPS_IN_FRAME':
       return reply(blockPopupsInFrame(sender.tab, sender.frameId));
