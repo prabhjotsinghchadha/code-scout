@@ -2,13 +2,14 @@ import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
 import { codeForLink, formatCode, parseCode, rawSearchUrl, searchUrl, trailerUrl, videoUrlIn, type OpenMode, type VideoCode } from '../shared/codes';
 import { ACTRESS_LINK_PATTERNS, addActress, capitalized, cleanName, isActressKey, looksLikeActressUrl, nameFromUrl } from '../shared/actresses';
+import { getDetailsCache, pageCode, parseDetails, saveDetails } from '../shared/details';
 import { restoreFromBackup, updateBackup } from '../shared/fav-backup';
 import { addFavourite, addPageFavourite, favouriteError, isFavKey, UNSTARRED_PREFIX } from '../shared/favourites';
 import { isSiteOff, sitePatterns } from '../shared/hosts';
 import { recordSeen, seenPage, videoPageCode, type SeenPage } from '../shared/seen';
 import { addTag, isTagKey, TAG_LINK_PATTERNS, tagNameFromUrl } from '../shared/tags';
 import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
-import { sendToTab, type ContextLink, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
+import { sendToTab, type ContextLink, type DetailsResult, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
 import { findSubtitles, getSubtitleFile } from './subtitle-search';
@@ -32,7 +33,7 @@ function buildMenus(sites: OpenOnSite[]) {
     chrome.contextMenus.create({ id: MENU_OPEN, title: 'Open trailer for “%s”', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_SEARCH, title: 'Search trailers for “%s”', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_FAVOURITE, title: 'Add “%s” to favourites', contexts: ['selection'] });
-    chrome.contextMenus.create({ id: MENU_ACTRESS, title: 'Add “%s” to favourite actresses', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_ACTRESS, title: 'Add “%s” to favourite performers', contexts: ['selection'] });
     if (sites.length) {
       chrome.contextMenus.create({ id: MENU_SITES, title: 'Open “%s” on', contexts: ['selection'] });
       for (const site of sites) {
@@ -52,14 +53,14 @@ function buildMenus(sites: OpenOnSite[]) {
     // Only on links to an actress's page ("/actresses/Yua Mikami", "/casts/…").
     chrome.contextMenus.create({
       id: MENU_ACTRESS_LINK,
-      title: 'Add this actress to favourites',
+      title: 'Add this performer to favourites',
       contexts: ['link'],
       targetUrlPatterns: ACTRESS_LINK_PATTERNS,
     });
     // Only on links to a tag's page ("/categories/cheating-wife", "/genres/NTR", "/tag/…").
     chrome.contextMenus.create({
       id: MENU_TAG_LINK,
-      title: 'Add this tag to favourites',
+      title: 'Add this genre to favourites',
       contexts: ['link'],
       targetUrlPatterns: TAG_LINK_PATTERNS,
     });
@@ -86,7 +87,13 @@ function backUpFavourites({ restore = false } = {}): Promise<void> {
   return backupRun;
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  // An install from before the popup's "New here?" card isn't new: it never shows there. (Only this one
+  // key, and only when it isn't set: nothing synced from another device is overwritten.)
+  if (reason === 'update') {
+    const stored = await chrome.storage.sync.get('introSeen').catch(() => ({ introSeen: true }));
+    if (stored.introSeen === undefined) await chrome.storage.sync.set({ introSeen: true }).catch(() => {});
+  }
   // No defaults are written on install: getSettings() fills them in on read, and a write here could
   // overwrite the data synced from the user's other devices.
   await seedBuiltIns().catch((err) => console.error('Offering built-ins failed', err));
@@ -320,6 +327,51 @@ async function videoPage(code: VideoCode): Promise<string> {
   }
 }
 
+/** Codes whose details are being read now, so two requests for one code make one read. */
+const readingDetails = new Map<string, Promise<DetailsResult>>();
+
+/**
+ * What `code` is (details.ts): from what's kept, else read from its page on javtrailers and kept. Only
+ * called for a code the user asked about; nothing is read for codes that are merely listed.
+ */
+async function detailsOf(code: VideoCode): Promise<DetailsResult> {
+  const key = formatCode(code);
+  const kept = (await getDetailsCache())[key];
+  if (kept) return { details: kept };
+  let reading = readingDetails.get(key);
+  if (!reading) {
+    reading = readDetails(code).finally(() => readingDetails.delete(key));
+    readingDetails.set(key, reading);
+  }
+  return reading;
+}
+
+async function readDetails(code: VideoCode): Promise<DetailsResult> {
+  const key = formatCode(code);
+  try {
+    const page = await videoPage(code);
+    if (!/\/video\//.test(page)) return { error: `javtrailers doesn’t list ${key}.` };
+    const response = await fetch(page, { signal: AbortSignal.timeout(6000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const details = parseDetails(await response.text(), page, Date.now());
+    if (!details) return { error: `Couldn’t read ${key}’s page on javtrailers.` };
+    await saveDetails(code, details);
+    return { details };
+  } catch (err) {
+    console.warn(`Reading ${key}'s details failed:`, err);
+    return { error: 'Couldn’t reach javtrailers. Try again in a moment.' };
+  }
+}
+
+/** A javtrailers video page the user is on (its parts, from the content script): keep what it says. */
+async function keepPageDetails(html: string, sender: chrome.runtime.MessageSender): Promise<void> {
+  const url = sender.tab?.url ?? '';
+  if (sender.tab?.incognito || !/^https:\/\/(www\.)?javtrailers\.com\/video\//.test(url)) return;
+  const code = pageCode(html);
+  const details = code && parseDetails(html, url.split(/[?#]/)[0], Date.now());
+  if (code && details) await saveDetails(code, details);
+}
+
 /** `mode` overrides the "Open" setting; omit it to use the setting. */
 async function openCode(code: VideoCode, sourceTab?: chrome.tabs.Tab, mode?: OpenMode) {
   const { openMode } = await getSettings();
@@ -424,6 +476,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
+  // Works on any tab, the ones no content script runs on too.
   if (tab?.id === undefined) return;
   try {
     const { code, text } = await sendToTab(tab.id, { type: 'GET_ACTIVE_CODE' });
@@ -499,7 +552,17 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
         }),
       );
     case 'OPEN_OPTIONS':
-      return reply(chrome.runtime.openOptionsPage());
+      // A section: the page's address with it (openOptionsPage can't say which).
+      return reply(
+        message.section && /^[a-z-]+$/.test(message.section)
+          ? chrome.tabs.create({ url: `${chrome.runtime.getURL('src/options/index.html')}#${message.section}` })
+          : chrome.runtime.openOptionsPage(),
+      );
+    case 'GET_DETAILS':
+      void detailsOf(message.code).then(sendResponse);
+      return true;
+    case 'PAGE_DETAILS':
+      return reply(keepPageDetails(String(message.html).slice(0, 80_000), sender).catch(() => {}));
     case 'ALLOW_NEW_TAB':
       if (sender.tab?.id !== undefined) {
         const id = sender.tab.id;

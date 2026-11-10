@@ -50,6 +50,13 @@ export interface Settings {
   theme: Theme;
   /** Appearance: the accent colour, in the popup and Settings and for what's drawn on pages (theme.ts). */
   accent: Accent;
+  /**
+   * The popup's lists: "detailed" says what each code is under it (title, performers, studio) once that's
+   * known; "compact" is codes only, more to a screen. Density only: nothing is out of reach in either.
+   */
+  listStyle: 'detailed' | 'compact';
+  /** The popup's one-time "New here?" card was closed (or this install is older than the card). */
+  introSeen: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -71,6 +78,8 @@ export const defaultSettings: Settings = {
   rememberSeen: true,
   theme: DEFAULT_THEME,
   accent: DEFAULT_ACCENT,
+  listStyle: 'detailed',
+  introSeen: false,
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */

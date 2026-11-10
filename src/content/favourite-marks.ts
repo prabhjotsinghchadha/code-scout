@@ -51,7 +51,7 @@ function actressBadge(name: string): HTMLElement {
   b.className = ACTRESS_CLASS;
   b.dataset.name = nameKey(name);
   b.textContent = '♥';
-  b.title = `Favourite actress: ${name} · click to open`;
+  b.title = `Favourite performer: ${name} · click to open`;
   b.setAttribute('role', 'button');
   b.tabIndex = 0;
   // Input arrives via the click shield, so the page never sees it and a link around the name isn't followed.
@@ -104,7 +104,7 @@ function markLink(a: HTMLAnchorElement) {
   mark.className = TAG_CLASS;
   mark.dataset.tag = tagNameKey(tag.name);
   mark.textContent = '#';
-  mark.title = `Favourite tag: ${tag.name}`;
+  mark.title = `Favourite genre: ${tag.name}`;
   mark.setAttribute('aria-label', mark.title);
   a.append(mark);
 }

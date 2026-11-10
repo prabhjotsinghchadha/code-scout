@@ -1,6 +1,7 @@
 import { findCodes, formatCode, type VideoCode } from '../shared/codes';
 import { isSiteOff } from '../shared/hosts';
-import type { Message } from '../shared/messages';
+import { DETAILS_PARTS } from '../shared/details';
+import { sendToBackground, type Message } from '../shared/messages';
 import { getSettings, onSettingsChanged, type Settings } from '../shared/storage';
 import { applyPageAccent } from '../shared/theme';
 import { lastContextLink, watchContextLinks } from './context-link';
@@ -32,8 +33,15 @@ watchContextLinks();
 serveFrames();
 
 async function init() {
-  // javtrailers.com has its own search and links; don't add our UI there.
-  if (location.hostname.endsWith('javtrailers.com')) return;
+  // javtrailers.com has its own search and links; don't add our UI there. A video's page there says what
+  // the video is (title, performers, studio…): since the user is looking at it, keep that for the lists.
+  if (location.hostname.endsWith('javtrailers.com')) {
+    if (location.pathname.startsWith('/video/')) {
+      const html = [...document.querySelectorAll(DETAILS_PARTS)].map((el) => el.outerHTML).join('\n');
+      void sendToBackground({ type: 'PAGE_DETAILS', html }).catch(() => {});
+    }
+    return;
+  }
   // Known before the ▶ buttons are drawn, so favourites show as ★ straight away.
   await startFavourites().catch(() => {});
 

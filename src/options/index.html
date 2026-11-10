@@ -32,6 +32,7 @@
           <a href="#video"><i data-icon="film"></i>Video tools</a>
           <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
           <p class="nav-head">More</p>
+          <a href="#guide"><i data-icon="help"></i>Guide</a>
           <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
           <a href="#backup"><i data-icon="download"></i>Backup</a>
         </nav>
@@ -48,6 +49,15 @@
             <label><input type="radio" name="theme" value="light" /><i data-icon="sun"></i>Light</label>
             <label><input type="radio" name="theme" value="dark" /><i data-icon="moon"></i>Dark</label>
           </div>
+          <h3>Lists in the popup</h3>
+          <div class="segmented" role="radiogroup" aria-label="Lists in the popup">
+            <label><input type="radio" name="listStyle" value="detailed" />Detailed</label>
+            <label><input type="radio" name="listStyle" value="compact" />Compact</label>
+          </div>
+          <p class="hint">
+            Detailed says what each video is under its code (title, performers, studio), once Code Scout has looked it up.
+            Compact shows codes only, more to a screen. Everything stays one click away in both.
+          </p>
           <h3>Accent colour</h3>
           <p class="hint">
             For buttons and what’s picked, and for the ▶ buttons, chip and video toolbar on pages. A favourite’s ★, a seen
@@ -254,6 +264,73 @@
               <input type="range" id="subBackground" min="0" max="100" step="10" />
             </label>
           </div>
+        </section>
+
+        <section class="card guide" id="guide">
+          <h2>Guide</h2>
+          <p class="desc">What things mean, and how Code Scout helps you find your way. Nothing here needs setting up.</p>
+
+          <h3>Every video has a code</h3>
+          <p>
+            Japanese studios give each release a short code, like <span class="code id">NSFS-484</span>: letters for the
+            <em>label</em> (the line of releases it belongs to) and a number counting up within it. Sites write it in different
+            ways (<span class="code id">nsfs484</span>, <span class="code id">NSFS00484</span>); it’s the same video. The code is
+            the one name every site agrees on, so it’s the surest way to find a video anywhere, and what Code Scout looks for.
+          </p>
+          <p>
+            You don’t need to know any codes to start. Search by a name or a word in the popup, browse a site, and the codes
+            come to you: each video you look at shows its code, and Code Scout picks it up.
+          </p>
+
+          <h3>What Code Scout adds to pages</h3>
+          <ul class="legend">
+            <li><span class="look-mark" style="--javtr-accent: var(--accent)">▶&#xFE0E;</span><span><strong>Open the trailer.</strong> Next to a code on any page. Click it for the video’s trailer and details; right-click it for more.</span></li>
+            <li><span class="look-mark fav">★</span><span><strong>A favourite.</strong> You starred this video. It’s in the popup under Favourites.</span></li>
+            <li><span class="look-mark seen">✓</span><span><strong>Seen.</strong> You’ve opened this one before, so the ones you haven’t stand out. Listed under Recent.</span></li>
+            <li><span class="look-mark heart">♥</span><span><strong>A favourite performer.</strong> After her name wherever it appears.</span></li>
+            <li><span class="look-mark hash">#</span><span><strong>A favourite genre.</strong> On links to its page.</span></li>
+          </ul>
+
+          <h3>What a video is, and what it’s connected to</h3>
+          <p>
+            In the popup, the arrow at the end of a video’s row opens its card: the title, the cover, when it came out, who’s in
+            it, the studio that made it, the series it’s part of and its genres. Each of those is a way on: click a performer,
+            studio or genre to see more of it, or press ♥ or # to keep it in your favourites. Code Scout reads this from
+            javtrailers.com only when you open a card or star a video, and keeps it on this computer.
+          </p>
+
+          <h3>Where things open</h3>
+          <p>
+            <strong>Open trailer</strong> goes to javtrailers.com, which has a short preview and the details for nearly every
+            release. To watch the whole video, use <strong>Watch on</strong> in a video’s card: it looks the code up on the
+            sites below. Add or remove sites under <a href="#open-on">Open on sites</a>.
+          </p>
+          <ul id="guide-sites" class="guide-sites"></ul>
+
+          <h3>Words you’ll run into</h3>
+          <dl class="glossary">
+            <div><dt>Code</dt><dd>A release’s ID, like NSFS-484. Also called a DVD ID or product code.</dd></div>
+            <div><dt>Label</dt><dd>The letters of a code. One studio can run several labels, each with its own style.</dd></div>
+            <div><dt>Studio</dt><dd>The company that made the video. Also called a maker.</dd></div>
+            <div><dt>Series</dt><dd>Videos that share a premise or a title, released over time.</dd></div>
+            <div><dt>Performer</dt><dd>Someone who appears in a video. Sites also say cast, actress, idol or model.</dd></div>
+            <div><dt>Genre</dt><dd>What a video is about or how it’s shot. Sites also say category or tag, and each site names them its own way.</dd></div>
+            <div><dt>Trailer</dt><dd>The studio’s short preview of a release.</dd></div>
+            <div><dt>Censored / uncensored</dt><dd>Videos released in Japan are pixelated by law (“censored”); “uncensored” ones were made for release elsewhere, or are leaks.</dd></div>
+            <div><dt>Subtitled</dt><dd>Most releases have no English subtitles. Some sites have subtitled sections, and the video toolbar’s CC can add them.</dd></div>
+            <div><dt>Hi-Def, 4K, VR</dt><dd>How it was filmed. VR releases need a headset to watch properly.</dd></div>
+            <div><dt>Compilation / best-of</dt><dd>Scenes from earlier releases put together, often several hours long.</dd></div>
+            <div><dt>NTR</dt><dd>Short for <em>netorare</em>: stories about a partner being unfaithful. Sites file it near “cheating” and “cuckold”.</dd></div>
+            <div><dt>Amateur</dt><dd>Releases presented as featuring non-professionals. Their codes often start with digits, like 300MIUM-123.</dd></div>
+          </dl>
+
+          <h3>Quick ways to do things</h3>
+          <ul class="tips">
+            <li>Type in the popup’s box to find anything you’ve saved or looked at; press Enter for the first result.</li>
+            <li>↓ and ↑ move through a list, → opens a video’s card.</li>
+            <li>Select a code on any page and use the <a href="#shortcuts">shortcuts</a>, or right-click it.</li>
+            <li>Prefer denser lists? Switch to Compact under <a href="#appearance">Appearance</a>.</li>
+          </ul>
         </section>
 
         <section class="card" id="shortcuts">

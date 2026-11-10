@@ -11,6 +11,7 @@ import { siteKey } from './hosts.ts';
 import { isWebUrl, validateTemplate, type OpenOnSite } from './open-on.ts';
 import { MAX_GROUP_NAME, type QuickLink } from './quick-links.ts';
 import { MAX_SEEN, SEEN_KEY, type Seen, type SeenEntry } from './seen.ts';
+import { DETAILS_KEY, detailsFrom, mergeDetails } from './details.ts';
 import { defaultSettings, seedBuiltIns, type Settings } from './storage.ts';
 import { isAccent, isTheme } from './theme.ts';
 import { isTagKey, tagKey, tagsFrom } from './tags.ts';
@@ -78,7 +79,7 @@ export function makeDataFile(sync: Dump, local: Dump, now: number): DataFile {
     version: FILE_VERSION,
     exported: new Date(now).toISOString(),
     sync: keep(sync, (k) => k in defaultSettings || k === SEEDED_KEY || isFavouriteKey(k)),
-    local: keep(local, (k) => k === SEEN_KEY || k === VISITS_KEY || k.startsWith(CC_PREFIX)),
+    local: keep(local, (k) => k === SEEN_KEY || k === VISITS_KEY || k === DETAILS_KEY || k.startsWith(CC_PREFIX)),
   };
 }
 
@@ -139,7 +140,7 @@ const groups = (value: unknown[]) => [...new Set(strings(value).map((g) => g.tri
 /** The settings in a file's sync part, checked one by one; ones missing or of the wrong kind are left out. */
 export function settingsFrom(sync: Dump): Partial<Settings> {
   const out: Partial<Settings> = {};
-  const bool = (key: 'inlineButtons' | 'fieldChip' | 'openInBackground' | 'videoTools' | 'playerKeys' | 'mostVisited' | 'rememberSeen') => {
+  const bool = (key: 'inlineButtons' | 'fieldChip' | 'openInBackground' | 'videoTools' | 'playerKeys' | 'mostVisited' | 'rememberSeen' | 'introSeen') => {
     if (typeof sync[key] === 'boolean') out[key] = sync[key];
   };
   const list = <K extends keyof Settings>(key: K, clean: (value: unknown[]) => Settings[K]) => {
@@ -149,10 +150,11 @@ export function settingsFrom(sync: Dump): Partial<Settings> {
     const n = sync[key];
     if (typeof n === 'number' && Number.isFinite(n)) out[key] = clamp(Math.round(n), min, max);
   };
-  (['inlineButtons', 'fieldChip', 'openInBackground', 'videoTools', 'playerKeys', 'mostVisited', 'rememberSeen'] as const).forEach(bool);
+  (['inlineButtons', 'fieldChip', 'openInBackground', 'videoTools', 'playerKeys', 'mostVisited', 'rememberSeen', 'introSeen'] as const).forEach(bool);
   if (sync.openMode === 'video' || sync.openMode === 'search') out.openMode = sync.openMode;
   if (isTheme(sync.theme)) out.theme = sync.theme;
   if (isAccent(sync.accent)) out.accent = sync.accent;
+  if (sync.listStyle === 'detailed' || sync.listStyle === 'compact') out.listStyle = sync.listStyle;
   list('quickLinks', quickLinks);
   list('linkGroups', groups);
   list('openOnSites', openOnSites);
@@ -295,6 +297,10 @@ export function planImport(file: DataFile, sync: Dump, local: Dump): ImportPlan 
     for (const [site, v] of Object.entries(visitsInFile)) if (!visits[site] || v.at > visits[site].at) visits[site] = v;
     localPatch[VISITS_KEY] = visits;
   }
+
+  // What the codes are (details.ts): the file's are added to the ones here; for a code in both, the later read.
+  const detailsInFile = detailsFrom(file.local[DETAILS_KEY]);
+  if (Object.keys(detailsInFile).length) localPatch[DETAILS_KEY] = mergeDetails(detailsFrom(local[DETAILS_KEY]), detailsInFile);
 
   const choices = Object.entries(subtitleChoices(file.local)).filter(([key]) => !(key in local));
   Object.assign(localPatch, Object.fromEntries(choices));

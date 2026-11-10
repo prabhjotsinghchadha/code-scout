@@ -325,6 +325,85 @@ main {
   color: var(--javtr-on-ui);
 }
 
+/* Guide: plain reading */
+.guide p,
+.guide li,
+.guide dd {
+  line-height: 1.6;
+}
+.guide > p {
+  margin: 6px 0 10px;
+  max-width: 62ch;
+}
+.guide h3 {
+  margin-top: 28px;
+}
+.legend,
+.guide-sites,
+.tips {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.legend .look-mark {
+  flex: none;
+  margin: 0;
+  font-size: 0.72em;
+  transform: translateY(2px);
+}
+.look-mark.heart {
+  background: #7c3aed;
+}
+.look-mark.hash {
+  background: #0d9488;
+}
+.guide-sites li {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-2);
+}
+.guide-sites strong {
+  margin-right: 6px;
+  color: var(--text);
+}
+.glossary {
+  display: grid;
+  gap: 0;
+  margin: 10px 0 0;
+}
+.glossary > div {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 16px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+.glossary dt {
+  font-weight: 600;
+}
+.glossary dd {
+  margin: 0;
+  color: var(--text-2);
+}
+.tips {
+  padding-left: 18px;
+  list-style: disc;
+}
+@media (max-width: 560px) {
+  .glossary > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}
+
 /* Several on show (what the search found): a line between them */
 .searching .card:not([hidden]) ~ .card:not([hidden]) {
   margin-top: 36px;

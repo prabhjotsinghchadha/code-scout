@@ -14,6 +14,7 @@ import {
 import { moveItem } from '../shared/quick-links';
 import { clearSeen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
+import { aboutSite } from '../shared/sites';
 import { subtitleLookVars } from '../shared/subtitles';
 import { ACCENTS, applyTheme, isAccent, isTheme, onPageAccentVars, type Accent } from '../shared/theme';
 import { createTranslators, translatorStatus } from '../shared/translator';
@@ -443,6 +444,24 @@ async function setupAppearance() {
       void save({ theme: r.value });
     });
   });
+
+  // Lists in the popup: what each code is under it, or codes only.
+  document.querySelectorAll<HTMLInputElement>('input[name="listStyle"]').forEach((r) => {
+    r.checked = r.value === settings.listStyle;
+    r.addEventListener('change', () => {
+      if (r.checked && (r.value === 'detailed' || r.value === 'compact')) void save({ listStyle: r.value });
+    });
+  });
+
+  // The Guide's list of where a code can be watched: the user's own sites, each with what it's for.
+  $<HTMLUListElement>('guide-sites').replaceChildren(
+    ...settings.openOnSites.map((site) => {
+      const li = document.createElement('li');
+      const name = Object.assign(document.createElement('strong'), { textContent: site.name });
+      li.append(name, ` ${aboutSite(site.id) ?? 'A site you added.'}`);
+      return li;
+    }),
+  );
 
   const swatches = $<HTMLDivElement>('accents');
   swatches.replaceChildren(

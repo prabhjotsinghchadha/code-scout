@@ -94,7 +94,7 @@ export async function openSiteMenu(
     Object.assign(document.createElement('hr'), { className: 'javtr-menu-sep' }),
   );
   if (openOnSites.length) {
-    el.append(Object.assign(document.createElement('div'), { className: 'javtr-menu-label', textContent: 'Open on' }));
+    el.append(Object.assign(document.createElement('div'), { className: 'javtr-menu-label', textContent: 'Watch on' }));
     for (const site of openOnSites) {
       el.append(item(site.name, () => void sendToBackground({ type: 'OPEN_URLS', urls: [fillTemplate(site.template, code)], code })));
     }
@@ -105,6 +105,11 @@ export async function openSiteMenu(
   } else {
     el.append(item('+ Add sites in Settings…', () => void sendToBackground({ type: 'OPEN_OPTIONS' }), 'javtr-menu-muted'));
   }
+  // Help that's asked for: the Guide says what ▶ ★ ✓ ♥ # are. The last, quiet line; nothing explains itself unasked.
+  el.append(
+    Object.assign(document.createElement('hr'), { className: 'javtr-menu-sep' }),
+    item('What do these marks mean?', () => void sendToBackground({ type: 'OPEN_OPTIONS', section: 'guide' }), 'javtr-menu-muted'),
+  );
 
   el.style.visibility = 'hidden';
   document.documentElement.append(el);

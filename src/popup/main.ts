@@ -1,4 +1,6 @@
-import { codeInUrl, findCodes, formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
+import { codeInUrl, findCodes, formatCode, parseCode, rawSearchUrl, type OpenMode, type VideoCode } from '../shared/codes';
+import { englishName } from '../shared/details';
+import { aboutSite } from '../shared/sites';
 import {
   favouriteError,
   favouriteFor,
@@ -18,6 +20,7 @@ import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { recentSeen, seenAgo, type Seen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { actressRows, setupActresses } from './actresses';
+import { allDetails, detailCard, findKnown, learn, setupDetails, subLine } from './details';
 import { findLinks, renderLinks, setupLinks } from './links';
 import { setupRecent } from './recent';
 import { iconButton, rowActions, rowMain, sortButton } from './rows';
@@ -41,9 +44,15 @@ async function open(code: VideoCode, mode?: OpenMode) {
   window.close();
 }
 
+/** The code in the box: typed ("nsfs484"), or the one a pasted address ends in (".../videos/MD0273"). */
+function typedCode(): VideoCode | null {
+  const text = input.value.trim();
+  return parseCode(text) ?? (/^https?:\/\/\S+$/i.test(text) ? codeInUrl(text) : null);
+}
+
 /** Enter in the box: opens the code in it; with other text, the first thing it found. */
 function openTyped(mode?: OpenMode) {
-  const code = parseCode(input.value);
+  const code = typedCode();
   if (code) void open(code, mode);
   else navItems()[0]?.click();
 }
@@ -143,6 +152,13 @@ function setupKeys() {
       e.preventDefault();
       if (next < 0) input.focus();
       else items[next]?.focus();
+    } else if (at >= 0 && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      // → opens the row's card (what the video is), ← closes it.
+      const more = target.closest('li')?.querySelector<HTMLButtonElement>('.more-btn');
+      if (more && (more.getAttribute('aria-expanded') === 'true') !== (e.key === 'ArrowRight')) {
+        e.preventDefault();
+        more.click();
+      }
     } else if (at >= 0 && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       input.focus(); // the key is typed into the box
     }
@@ -250,7 +266,11 @@ async function saving(change: () => Promise<unknown>) {
 }
 
 const toggleStar = (code: VideoCode, page: FavouritePage | null) =>
-  saving(() => toggleFavourite(code, starred.has(formatCode(code)) ? null : page));
+  saving(async () => {
+    const adding = !starred.has(formatCode(code));
+    await toggleFavourite(code, adding ? page : null);
+    if (adding) learn(code); // a favourite should say what it is
+  });
 
 /** ☆ / ★ for the code in the button's data-code (empty = nothing to star). */
 function paintStar(b: HTMLButtonElement) {
@@ -272,13 +292,13 @@ function starButton(code: VideoCode, page: FavouritePage | null) {
 function setupTypedStar() {
   const btn = $<HTMLButtonElement>('star-btn');
   const update = () => {
-    const code = parseCode(input.value);
+    const code = typedCode();
     btn.disabled = !code;
     btn.dataset.code = code ? formatCode(code) : '';
     paintStar(btn);
   };
   btn.addEventListener('click', () => {
-    const code = parseCode(input.value);
+    const code = typedCode();
     if (code) void toggleStar(code, onPage.has(formatCode(code)) ? tabPage : null);
   });
   input.addEventListener('input', update);
@@ -332,7 +352,7 @@ function pageLink(url: string, title?: string) {
 function favRow(fav: Favourite) {
   let li: HTMLLIElement;
   if (fav.code) {
-    li = codeRow(fav.code, codeLabel(fav.code), null);
+    li = codeRow(fav.code, codeLabel(fav.code), null, fav.url ? { url: fav.url, title: fav.title } : null);
   } else {
     li = document.createElement('li');
     const site = Object.assign(document.createElement('span'), { className: 'code host', textContent: siteKey(fav.url) });
@@ -382,31 +402,34 @@ async function renderFavourites() {
 }
 
 /**
- * A row for a code: click it to open the trailer (▶; a grey ✓ once seen). After it, shown while the row is
- * pointed at or has the focus: Search, Sites (toggles a row of site buttons below it) and ☆.
+ * A row for a code: click it to open the trailer (▶; a grey ✓ once seen). Under it, once known, what the
+ * video is. After it: Search and ☆ (shown while the row is pointed at or has the focus) and a chevron that
+ * opens its card: what it is, who's in it, and where to watch it. `source`: the page it was starred or
+ * seen on, offered in the card.
  */
-function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null): HTMLLIElement {
+function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null, source: FavouritePage | null = null): HTMLLIElement {
   const li = document.createElement('li');
   const name = formatCode(code);
-  const actions = rowActions(iconButton('search', `Search javtrailers.com for ${name}`, 'quiet', () => void open(code, 'search')));
-  let sitesRow: HTMLLIElement | null = null;
-  if (sites.length) {
-    const toggle = iconButton('globe', `Open ${name} on other sites`, 'quiet', () => {
-      if (sitesRow) {
-        sitesRow.remove();
-        sitesRow = null;
-      } else {
-        sitesRow = Object.assign(document.createElement('li'), { className: 'sites' });
-        sitesRow.append(siteRow(() => code));
-        li.after(sitesRow);
-      }
-      toggle.setAttribute('aria-expanded', String(!!sitesRow));
-    });
-    toggle.setAttribute('aria-expanded', 'false');
-    actions.append(toggle);
-  }
-  actions.append(starButton(code, page));
-  li.append(rowMain([icon('play', 10), icon('check', 12)], label, `Open ${name}`, () => void open(code)), actions);
+  let card: HTMLLIElement | null = null;
+  const more = iconButton('chevronDown', `What ${name} is, and where to watch it`, 'more-btn', () => {
+    if (card) {
+      card.remove();
+      card = null;
+    } else {
+      card = detailCard(code, { openLinks, siteRow: (c) => (sites.length ? siteRow(() => c, 'Watch on') : null) }, source);
+      // After the row's own lines (they're part of this <li>), as the next row.
+      li.after(card);
+    }
+    more.setAttribute('aria-expanded', String(!!card));
+    li.classList.toggle('open', !!card);
+  });
+  more.setAttribute('aria-expanded', 'false');
+  const actions = rowActions(
+    iconButton('search', `Search javtrailers.com for ${name}`, 'quiet', () => void open(code, 'search')),
+    starButton(code, page),
+    more,
+  );
+  li.append(rowMain([icon('play', 10), icon('check', 12)], label, `Open the trailer for ${name}`, () => void open(code)), actions, subLine(code));
   return li;
 }
 
@@ -488,7 +511,7 @@ function findSection(title: string, body: HTMLElement, count: number) {
   const head = Object.assign(document.createElement('div'), { className: 'section-head' });
   head.append(
     Object.assign(document.createElement('span'), { className: 'section-title', textContent: title }),
-    Object.assign(document.createElement('span'), { className: 'count', textContent: String(count) }),
+    Object.assign(document.createElement('span'), { className: 'count', textContent: count ? String(count) : '' }),
   );
   box.append(head, body);
   return box;
@@ -506,7 +529,7 @@ function findVideos(has: (...texts: (string | undefined)[]) => boolean): HTMLLIE
   const add = (code: VideoCode, page: FavouritePage | null) => {
     const key = formatCode(code);
     if (rows.has(key) || rows.size >= FIND_MAX) return;
-    const li = codeRow(code, codeLabel(code), page);
+    const li = codeRow(code, codeLabel(code), page, page === tabPage ? null : page);
     const fav = favs.find((f) => f.code && formatCode(f.code) === key);
     const seen = seenCodes[key];
     if (fav?.url) {
@@ -528,13 +551,32 @@ function findVideos(has: (...texts: (string | undefined)[]) => boolean): HTMLLIE
   for (const s of recent) if (has(formatCode(s.code))) add(s.code, seenPage(s));
   for (const f of favs) if (f.code && has(f.title)) add(f.code, null);
   for (const s of recent) if (has(s.title)) add(s.code, seenPage(s));
+  // …and by what the video is, where that's known: its title, who's in it, its studio and series.
+  for (const [key, d] of Object.entries(allDetails())) {
+    const known = parseCode(key);
+    const listed = known && (starred.has(key) || seenCodes[key] || onPage.has(key));
+    if (known && listed && has(d.title, ...d.cast.map((c) => c.name), d.studio?.name, d.series?.name)) {
+      add(known, seenCodes[key]?.url ? { url: seenCodes[key].url!, title: seenCodes[key].title } : null);
+    }
+  }
   return [...rows.values()];
 }
 
 /** Shows what the box's text finds (and, for a code, the buttons that open it), or the tabs when it's empty. */
+/** A result that isn't in any list: chips for the performers, studios or genres of videos looked at. */
+function knownSection(title: string, items: { name: string; url: string }[]) {
+  const row = Object.assign(document.createElement('div'), { className: 'site-row known' });
+  for (const item of items) {
+    const chip = textButton(englishName(item.name), 'chip row-main', () => void openLinks([item.url]));
+    chip.title = `${item.name}\nOpen on javtrailers`;
+    row.append(chip);
+  }
+  return findSection(title, row, items.length);
+}
+
 function paintFind() {
   const raw = input.value.trim();
-  const code = parseCode(raw);
+  const code = typedCode();
   $('go').hidden = !code;
   if (code) $('go-code').textContent = formatCode(code);
   $('clear-btn').hidden = !input.value;
@@ -556,18 +598,33 @@ function paintFind() {
   const pages = favs.filter((f) => !f.code && has(f.title, f.url)).map(favRow);
   if (pages.length) out.push(findSection('Starred pages', rowList(pages), pages.length));
   const actresses = actressRows(raw);
-  if (actresses.length) out.push(findSection('Actresses', rowList(actresses), actresses.length));
+  if (actresses.length) out.push(findSection('Favourite performers', rowList(actresses), actresses.length));
   const tags = tagRows(raw);
-  if (tags.length) out.push(findSection('Tags', rowList(tags), tags.length));
+  if (tags.length) out.push(findSection('Favourite genres', rowList(tags), tags.length));
   const links = findLinks(raw);
   if (links) out.push(findSection('Links', links.list, links.count));
+  // Names met in videos looked at, saved or not: a performer can be found before she's a favourite.
+  if (!code) {
+    const known = findKnown((text) => has(text));
+    // Not the favourites again: they're listed above.
+    const saved = new Set(actresses.map((row) => squash(row.querySelector('.code')?.textContent ?? '')));
+    known.performers = known.performers.filter((p) => !saved.has(squash(englishName(p.name))));
+    if (known.performers.length) out.push(knownSection('Performers in your videos', known.performers));
+    if (known.studios.length) out.push(knownSection('Studios and series', known.studios));
+    if (known.genres.length) out.push(knownSection('Genres', known.genres));
+  }
+  // Never a dead end: what isn't in the lists can be looked for on javtrailers (a code has its own buttons).
+  if (!code) {
+    const li = document.createElement('li');
+    const label = Object.assign(document.createElement('span'), { className: 'code', textContent: `Search javtrailers for “${raw}”` });
+    li.append(rowMain([icon('search', 12)], label, 'Opens javtrailers.com’s search in a new tab', () => void openLinks([rawSearchUrl(raw)]), 'plain'));
+    out.push(findSection(out.length ? 'Not what you wanted?' : 'Nothing in your lists', rowList([li]), 0));
+  }
   box.replaceChildren(...out);
   $('panel-find').scrollTop = 0;
 
   $('find-empty').hidden = out.length > 0;
-  $('find-empty-text').textContent = code
-    ? `${formatCode(code)} isn’t in your lists yet. Press Enter to open it.`
-    : `Nothing in your lists matches “${raw}”. To open a video, type its code, like NSFS-484.`;
+  $('find-empty-text').textContent = code ? `${formatCode(code)} isn’t in your lists yet. Press Enter to open its trailer.` : '';
 }
 
 let sites: OpenOnSite[] = [];
@@ -580,7 +637,11 @@ function siteRow(getCode: () => VideoCode | null, label?: string): HTMLDivElemen
     const code = getCode();
     if (code) void openLinks(targets.map((s) => fillTemplate(s.template, code)), code);
   };
-  for (const site of sites) row.append(textButton(site.name, 'chip', () => go([site])));
+  for (const site of sites) {
+    const chip = textButton(site.name, 'chip', () => go([site]));
+    chip.title = aboutSite(site.id) ?? `Open it on ${site.name}`; // what the site is for (sites.ts)
+    row.append(chip);
+  }
   if (sites.length > 1) row.append(textButton(`All ${sites.length}`, 'chip all', () => go(sites)));
   return row;
 }
@@ -589,8 +650,8 @@ function siteRow(getCode: () => VideoCode | null, label?: string): HTMLDivElemen
 function setupTypedSites() {
   const row = $('typed-sites');
   if (!sites.length) return;
-  row.replaceChildren(...siteRow(() => parseCode(input.value), 'On').childNodes);
-  const update = () => (row.hidden = !parseCode(input.value));
+  row.replaceChildren(...siteRow(typedCode, 'Watch on').childNodes);
+  const update = () => (row.hidden = !typedCode());
   input.addEventListener('input', update);
   update();
 }
@@ -682,19 +743,41 @@ async function init() {
     paintFavsCounts();
   };
   // Favourites before the page's codes, so their stars are right.
+  document.body.classList.toggle('compact', settings.listStyle === 'compact');
+  await setupDetails(); // before any row is drawn: rows say what their codes are
   await Promise.all([renderFavourites(), setupActresses(openLinks, countActresses), setupTags(openLinks, countTags)]);
   onFavouritesChanged(() => void renderFavourites());
   setupStarPage();
   setupTypedStar();
   setupSiteToggles(settings, tab);
   if (settings.rememberSeen) {
-    void setupRecent({ row: (code, page) => codeRow(code, codeLabel(code, false), page), pageLink, onChange: onSeenCodes });
+    void setupRecent({ row: (code, page) => codeRow(code, codeLabel(code, false), page, page), pageLink, onChange: onSeenCodes });
   } else {
     $('tab-recent').hidden = true;
   }
 
   await setupLinks(settings, tab, openLinks);
   if (input.value) paintFind(); // typed while the lists were loading
+
+  const openGuide = () => {
+    void sendToBackground({ type: 'OPEN_OPTIONS', section: 'guide' });
+    window.close();
+  };
+  $('open-guide').addEventListener('click', openGuide);
+  // "New here?": once, for an install that has nothing yet. Either button closes it for good, everywhere
+  // (a synced setting); installs from before the card never see it (the background marks them).
+  if (!settings.introSeen && !favs.length && !actressCount && !tagCount && !Object.keys(seenCodes).length) {
+    const seen = () => {
+      $('intro').hidden = true;
+      void setSettings({ introSeen: true });
+    };
+    $('intro').hidden = false;
+    $('intro-close').addEventListener('click', seen);
+    $('intro-guide').addEventListener('click', () => {
+      seen();
+      openGuide();
+    });
+  }
 
   for (const id of ['open-options', 'add-links']) {
     $(id).addEventListener('click', (e) => {

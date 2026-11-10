@@ -16,8 +16,8 @@
           <input
             id="code-input"
             type="text"
-            placeholder="Code, or search your lists"
-            aria-label="A video code, or text to find in your lists"
+            placeholder="Search, or type a video code"
+            aria-label="Search your lists, or type a video’s code to open it"
             autocomplete="off"
             spellcheck="false"
             autofocus
@@ -26,18 +26,33 @@
             <i data-icon="x" data-size="14"></i>
           </button>
         </form>
+        <button type="button" id="open-guide" class="icon-btn" title="Guide: what things mean and how Code Scout works" aria-label="Guide">
+          <i data-icon="help"></i>
+        </button>
         <button type="button" id="open-options" class="icon-btn" title="Settings" aria-label="Settings">
           <i data-icon="settings"></i>
         </button>
       </header>
 
+      <!-- Once, for a new install with nothing saved: where to begin. Closing it is remembered for good. -->
+      <section id="intro" class="intro" aria-label="New here?" hidden>
+        <p>
+          <strong>New here?</strong> Every video has a code, like <span class="code id">NSFS-484</span>. Type one above to open its
+          trailer, or search for anything. On websites, <span class="intro-mark">▶&#xFE0E;</span> next to a code does the same.
+        </p>
+        <div class="intro-actions">
+          <button type="button" id="intro-guide" class="btn primary sm">Show me around</button>
+          <button type="button" id="intro-close" class="btn ghost sm">Got it</button>
+        </div>
+      </section>
+
       <!-- Shown while the box holds a code: open it, search for it, star it, or open it on another site. -->
       <section id="go" class="go" aria-label="The code you typed" hidden>
         <div class="go-main">
-          <button type="button" id="go-open" class="btn primary" title="Open the video page (Enter)">
-            <i data-icon="play" data-size="12"></i><span>Open <span id="go-code" class="code id"></span></span><kbd>↵</kbd>
+          <button type="button" id="go-open" class="btn primary" title="Open its trailer and details on javtrailers.com (Enter)">
+            <i data-icon="play" data-size="12"></i><span>Trailer for <span id="go-code" class="code id"></span></span><kbd>↵</kbd>
           </button>
-          <button type="button" id="search-btn" class="btn" title="Search javtrailers.com (Shift+Enter)">
+          <button type="button" id="search-btn" class="btn" title="Search javtrailers.com for it: lists close matches too (Shift+Enter)">
             <i data-icon="search" data-size="14"></i>Search
           </button>
           <button type="button" id="star-btn" class="icon-btn star" title="Add to favourites" aria-label="Add to favourites" disabled></button>
@@ -78,15 +93,15 @@
         <ul id="codes" class="list"></ul>
         <div id="empty" class="empty" hidden>
           <i data-icon="search" data-size="28"></i>
-          <p>No codes on this page.<br />Type one in the box above.</p>
+          <p>No video codes on this page.<br />Search above, or type a code like NSFS-484.</p>
         </div>
       </section>
 
       <section id="panel-favs" class="panel" role="tabpanel" aria-labelledby="tab-favs" hidden>
         <div class="group-pills fav-kinds" role="toolbar" aria-label="Favourites">
           <button type="button" id="favs-kind-videos" class="gpill" aria-pressed="true">Videos <span id="favs-videos-count" class="count"></span></button>
-          <button type="button" id="favs-kind-actresses" class="gpill" aria-pressed="false">Actresses <span id="favs-actresses-count" class="count"></span></button>
-          <button type="button" id="favs-kind-tags" class="gpill" aria-pressed="false">Tags <span id="favs-tags-count" class="count"></span></button>
+          <button type="button" id="favs-kind-actresses" class="gpill" aria-pressed="false">Performers <span id="favs-actresses-count" class="count"></span></button>
+          <button type="button" id="favs-kind-tags" class="gpill" aria-pressed="false">Genres <span id="favs-tags-count" class="count"></span></button>
           <span class="spacer"></span>
           <button type="button" id="fav-page" class="link-btn" hidden></button>
           <button type="button" id="favs-sort-videos" class="icon-btn sort-btn"></button>
@@ -98,7 +113,7 @@
           <ul id="favs" class="list"></ul>
           <div id="favs-empty" class="empty" hidden>
             <i data-icon="star" data-size="28"></i>
-            <p>Star a code, or this page, to keep it here.</p>
+            <p>Press ☆ on a video, or star this page, to keep it here.</p>
           </div>
         </div>
 
@@ -106,16 +121,16 @@
           <form id="actress-form" class="add-bar">
             <div class="field sm">
               <i data-icon="plus" data-size="14"></i>
-              <input id="actress-input" type="search" placeholder="Add an actress" aria-label="Find or add an actress" maxlength="60" autocomplete="off" spellcheck="false" />
+              <input id="actress-input" type="search" placeholder="Add a performer by name" aria-label="Find or add a performer" maxlength="60" autocomplete="off" spellcheck="false" />
             </div>
-            <button type="submit" id="actress-add" class="btn sm" title="Add this name to your favourite actresses" disabled>Add</button>
+            <button type="submit" id="actress-add" class="btn sm" title="Add this name to your favourite performers" disabled>Add</button>
           </form>
           <p id="actress-error" class="error pad" hidden></p>
           <ul id="actresses" class="list"></ul>
-          <p id="actresses-none" class="none" hidden>No saved actress matches. Press Enter to add her.</p>
+          <p id="actresses-none" class="none" hidden>No saved performer matches. Press Enter to add her.</p>
           <div id="actresses-empty" class="empty" hidden>
             <i data-icon="star" data-size="28"></i>
-            <p>Right-click an actress’s name link and pick<br />“Add this actress to favourites”, or type her name above.</p>
+            <p>Open a video’s card (the arrow on its row) and press ♥ by a performer,<br />or type her name above.</p>
           </div>
         </div>
 
@@ -123,16 +138,16 @@
           <form id="tag-form" class="add-bar">
             <div class="field sm">
               <i data-icon="plus" data-size="14"></i>
-              <input id="tag-input" type="search" placeholder="Add a tag, like NTR" aria-label="Find or add a tag" maxlength="60" autocomplete="off" spellcheck="false" />
+              <input id="tag-input" type="search" placeholder="Add a genre, like Drama" aria-label="Find or add a genre" maxlength="60" autocomplete="off" spellcheck="false" />
             </div>
-            <button type="submit" id="tag-add" class="btn sm" title="Add this tag to your favourites" disabled>Add</button>
+            <button type="submit" id="tag-add" class="btn sm" title="Add this genre to your favourites" disabled>Add</button>
           </form>
           <p id="tag-error" class="error pad" hidden></p>
           <ul id="tags" class="list"></ul>
-          <p id="tags-none" class="none" hidden>No saved tag matches.</p>
+          <p id="tags-none" class="none" hidden>No saved genre matches.</p>
           <div id="tags-empty" class="empty" hidden>
             <i data-icon="star" data-size="28"></i>
-            <p>Right-click a tag link (…/tags/ntr, …/category/affair)<br />and pick “Add this tag to favourites”, or type one above.</p>
+            <p>Open a video’s card (the arrow on its row) and press # by a genre,<br />or type one above.</p>
           </div>
         </div>
       </section>

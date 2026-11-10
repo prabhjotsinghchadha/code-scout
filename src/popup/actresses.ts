@@ -61,7 +61,7 @@ function row(actress: Actress) {
   const main = url
     ? rowMain([icon('heart', 11)], name, `Open ${actress.name}’s page`, () => void openLinks([url]), 'heart')
     : rowMain([icon('heart', 11)], name, `Search javtrailers.com for ${actress.name}`, search, 'heart');
-  const remove = iconButton('starFilled', 'Remove from favourite actresses', 'star on', () => void saving(() => removeActress(actress.name)));
+  const remove = iconButton('starFilled', 'Remove from favourite performers', 'star on', () => void saving(() => removeActress(actress.name)));
   const actions = url
     ? rowActions(iconButton('search', `Search javtrailers.com for ${actress.name}`, 'quiet', search), remove)
     : rowActions(remove);
@@ -91,7 +91,7 @@ function paint() {
   const name = cleanName(typed);
   const add = $<HTMLButtonElement>('actress-add');
   add.disabled = !name || actresses.some((a) => nameKey(a.name) === nameKey(name));
-  $('actresses-none').textContent = add.disabled ? 'No saved actress matches.' : 'No saved actress matches. Press Enter to add her.';
+  $('actresses-none').textContent = add.disabled ? 'No saved performer matches.' : 'No saved performer matches. Press Enter to add her.';
 }
 
 async function render(list?: Actress[]) {

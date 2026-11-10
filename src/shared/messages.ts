@@ -1,5 +1,6 @@
 // Typed messages passed between popup, background and content scripts.
 import type { OpenMode, VideoCode } from './codes';
+import type { VideoDetails } from './details';
 import type { FoundSubtitle } from './subtitle-cat';
 import type { OcrLine } from './subtitles';
 import type { SubtitleLang } from './translator';
@@ -17,7 +18,15 @@ export type Message =
    * the code they open (e.g. on "Open on" sites), noted as seen.
    */
   | { type: 'OPEN_URLS'; urls: string[]; code?: VideoCode }
-  | { type: 'OPEN_OPTIONS' }
+  /** Open Settings; `section`: at that section ("guide"). */
+  | { type: 'OPEN_OPTIONS'; section?: string }
+  /**
+   * What a code is (details.ts): from what's kept, else read from javtrailers now. Only sent when the user
+   * asks: a row expanded or a code starred in the popup.
+   */
+  | { type: 'GET_DETAILS'; code: VideoCode }
+  /** A javtrailers video page the user is on: the parts of it the details are read from (no request made). */
+  | { type: 'PAGE_DETAILS'; html: string }
   /** Pop-up blocker: the user is about to open a new tab themselves (Ctrl/middle-click, a same-site link). */
   | { type: 'ALLOW_NEW_TAB'; ms: number }
   /** Pop-up blocker: something was blocked on the sender's page (counted on the toolbar badge). */
@@ -51,6 +60,8 @@ export interface MessageResponses {
   GET_CONTEXT_LINK: ContextLink | null;
   OPEN_URLS: { ok: true };
   OPEN_OPTIONS: { ok: true };
+  GET_DETAILS: DetailsResult;
+  PAGE_DETAILS: { ok: true };
   ALLOW_NEW_TAB: { ok: true };
   POPUP_BLOCKED: { ok: true };
   OCR_STRIP: OcrResult;
@@ -80,6 +91,7 @@ export interface SubtitleChoice extends FoundSubtitle {
   fileUrl: string;
   english: boolean;
 }
+export type DetailsResult = { details: VideoDetails } | { error: string };
 export type FindSubtitlesResult = { choices: SubtitleChoice[] } | { error: string };
 export type SubtitleFileResult = { text: string } | { error: string };
 /** The top page's "Save as" for a frame: the file's name, with the token that pairs the frame's channel to it. */

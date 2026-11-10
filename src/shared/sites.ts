@@ -154,3 +154,25 @@ export const SITES: Site[] = [
     pages: [{ id: 'home', label: 'All sites', path: '/', group: 'More sites' }],
   },
 ];
+
+/**
+ * What each built-in site is for, in a line: shown where sites are listed (the popup's "Watch on", the
+ * Guide), so their names needn't be known. Sites the user adds have none.
+ */
+const ABOUT: Record<string, string> = {
+  javtrailers: 'Trailers and details for every release: title, performers, studio, genres. Where Code Scout opens a code',
+  missav: 'Full videos to stream; has an English-subtitle section',
+  javlibrary: 'A database, no videos: every release with its performers, ratings and comments',
+  javmost: 'Full videos to stream',
+  javtiful: 'Full videos to stream',
+  javguru: 'Full videos to stream; has an English-subbed section',
+  jable: 'Full videos to stream',
+  supjav: 'Full videos to stream; has an English-subtitle section',
+  bestjavporn: 'Full videos to stream; has an English-subtitle section',
+  sextb: 'Full videos to stream',
+};
+
+/** What the built-in site with this id is for, if it's one of them. */
+export function aboutSite(id: string): string | undefined {
+  return Object.hasOwn(ABOUT, id) ? ABOUT[id] : undefined;
+}

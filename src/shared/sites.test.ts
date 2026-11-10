@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateTemplate } from './open-on.ts';
 import { BUILT_INS, builtInKeys, LEGACY_KEYS } from './seed.ts';
-import { GROUPS, SITES } from './sites.ts';
+import { aboutSite, GROUPS, SITES } from './sites.ts';
 
 const dupes = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
 
@@ -51,4 +51,11 @@ test('every key in the old-version table still exists in the registry', () => {
   const keys = new Set(builtInKeys(BUILT_INS));
   assert.deepEqual(LEGACY_KEYS.filter((k) => !keys.has(k)), []);
   assert.deepEqual(dupes(LEGACY_KEYS), []);
+});
+
+test('every site a code can be opened on says what it is for', () => {
+  for (const site of SITES.filter((s) => s.openOn)) assert.ok(aboutSite(site.id), site.id);
+  assert.ok(aboutSite('javtrailers'));
+  assert.equal(aboutSite('toString'), undefined);
+  assert.equal(aboutSite('my-own-site'), undefined);
 });

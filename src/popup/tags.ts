@@ -75,7 +75,7 @@ function row(tag: Tag) {
     : `Search javtrailers.com for ${tag.name}`;
   li.append(
     rowMain(['#'], name, openLabel, () => openAll(tag), 'hash'),
-    rowActions(iconButton('starFilled', 'Remove from favourite tags', 'star on', () => void saving(() => removeTag(tag.name)))),
+    rowActions(iconButton('starFilled', 'Remove from favourite genres', 'star on', () => void saving(() => removeTag(tag.name)))),
   );
   if (tag.pages.length) {
     const chips = Object.assign(document.createElement('div'), { className: 'tag-pages' });
@@ -136,7 +136,7 @@ export async function setupTags(open: (urls: string[]) => unknown, count: (n: nu
     e.preventDefault();
     const name = cleanName(input().value);
     if (!name) {
-      $('tag-error').textContent = 'Type a tag, like NTR or Cheating Wife.';
+      $('tag-error').textContent = 'Type a genre, like Drama.';
       $('tag-error').hidden = false;
       return;
     }
