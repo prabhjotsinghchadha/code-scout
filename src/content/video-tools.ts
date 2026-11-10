@@ -17,6 +17,7 @@
 // Buttons get their clicks through the click shield (markUi/onUi), so the site's ad scripts never see them.
 import { formatCode } from '../shared/codes';
 import { shortDuration } from '../shared/range-fetch';
+import { nextSpeed } from '../shared/speed';
 import { CcMenu, pageCode } from './cc-menu';
 import { SubtitleReader, type StatusKind } from './subs';
 import { button, markUi, onActivate } from './ui-events';
@@ -46,10 +47,6 @@ const OVERLAP_CHECK_MS = 600;
 const GAP = 8;
 /** A seek, speed or mute message: gone quickly, like a player's own. */
 const FLASH_MS = 1400;
-/** Speed: « and » (and the < and > keys) change it by this much, between these. */
-const SPEED_STEP = 0.25;
-const MIN_SPEED = 0.25;
-const MAX_SPEED = 4;
 /** One frame, for , and . (the frame rate isn't known; most videos here are 30 a second). */
 const FRAME_SEC = 1 / 30;
 
@@ -477,15 +474,19 @@ class VideoUi {
   }
 
   private setSpeed(rate: number) {
-    this.video.playbackRate = rate;
+    try {
+      this.video.playbackRate = rate;
+    } catch {
+      // A speed this browser won't play: the video stays as it was, and the button says what that is.
+    }
+    rate = this.video.playbackRate;
     this.onState(); // the button says it now, not when the video reports the change
     this.flash(`Speed: ${speedName(rate)}×`);
   }
 
   /** « and »: a step slower or faster, from wherever the site's own menu left it. */
   private stepSpeed(direction: 1 | -1) {
-    const next = Math.round((this.video.playbackRate + direction * SPEED_STEP) * 100) / 100;
-    this.setSpeed(Math.min(MAX_SPEED, Math.max(MIN_SPEED, next)));
+    this.setSpeed(nextSpeed(this.video.playbackRate, direction));
   }
 
   /** The number between them: back to normal speed, or from normal back to the speed it was at. */
