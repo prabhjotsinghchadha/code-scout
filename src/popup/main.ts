@@ -1,4 +1,4 @@
-import { codeInUrl, findCodes, formatCode, parseCode, rawSearchUrl, type OpenMode, type VideoCode } from '../shared/codes';
+import { codeInUrl, findCodes, formatCode, parseCode, type OpenMode, type VideoCode } from '../shared/codes';
 import { englishName } from '../shared/details';
 import { aboutSite } from '../shared/sites';
 import {
@@ -20,6 +20,7 @@ import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { getLater, isLater, onLaterChanged, setLater, type Later } from '../shared/later';
 import { recentSeen, seenAgo, type Seen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
+import { availableUpdate, dismissUpdate } from '../shared/update';
 import { actressRows, setupActresses } from './actresses';
 import { allDetails, detailCard, findKnown, learn, setupDetails, subLine } from './details';
 import { findLinks, renderLinks, setupLinks } from './links';
@@ -28,11 +29,31 @@ import { facetsOf, matchesFacet, type Facet } from './filter';
 import { filterButton, iconButton, rowActions, rowMain, sortButton } from './rows';
 import { PAGE_SORTS, sortByTime, sortPageCodes, storedSort, storeSort, TIME_SORTS, type PageSort, type TimeSort } from './sort';
 import { setupTags, tagRows } from './tags';
+import { webSection } from './web';
 
 followLook();
 hydrateIcons();
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+// Hide what's being watched (background/hide.ts); an open eye while tabs are hidden, to bring them back.
+{
+  const hideBtn = $<HTMLButtonElement>('hide-btn');
+  const KEY = 'hiddenTabs'; // HIDDEN_KEY in background/hide.ts
+  void Promise.all([chrome.storage.session.get(KEY), chrome.commands.getAll()]).then(([stored, commands]) => {
+    const hidden = !!stored[KEY];
+    const shortcut = commands.find((c) => c.name === 'hide-watching')?.shortcut;
+    const label = hidden ? 'Bring back the hidden tabs' : 'Hide what you’re watching: pause, mute, tabs out of sight';
+    hideBtn.title = shortcut ? `${label} (${shortcut})` : label;
+    hideBtn.setAttribute('aria-label', label);
+    if (hidden) hideBtn.replaceChildren(icon('eye'));
+    hideBtn.classList.toggle('accent', hidden);
+  });
+  hideBtn.addEventListener('click', () => {
+    void sendToBackground({ type: 'TOGGLE_HIDDEN' }).catch(() => {});
+    window.close();
+  });
+}
 
 const form = $<HTMLFormElement>('search');
 const input = $<HTMLInputElement>('code-input');
@@ -457,16 +478,12 @@ async function renderFavourites() {
 }
 
 /**
- * A row for a code: click it to open the trailer (▶; a grey ✓ once seen). Under it, once known, what the
- * video is. After it: Search and ☆ (shown while the row is pointed at or has the focus) and a chevron that
- * opens its card: what it is, who's in it, and where to watch it. `source`: the page it was starred or
- * seen on, offered in the card.
+ * The chevron after a code's row: opens its card under `li` (what it is, who's in it, where to watch it),
+ * and closes it again. `source`: the page it was starred, seen or found on, offered in the card.
  */
-function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null, source: FavouritePage | null = null): HTMLLIElement {
-  const li = document.createElement('li');
-  const name = formatCode(code);
+function moreButton(li: HTMLLIElement, code: VideoCode, source: FavouritePage | null): HTMLButtonElement {
   let card: HTMLLIElement | null = null;
-  const more = iconButton('chevronDown', `What ${name} is, and where to watch it`, 'more-btn', () => {
+  const more = iconButton('chevronDown', `What ${formatCode(code)} is, and where to watch it`, 'more-btn', () => {
     if (card) {
       card.remove();
       card = null;
@@ -489,6 +506,19 @@ function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null
     li.classList.toggle('open', !!card);
   });
   more.setAttribute('aria-expanded', 'false');
+  return more;
+}
+
+/**
+ * A row for a code: click it to open the trailer (▶; a grey ✓ once seen). Under it, once known, what the
+ * video is. After it: Search and ☆ (shown while the row is pointed at or has the focus) and a chevron that
+ * opens its card: what it is, who's in it, and where to watch it. `source`: the page it was starred or
+ * seen on, offered in the card.
+ */
+function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null, source: FavouritePage | null = null): HTMLLIElement {
+  const li = document.createElement('li');
+  const name = formatCode(code);
+  const more = moreButton(li, code, source);
   const actions = rowActions(
     iconButton('search', `Search javtrailers.com for ${name}`, 'quiet', () => void open(code, 'search')),
     starButton(code, page),
@@ -678,17 +708,19 @@ function paintFind() {
     if (known.studios.length) out.push(knownSection('Studios and series', known.studios));
     if (known.genres.length) out.push(knownSection('Genres', known.genres));
   }
-  // Never a dead end: what isn't in the lists can be looked for on javtrailers (a code has its own buttons).
-  if (!code) {
-    const li = document.createElement('li');
-    const label = Object.assign(document.createElement('span'), { className: 'code', textContent: `Search javtrailers for “${raw}”` });
-    li.append(rowMain([icon('search', 12)], label, 'Opens javtrailers.com’s search in a new tab', () => void openLinks([rawSearchUrl(raw)]), 'plain'));
-    out.push(findSection(out.length ? 'Not what you wanted?' : 'Nothing in your lists', rowList([li]), 0));
-  }
+  // Never a dead end: what isn't in the lists can be looked for on a site, and picked from here (web.ts).
+  const listed = out.length;
+  out.push(
+    webSection(code ? formatCode(code) : raw.slice(0, 100), {
+      openLinks,
+      codeLabel,
+      actions: (li, c, page) => [starButton(c, page), moreButton(li, c, page)],
+    }),
+  );
   box.replaceChildren(...out);
   $('panel-find').scrollTop = 0;
 
-  $('find-empty').hidden = out.length > 0;
+  $('find-empty').hidden = listed > 0 || !code;
   $('find-empty-text').textContent = code ? `${formatCode(code)} isn’t in your lists yet. Press Enter to open its trailer.` : '';
 }
 
@@ -774,6 +806,23 @@ function setupSiteToggles(settings: Settings, tab: chrome.tabs.Tab | undefined) 
 
 /** Wait this long for the page's codes before picking the starting tab without them. */
 const CODES_WAIT_MS = 400;
+
+/** "Version x is out": this copy is loaded from a folder, so Chrome never updates it by itself. */
+async function showUpdate() {
+  const release = await availableUpdate().catch(() => null);
+  if (!release) return;
+  $('update-version').textContent = release.version;
+  $('update-current').textContent = chrome.runtime.getManifest().version;
+  $('update').hidden = false;
+  $('update-get').addEventListener('click', () => {
+    void chrome.tabs.create({ url: release.url });
+    window.close();
+  });
+  $('update-close').addEventListener('click', () => {
+    $('update').hidden = true;
+    void dismissUpdate(release.version);
+  });
+}
 
 async function init() {
   setupTabs();
@@ -878,6 +927,8 @@ async function init() {
       openGuide();
     });
   }
+
+  void showUpdate();
 
   for (const id of ['open-options', 'add-links']) {
     $(id).addEventListener('click', (e) => {

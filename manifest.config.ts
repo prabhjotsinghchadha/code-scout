@@ -1,8 +1,18 @@
 import { defineManifest } from '@crxjs/vite-plugin';
 import pkg from './package.json' with { type: 'json' };
 
-export default defineManifest({
+// The copy shared with other people (`npm run release`) carries a fixed public key, so it has the same
+// extension ID (nmnkppdmepnlhdbicgkhegamnapkgmnb) wherever its folder is unzipped: without one, Chrome
+// derives the ID of an unpacked extension from its folder's path, and moving or renaming the folder
+// starts again with empty storage. Only in release mode: a folder already loaded without the key (a
+// developer's dist/) would change ID, and lose its data, the moment the key appeared.
+// No private key is kept: one is only needed to pack a .crx, which Chrome doesn't install anyway.
+const RELEASE_KEY =
+  'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvlkNXvpOv0auvcF+3ZiOu5M039mzcS+o8OPNgAY5LGfmWauANLWoqou4XAKU4F9rgTK7H1Dge7NhDarFLm2JNdk/uXKqnDEUEz9q7bW6VL3rZnhU89D1f8oVp0EkBtNQgxdnjPWLXL84xYnqJvVyXO7BHHN7y2Pz+7eBzs0p1hRXrEzEfyxDefWOaUUUTL4sN+rwQ5DfF8TubijxkwBKwireX+hGo3BYZedIuQJqAguR+C3IpHptxvBzLrUTDADuoi0yrNOerFh2zpjWqIAsee8IvNQqj/4NssEgUVSTjsO6xMIVUwIF6DIK8xt9R7g3mW4aZ1M6RX6xrC7XBjQlkQIDAQAB';
+
+export default defineManifest(({ mode }) => ({
   manifest_version: 3,
+  ...(mode === 'release' ? { key: RELEASE_KEY } : {}),
   name: 'Code Scout',
   description: 'Spot catalogue codes on any page and open them in one click, with favourites, quick links and video tools.',
   version: pkg.version,
@@ -66,9 +76,13 @@ export default defineManifest({
       suggested_key: { default: 'Alt+Shift+K' },
       description: 'Search trailers for the selected or typed code',
     },
+    'hide-watching': {
+      suggested_key: { default: 'Alt+Shift+H' },
+      description: 'Hide what you’re watching (pause, mute, tabs out of sight); again to bring it back',
+    },
     'open-on-all': {
       suggested_key: { default: 'Alt+Shift+L' },
       description: 'Open the selected or typed code on all your "Open on" sites',
     },
   },
-});
+}));

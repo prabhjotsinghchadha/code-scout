@@ -26,6 +26,9 @@
             <i data-icon="x" data-size="14"></i>
           </button>
         </form>
+        <button type="button" id="hide-btn" class="icon-btn" title="Hide what you’re watching" aria-label="Hide what you’re watching">
+          <i data-icon="eyeOff"></i>
+        </button>
         <button type="button" id="open-guide" class="icon-btn" title="Guide: what things mean and how Code Scout works" aria-label="Guide">
           <i data-icon="help"></i>
         </button>
@@ -43,6 +46,15 @@
         <div class="intro-actions">
           <button type="button" id="intro-guide" class="btn primary sm">Show me around</button>
           <button type="button" id="intro-close" class="btn ghost sm">Got it</button>
+        </div>
+      </section>
+
+      <!-- A newer version is on the releases page (this copy isn't updated by Chrome). Closing it holds until the next one. -->
+      <section id="update" class="intro update" aria-label="Update available" hidden>
+        <p><strong>Version <span id="update-version"></span> is out.</strong> You have <span id="update-current"></span>.</p>
+        <div class="intro-actions">
+          <button type="button" id="update-get" class="btn primary sm" title="Open its page: download the zip, unzip it over your Code Scout folder, then press reload on chrome://extensions">Get it</button>
+          <button type="button" id="update-close" class="btn ghost sm">Not now</button>
         </div>
       </section>
 

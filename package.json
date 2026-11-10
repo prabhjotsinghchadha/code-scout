@@ -9,7 +9,7 @@
     "prebuild": "node scripts/prepare-ocr.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "zip": "npm run build && cd dist && zip -r ../extension.zip .",
+    "release": "node scripts/release.mjs",
     "test": "node --test \"src/**/*.test.ts\""
   },
   "devDependencies": {

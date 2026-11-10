@@ -12,7 +12,9 @@ import { addVisit, siteOf, VISITS_KEY, type Visits } from '../shared/visits';
 import { sendToTab, type ContextLink, type DetailsResult, type Message, type OcrResult, type OffscreenMessage, type SaveAnswer, type TranslateResult } from '../shared/messages';
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
+import { toggleHidden } from './hide';
 import { findSubtitles, getSubtitleFile } from './subtitle-search';
+import { webSearch } from './web-search';
 
 const MENU_OPEN = 'open-trailer-selection';
 const MENU_SEARCH = 'search-trailer-selection';
@@ -477,6 +479,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
   // Works on any tab, the ones no content script runs on too.
+  if (command === 'hide-watching') return toggleHidden();
   if (tab?.id === undefined) return;
   try {
     const { code, text } = await sendToTab(tab.id, { type: 'GET_ACTIVE_CODE' });
@@ -563,6 +566,11 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
       return true;
     case 'PAGE_DETAILS':
       return reply(keepPageDetails(String(message.html).slice(0, 80_000), sender).catch(() => {}));
+    case 'WEB_SEARCH':
+      void webSearch(message.source, message.text).then(sendResponse);
+      return true;
+    case 'TOGGLE_HIDDEN':
+      return reply(toggleHidden());
     case 'ALLOW_NEW_TAB':
       if (sender.tab?.id !== undefined) {
         const id = sender.tab.id;

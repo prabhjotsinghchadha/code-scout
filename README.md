@@ -4,19 +4,40 @@ Spot video codes like `NSFS-484` on any website and open their trailer on javtra
 
 The extension's visible name and wording are kept neutral: *Code Scout*, *Search trailers*, and the bookmarks folder *Code Scout favourites*.
 
+## Install
+
+Code Scout isn't on the Chrome Web Store. It is installed from a folder, which takes a minute:
+
+1. Download `code-scout-v….zip` from the [latest release](https://github.com/prabhjotsinghchadha/code-scout/releases/latest) and unzip it. You get a folder called `code-scout`. Put it somewhere it can stay (not Downloads): Chrome runs the extension from that folder.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and pick the `code-scout` folder.
+
+Works the same in Edge, Brave and other Chromium browsers. Chrome may now and then ask whether to keep developer-mode extensions on: keep them.
+
+### Updating
+
+Chrome doesn't update an extension installed this way. The popup shows **Version … is out** when there is a newer release (it asks GitHub once a day, and sends nothing about you):
+
+1. Press **Get it** and download the new zip.
+2. Unzip it over the same `code-scout` folder, replacing the files.
+3. On `chrome://extensions`, press the reload arrow on Code Scout.
+
+Your favourites and settings stay. Don't press **Remove** to update: removing the extension deletes its data (favourites are also kept in the bookmarks folder *Code Scout favourites*, and Settings can save everything to a file).
+
 ## Features
 
 - **Type a code anywhere** — type `NSFS-484` (or `nsfs00484`) into any search box, comment field or editor on any site and a small chip appears under it: **▶ Open** or **Search**. Esc hides it.
 - **▶ buttons on pages** — a small button appears next to every code shown on a page (also on content loaded later).
 - **Open on other sites** — open any code on MissAV, JavLibrary, JavMost, Javtiful, Jav Guru, Jable, SupJav, BestJavPorn, SexTB (or sites you add with a `{code}` URL pattern): chip → *Sites ▾*, right-click a ▶ button, right-click menu → *Open “…” on*, the popup, or `Alt+Shift+L` for all sites at once.
 - **Keyboard shortcuts** — select a code, or put the caret on one in a text box: `Alt+Shift+J` opens the trailer, `Alt+Shift+K` searches, `Alt+Shift+L` opens it on all your sites. Change them at `chrome://extensions/shortcuts`.
+- **Hide what you're watching** — someone walks in: press `Alt+Shift+H` (or the eye button at the top of the popup). Every video in every tab pauses and leaves full screen and picture-in-picture; the tabs you were watching are muted and moved out of the tab strip into a minimised window showing a blank page. Press it again and they're back in the same windows and places, still paused, with the video where you left it. Hidden: the tab in front, tabs on your sites (javtrailers.com, your quick links' and "Open on" sites, sites with the pop-up blocker on), tabs playing sound or a video, and video pages (a code in the address or title). Your other tabs stay as they are.
 - **Right-click menu** — on selected text: *Open trailer for "…"* / *Search trailers for "…"*. On links: *Open trailer for this link* takes the code from the link's address (`/videos/MD0273`, `/…/start-656-subs-…`), else from its text, its image's caption or the card it sits in (SexTB's `JUR-628-RM` badge, a SupJav title), so sites whose links are just an ID (`sextb.net/4ym025gij`, `supjav.com/312345.html`) work too. It never guesses a code from an ID's letters and digits; a link with no code anywhere searches javtrailers.com for its title.
 - **What a video is** — a code alone says little, so the popup says what it stands for. The arrow at the end of a video's row (or →) opens its card: cover, title, release date and length, its performers, studio, series and genres, *More NSFS releases* (the same label), and **Watch on** with your sites, each saying what it's for. Click a performer, studio or genre to see more of it on javtrailers; press ♥ by a performer or # by a genre to keep it in your favourites. Once a video has been looked up, its row shows its title, performers and studio under the code, and the box finds it by any of them. The details are read from the video's page on javtrailers.com only when you ask: when you open a card or star a video in the popup, or when you're on its javtrailers page yourself (then from the page you're looking at, with no request). Nothing is fetched for codes that are merely listed. The last 400 are kept on this computer and are in the backup file. *Lists in the popup* under Settings → Appearance switches between *Detailed* (this) and *Compact* (codes only); nothing is out of reach in either.
 - **Watch later** — a list apart from the favourites, for videos you mean to get to: *Watch later* in a video's card, or in the ▶ button's right-click menu on a page. They're in the popup under **Favourites → Later** (newest first; × takes one off). Kept on this computer (the last 500) and in the backup file.
 - **Filters** — the funnel above Favourites, Later and Recent narrows the list to one label (the code's letters), performer or studio, picked from what the list has most of; the chip beside it shows what it's narrowed to and clears it. Performers and studios are offered for videos that have been looked up. Recent, by time, is in days (Today, Yesterday, Monday, 3 November). A video's card also has *Copy code*.
 - **Starting points** — a new install's Links tab begins with a **Start here** group on javtrailers (new releases, genres, performers, studios, series, the release calendar) and the subtitle and site lists; the groups by taste that earlier installs came with (Cheating, Cuckold, NTR) aren't given to new ones, and an earlier install's links are left exactly as they are. Once you have favourites that have been looked up, the Links tab also shows **From your favourites**: the performers and studios you've starred most, each a click from their page.
 - **Guide** — the **?** in the popup, or Settings → Guide: what a code is and how to read one, what ▶ ★ ✓ ♥ # mean, where things open and what each site is for, and the words you'll run into (label, studio, series, censored, subtitled, NTR…). It's there when you want it; nothing explains itself unasked. A new install with nothing saved gets one "New here?" card at the top of the popup; either of its buttons closes it for good, on all your devices, and installs from before it never see it.
-- **Popup** — one box at the top. Type a code and press Enter to open it (Shift+Enter searches; the buttons under the box also star it or open it on your other sites). Type anything else and it finds it in every list at once: codes on the page, favourites and seen codes (by code, page title, or the video's title, performers and studio once looked up), starred pages, favourite performers and genres, quick links, and the performers, studios and genres of videos you've looked at. The last result is always *Search javtrailers for “…”*, so a name or a word you haven't saved still leads somewhere. A pasted address that ends in a code counts as that code. Enter opens the first match, Esc clears the box. With the box empty, pick a tab: **This page** (every code on the current page), **Favourites**, **Recent** (codes you've seen) or **Links** (your quick links). It opens on This page when the page has codes, otherwise on the tab you used last. Click a row to open it: ▶ for a code (a grey ✓ once you've seen it), ♥ for a performer, # for a genre; Search and ☆ show after the row while you point at it, and the arrow opens its card. ↓ and ↑ move between the box and the rows. Along the bottom, the site you're on and its switches: *Buttons*, *Pop-ups* (block them) and *Video* (video tools). A video page whose address ends in its code (`18jav.tv/videos/MD0273`, `missav.ws/en/nsfs-484`) lists that code too, even when the page never writes it as `MD-0273`, so you can open or star it. On a tab opened before Code Scout was installed or updated, the popup reads the page itself, so This page still lists its codes; reload the tab for the ▶ buttons and video tools.
+- **Popup** — one box at the top. Type a code and press Enter to open it (Shift+Enter searches; the buttons under the box also star it or open it on your other sites). Type anything else and it finds it in every list at once: codes on the page, favourites and seen codes (by code, page title, or the video's title, performers and studio once looked up), starred pages, favourite performers and genres, quick links, and the performers, studios and genres of videos you've looked at. The last section is always **On the web**: *Search javtrailers for “…”* lists what the site finds right in the popup (cover, code, title), and a click opens that video's page; the pills in its heading switch the site searched between javtrailers and Jav Guru (remembered). Nothing is sent to a site until you press that row. Results with a code have ☆ and the card arrow like any other row. A pasted address that ends in a code counts as that code. Enter opens the first match, Esc clears the box. With the box empty, pick a tab: **This page** (every code on the current page), **Favourites**, **Recent** (codes you've seen) or **Links** (your quick links). It opens on This page when the page has codes, otherwise on the tab you used last. Click a row to open it: ▶ for a code (a grey ✓ once you've seen it), ♥ for a performer, # for a genre; Search and ☆ show after the row while you point at it, and the arrow opens its card. ↓ and ↑ move between the box and the rows. Along the bottom, the site you're on and its switches: *Buttons*, *Pop-ups* (block them) and *Video* (video tools). A video page whose address ends in its code (`18jav.tv/videos/MD0273`, `missav.ws/en/nsfs-484`) lists that code too, even when the page never writes it as `MD-0273`, so you can open or star it. On a tab opened before Code Scout was installed or updated, the popup reads the page itself, so This page still lists its codes; reload the tab for the ▶ buttons and video tools.
 - **Favourite videos** — star a code with ☆ from the ▶ button's right-click menu, the chip, the popup (after a code's row, or under the box for the one you type), or right-click → *Add “…” to favourites*. To star the page you're on, even one with no code, use *Star this page* in the popup's Favourites tab or right-click the page → *Add this page to favourites* (if its address ends in a code, like `/videos/MD0273`, that code is starred with the page). A copy is kept in the bookmarks folder *Code Scout favourites* (a folder from before the rename, *JAV Trailer Opener favourites*, is found and renamed), which stays when the extension is removed: after a reinstall, or whenever you have no favourites, they come back from it (with bookmark sync on, the folder is in your Google account too). Un-starring removes its bookmark; nothing else is taken out of the folder. Starred codes show as ★ on pages and in the popup's **Favourites** list (newest first) with Search and Sites, plus a link back to the page you starred them on (only saved when the code is shown on that page, not just typed). Favourites sync across your Chrome devices; about 500 fit.
 - **Seen codes** — codes you open from Code Scout (Open, Search, Open on), and codes whose video page you visit (an address ending in the code, like `missav.ws/en/nsfs-484`; search pages don't count), get a grey ✓ instead of ▶ on pages, so the ones you haven't watched stand out (a favourite keeps its ★). Point at the ✓, or right-click it, to see when. The popup's **Recent** tab lists them newest first with when, the page you saw each one on, Search, Sites and ☆, and × to forget one; codes in This page and Favourites get a ✓ too. Past the 100 most recent, the popup's box finds the rest. Kept on this computer only (the last 2,000), never from incognito windows; switch it off or clear it in Settings → On pages.
 - **Favourite performers** — right-click an actress's name link (her page, like `/actresses/…`, `/casts/…`, `/models/…`, `/actress/…`, `/star/…`) → *Add this performer to favourites*, select a name and right-click → *Add “…” to favourite performers*, or type a name into the popup's **Favourites → Performers** box and press Enter. Click one to open the page you saved her from, or to search javtrailers.com for her name. Wherever a favourite actress's name appears on a page (either name order, e.g. *Mikami Yua*), a violet ♥ follows it (a heart, so it isn't mistaken for a starred code's ★); click it to open her page. The ♥ marks come and go with the ▶ buttons. Actresses sync like the favourite videos (sharing the ~500 limit) and are backed up in an *Actresses* folder inside *Code Scout favourites*.
@@ -49,6 +70,7 @@ public/icons/          # Extension icons (placeholders)
 public/theme-boot.js   # Puts the look on an extension page before it's drawn
 src/
   background/          # Service worker
+  background/hide.ts   # Hide what you're watching, and bring it back; shared/hide.ts picks the tabs (unit-tested)
   content/             # Content scripts (run on web pages)
   content/shield.iife.ts  # Runs at document_start: hides clicks on our UI from page scripts
   content/popup-block.iife.ts  # Pop-up blocker, page side (registered per site at runtime)
@@ -126,5 +148,20 @@ npm test
 
 ```bash
 npm run build    # outputs dist/
-npm run zip      # builds and creates extension.zip for the Chrome Web Store
 ```
+
+## Releasing a version
+
+Code Scout is shared as a zip on GitHub Releases (see [Install](#install)).
+
+1. Raise `version` in `package.json`.
+2. Build the zip, then publish it with a tag `v` + that version (the notice compares the tag with the installed version):
+
+```bash
+npm run release  # outputs release/code-scout-v<version>.zip
+gh release create v0.2.0 release/code-scout-v0.2.0.zip --title "Code Scout 0.2.0" --notes "What changed"
+```
+
+The notice reads the releases of `RELEASES_REPO` in `src/shared/update.ts`.
+
+The release build goes to `release/`, not `dist/`, and its manifest carries a fixed `key`, so everyone's copy has the same extension ID wherever the folder is (and keeps its data when the folder moves). `dist/` has no key on purpose: adding one to a folder already loaded in Chrome changes its ID and empties its storage.

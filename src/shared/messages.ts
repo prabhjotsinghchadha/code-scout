@@ -4,6 +4,7 @@ import type { VideoDetails } from './details';
 import type { FoundSubtitle } from './subtitle-cat';
 import type { OcrLine } from './subtitles';
 import type { SubtitleLang } from './translator';
+import type { SearchSource, WebResult } from './web-search';
 
 export type Message =
   /** Open a code; `mode` overrides the "Open" setting (e.g. 'search' for the Search buttons). */
@@ -27,6 +28,10 @@ export type Message =
   | { type: 'GET_DETAILS'; code: VideoCode }
   /** A javtrailers video page the user is on: the parts of it the details are read from (no request made). */
   | { type: 'PAGE_DETAILS'; html: string }
+  /** The popup's box: what a site's own search lists for `text` (background/web-search.ts). Only when asked. */
+  | { type: 'WEB_SEARCH'; source: SearchSource; text: string }
+  /** Hide what's being watched (pause, mute, tabs out of sight), or bring it back: background/hide.ts. */
+  | { type: 'TOGGLE_HIDDEN' }
   /** Pop-up blocker: the user is about to open a new tab themselves (Ctrl/middle-click, a same-site link). */
   | { type: 'ALLOW_NEW_TAB'; ms: number }
   /** Pop-up blocker: something was blocked on the sender's page (counted on the toolbar badge). */
@@ -62,6 +67,8 @@ export interface MessageResponses {
   OPEN_OPTIONS: { ok: true };
   GET_DETAILS: DetailsResult;
   PAGE_DETAILS: { ok: true };
+  WEB_SEARCH: WebSearchResult;
+  TOGGLE_HIDDEN: { ok: true };
   ALLOW_NEW_TAB: { ok: true };
   POPUP_BLOCKED: { ok: true };
   OCR_STRIP: OcrResult;
@@ -92,6 +99,7 @@ export interface SubtitleChoice extends FoundSubtitle {
   english: boolean;
 }
 export type DetailsResult = { details: VideoDetails } | { error: string };
+export type WebSearchResult = { results: WebResult[] } | { error: string };
 export type FindSubtitlesResult = { choices: SubtitleChoice[] } | { error: string };
 export type SubtitleFileResult = { text: string } | { error: string };
 /** The top page's "Save as" for a frame: the file's name, with the token that pairs the frame's channel to it. */
