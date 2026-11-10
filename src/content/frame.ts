@@ -4,6 +4,7 @@
 import { isSiteOff } from '../shared/hosts';
 import { sendToBackground } from '../shared/messages';
 import { getSettings, onSettingsChanged, type Settings } from '../shared/storage';
+import { applyPageAccent } from '../shared/theme';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
 import { setPlayerKeys, setVideoTools } from './video-auto';
 
@@ -23,6 +24,7 @@ if (window !== window.top && /^https?:$/.test(location.protocol)) {
   const apply = (settings: Settings) => {
     const offHere = (sites: string[]) => isSiteOff(page, sites) || isSiteOff(location.hostname, sites);
     const videoTools = settings.videoTools && !offHere(settings.videoOffSites);
+    if (videoTools) applyPageAccent(settings.accent); // the toolbar's colour
     setVideoTools(videoTools);
     setPlayerKeys(videoTools && settings.playerKeys);
     if (isSiteOff(page, settings.popupBlockSites)) {

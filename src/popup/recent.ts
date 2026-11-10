@@ -4,6 +4,8 @@ import { formatCode, type VideoCode } from '../shared/codes';
 import type { FavouritePage } from '../shared/favourites';
 import { icon } from '../shared/icons';
 import { forgetSeenCode, getSeen, onSeenChanged, recentSeen, seenAgo, type Seen, type SeenCode } from '../shared/seen';
+import { sortButton } from './rows';
+import { sortByTime, storedSort, storeSort, TIME_SORTS, type TimeSort } from './sort';
 
 /** Rows shown at most; the box at the top of the popup searches every seen code. */
 const SHOW = 100;
@@ -22,6 +24,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 export async function setupRecent({ row, pageLink, onChange }: RecentOptions): Promise<void> {
   const list = $<HTMLUListElement>('recent');
   let seen = await getSeen();
+  let sort: TimeSort = storedSort('recent', TIME_SORTS);
 
   const recentRow = (s: SeenCode) => {
     const li = row(s.code, s.url ? { url: s.url, title: s.title } : null);
@@ -45,13 +48,20 @@ export async function setupRecent({ row, pageLink, onChange }: RecentOptions): P
   };
 
   const paint = () => {
-    const all = recentSeen(seen);
+    const all = sortByTime(recentSeen(seen), sort, (s) => s.at, (s) => s.code);
     list.replaceChildren(...all.slice(0, SHOW).map(recentRow));
     $('recent-empty').hidden = all.length > 0;
+    $('recent-head').hidden = all.length < 2; // nothing to sort
+    $('recent-title').textContent = `${all.length.toLocaleString()} codes seen`;
     const more = $('recent-more');
     more.hidden = all.length <= SHOW;
-    more.textContent = `The ${SHOW} most recent of ${all.length.toLocaleString()}. Search above to find the others.`;
+    more.textContent = `The first ${SHOW} of ${all.length.toLocaleString()}. Search above to find the others.`;
   };
+  sortButton($<HTMLButtonElement>('recent-sort'), TIME_SORTS, () => sort, (value) => {
+    sort = value;
+    storeSort('recent', value);
+    paint();
+  });
 
   onSeenChanged((next) => {
     seen = next;

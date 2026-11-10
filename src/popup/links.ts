@@ -1,7 +1,8 @@
-// The popup's Links tab: group pills, "Most visited", and the quick links as tiles. Right-click a tile (or
-// use its ⋯) to rename it, move it to another group or remove it. The box at the top of the popup finds
-// links by name, address or group (findLinks).
-import { icon, type IconName } from '../shared/icons';
+// The popup's Links tab: the sites opened most as a row of big icons, then the quick links as rows under
+// their group (a group folds away; which ones are folded is remembered). Drag a row by its handle to
+// reorder it or move it to another group; right-click it (or use its ⋯) to rename, move or remove it. The
+// box at the top of the popup finds links by name, address or group (findLinks).
+import { icon } from '../shared/icons';
 import { openMenu } from '../shared/menu';
 import {
   addGroup,
@@ -19,6 +20,8 @@ import { siteIcon } from '../shared/site-icon';
 import { SITES } from '../shared/sites';
 import { defaultLinkName, getSettings, normalizeUrl, setSettings, type Settings } from '../shared/storage';
 import { mostVisitedLinks, VISITS_KEY, type Visits } from '../shared/visits';
+import { sortButton } from './rows';
+import { LINK_SORTS, sortLinks, storedSort, storeSort, type LinkSort } from './sort';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: object = {}) =>
@@ -26,34 +29,52 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: object = {}) =
 
 /** What the links without a group are called. */
 const OTHER = 'Other links';
-/** The pill picked last ("" = All), a per-browser convenience kept in localStorage. */
-const PILL_KEY = 'linksGroup';
-const ALL = '';
+/** The groups folded away ("" = the links without a group), a per-browser convenience kept in localStorage. */
+const FOLDED_KEY = 'linksFolded';
+/** The group "Add page" last saved to. */
+const LAST_GROUP_KEY = 'linksGroup';
 /** Ask before opening more tabs than this at once. */
 const CONFIRM_OVER = 8;
 
 let state: LinkState = { quickLinks: [], linkGroups: [] };
 let visits: Visits = {};
 let showMostVisited = true;
-let pill = ALL;
+let sort: LinkSort = 'mine';
+let folded = new Set<string>();
 let openLinks: (urls: string[]) => unknown = () => {};
 /** Called after every change, e.g. to update "Add page". */
 let onChange = () => {};
+/** The link being dragged (its URL), while a drag is on. */
+let dragging: string | null = null;
 
-function storedPill(): string {
+function stored(key: string): string | null {
   try {
-    return localStorage.getItem(PILL_KEY) ?? ALL;
+    return localStorage.getItem(key);
   } catch {
-    return ALL;
+    return null;
   }
 }
-function setPill(group: string) {
-  pill = group;
+function store(key: string, value: string) {
   try {
-    localStorage.setItem(PILL_KEY, group);
+    localStorage.setItem(key, value);
   } catch {
-    // Storage unavailable; the pill just won't be remembered.
+    // Storage unavailable; it just won't be remembered.
   }
+}
+
+function storedFolded(): Set<string> {
+  try {
+    const list: unknown = JSON.parse(stored(FOLDED_KEY) ?? '[]');
+    return new Set(Array.isArray(list) ? list.filter((g): g is string => typeof g === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function setFolded(group: string, fold: boolean) {
+  if (fold) folded.add(group);
+  else folded.delete(group);
+  store(FOLDED_KEY, JSON.stringify([...folded]));
   render();
 }
 
@@ -96,13 +117,14 @@ function showUndo(text: string, undo: () => void) {
   undoTimer = window.setTimeout(() => bar.classList.remove('show'), 5000);
 }
 
-// --- Tiles ---
+// --- Rows ---
 /** Renames in place. `pageOnly` selects just the page's part of "Site · Page", ready to type over. */
-function renameTile(tile: HTMLElement, link: QuickLink, pageOnly = false) {
-  const title = tile.querySelector<HTMLElement>('.tile-title')!;
-  const input = el('input', { type: 'text', className: 'tile-rename', value: link.name, maxLength: 80 });
+function renameRow(row: HTMLElement, link: QuickLink, pageOnly = false) {
+  const title = row.querySelector<HTMLElement>('.link-title')!;
+  const input = el('input', { type: 'text', className: 'link-rename', value: link.name, maxLength: 80 });
   input.setAttribute('aria-label', 'Link name');
   title.replaceWith(input);
+  row.querySelector('.link-host')?.remove();
   input.focus();
   const dot = link.name.indexOf(' · ');
   if (pageOnly && dot > 0) input.setSelectionRange(dot + 3, link.name.length);
@@ -134,19 +156,17 @@ function renameTile(tile: HTMLElement, link: QuickLink, pageOnly = false) {
   });
 }
 
-/** After "Add page": shows the new link's tile and opens its name to edit, so it can say what the page is. */
+/** After "Add page": shows the new link's row and opens its name to edit, so it can say what the page is. */
 function renameAdded(link: QuickLink) {
-  const group = groupOf(state, link) ?? ALL; // links without a group show under All
-  if (pill !== ALL && pill !== group) setPill(group);
+  const group = groupOf(state, link) ?? '';
+  if (folded.has(group)) setFolded(group, false);
   else render();
-  // The last match: "Most visited" (first, under All) may list the same page.
-  const tile = [...$('links').querySelectorAll<HTMLAnchorElement>('.tile-link')]
-    .filter((a) => a.getAttribute('href') === link.url)
-    .at(-1)
-    ?.closest<HTMLElement>('.tile');
-  if (!tile) return;
-  tile.scrollIntoView({ block: 'nearest' });
-  renameTile(tile, link, true);
+  const row = [...$('links').querySelectorAll<HTMLAnchorElement>('.link-row > .link-main')]
+    .find((a) => a.getAttribute('href') === link.url)
+    ?.closest<HTMLElement>('.link-row');
+  if (!row) return;
+  row.scrollIntoView({ block: 'nearest' });
+  renameRow(row, link, true);
 }
 
 function removeLink(link: QuickLink) {
@@ -155,13 +175,13 @@ function removeLink(link: QuickLink) {
   showUndo(`Removed “${linkLabel(link).title}”`, () => void commit(before));
 }
 
-function tileMenu(tile: HTMLElement, link: QuickLink, at: DOMRect | { x: number; y: number }, opener?: HTMLElement) {
+function rowMenu(row: HTMLElement, link: QuickLink, at: DOMRect | { x: number; y: number }, opener?: HTMLElement) {
   const current = groupOf(state, link);
   openMenu(
     at,
     [
       { label: 'Open', icon: 'external', onClick: () => void openLinks([link.url]) },
-      { label: 'Rename', icon: 'pencil', onClick: () => renameTile(tile, link) },
+      { label: 'Rename', icon: 'pencil', onClick: () => renameRow(row, link) },
       'separator',
       { heading: 'Move to' },
       ...[...state.linkGroups, null].map((g) => ({
@@ -176,15 +196,16 @@ function tileMenu(tile: HTMLElement, link: QuickLink, at: DOMRect | { x: number;
   );
 }
 
-/** A link's tile. `bySite` titles it with the site's name ("FapHouse") rather than the page's ("Japanese"). */
-function tile(link: QuickLink, bySite = false): HTMLDivElement {
-  const { host, ...label } = linkLabel(link);
-  const title = bySite ? link.name.split(' · ')[0] : label.title;
-  const box = el('div', { className: 'tile' });
-  const a = el('a', { className: 'tile-link', href: link.url, title: `${link.name}\n${link.url}` });
-  const text = el('span', { className: 'tile-text' });
-  text.append(el('span', { className: 'tile-title', textContent: title }), el('span', { className: 'tile-host', textContent: host }));
-  a.append(siteIcon(link, 18), text);
+/**
+ * A link's row: its site's icon, the page's name, the site, and ⋯. `movable`: with a handle to drag it by
+ * (only it starts a drag: the row is made draggable while the handle is held, as in Settings).
+ */
+function linkRow(link: QuickLink, movable = false): HTMLLIElement {
+  const { title, host } = linkLabel(link);
+  const row = el('li', { className: 'link-row' });
+  row.dataset.url = link.url;
+  const a = el('a', { className: 'link-main', href: link.url, title: `${link.name}\n${link.url}` });
+  a.append(siteIcon(link, 18), el('span', { className: 'link-title', textContent: title }), el('span', { className: 'link-host', textContent: host }));
   const open = (e: MouseEvent) => {
     e.preventDefault();
     void openLinks([link.url]);
@@ -193,105 +214,188 @@ function tile(link: QuickLink, bySite = false): HTMLDivElement {
   a.addEventListener('auxclick', (e) => e.button === 1 && open(e));
   a.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    tileMenu(box, link, { x: e.clientX, y: e.clientY }, a);
+    rowMenu(row, link, { x: e.clientX, y: e.clientY }, a);
   });
   a.addEventListener('keydown', (e) => {
     if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
       e.preventDefault();
-      tileMenu(box, link, a.getBoundingClientRect(), a);
+      rowMenu(row, link, a.getBoundingClientRect(), a);
     }
   });
-  const more = el('button', { type: 'button', className: 'tile-more', title: 'Rename, move or remove' });
+  a.draggable = false; // the row is dragged by its handle, not as a link
+  const more = el('button', { type: 'button', className: 'icon-btn quiet link-more', title: 'Rename, move or remove' });
   more.setAttribute('aria-label', `More for ${title}`);
   more.append(icon('more', 14));
-  more.addEventListener('click', () => tileMenu(box, link, more.getBoundingClientRect(), more));
-  box.append(a, more);
+  more.addEventListener('click', () => rowMenu(row, link, more.getBoundingClientRect(), more));
+
+  if (movable) {
+    const grip = el('span', { className: 'link-grip quiet', title: 'Drag to reorder, or onto another group' });
+    grip.setAttribute('aria-hidden', 'true');
+    grip.append(icon('grip', 14));
+    grip.addEventListener('pointerdown', () => {
+      row.draggable = true;
+      addEventListener('pointerup', () => (row.draggable = false), { once: true });
+    });
+    row.addEventListener('dragstart', (e) => {
+      dragging = link.url;
+      e.dataTransfer!.effectAllowed = 'move';
+      e.dataTransfer!.setData('text/plain', link.url);
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => {
+      row.draggable = false;
+      endDrag();
+    });
+    row.append(grip);
+  }
+  row.append(a, more);
+  return row;
+}
+
+// --- Dragging a row: onto a row (before or after it) or onto a group's card (to its end) ---
+function clearDropMarks() {
+  $('links')
+    .querySelectorAll('.drop-before, .drop-after, .drop-into')
+    .forEach((n) => n.classList.remove('drop-before', 'drop-after', 'drop-into'));
+}
+
+function endDrag() {
+  dragging = null;
+  clearDropMarks();
+  $('links')
+    .querySelectorAll('.dragging')
+    .forEach((n) => n.classList.remove('dragging'));
+}
+
+/** Where a drop at this point would put the dragged link: what to mark, and the list it would make. */
+function dropTarget(e: DragEvent): { mark: HTMLElement; className: string; next: LinkState } | null {
+  if (!dragging) return null;
+  const over = e.target instanceof Element ? e.target : null;
+  const card = over?.closest<HTMLElement>('.link-group');
+  if (!card) return null;
+  const group = card.dataset.group || null;
+  const row = over?.closest<HTMLElement>('.link-row');
+  if (row?.dataset.url && row.dataset.url !== dragging) {
+    const r = row.getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    // After a row is before the next one; after the last one is the end of the group.
+    const before = after ? (row.nextElementSibling as HTMLElement | null)?.dataset.url ?? null : row.dataset.url;
+    if (before === dragging) return null; // where it already is
+    return { mark: row, className: after ? 'drop-after' : 'drop-before', next: placeLink(state, dragging, group, before) };
+  }
+  if (row) return null; // over itself
+  return { mark: card, className: 'drop-into', next: placeLink(state, dragging, group, null) };
+}
+
+function setupDrag() {
+  const root = $('links');
+  root.addEventListener('dragover', (e) => {
+    const target = dropTarget(e);
+    clearDropMarks();
+    if (!target) return;
+    e.preventDefault(); // a drop is allowed here
+    e.dataTransfer!.dropEffect = 'move';
+    target.mark.classList.add(target.className);
+  });
+  root.addEventListener('dragleave', (e) => {
+    if (!(e.relatedTarget instanceof Node) || !root.contains(e.relatedTarget)) clearDropMarks();
+  });
+  root.addEventListener('drop', (e) => {
+    const target = dropTarget(e);
+    if (!target) return;
+    e.preventDefault();
+    endDrag();
+    if (target.next !== state) void commit(target.next);
+  });
+}
+
+// --- What's drawn ---
+function rowList(links: QuickLink[], movable = false) {
+  const ul = el('ul', { className: 'link-rows' });
+  ul.append(...links.map((l) => linkRow(l, movable)));
+  return ul;
+}
+
+/** "Most visited": a big icon and the site's name for each, one click away. */
+function dial(links: QuickLink[]) {
+  const box = el('div', { className: 'dial' });
+  box.setAttribute('aria-label', 'Most visited');
+  for (const link of links) {
+    const name = link.name.split(' · ')[0] || linkLabel(link).host;
+    const a = el('a', { className: 'dial-item link-main', href: link.url, title: `${name}\n${link.url}` });
+    a.append(siteIcon(link, 28), el('span', { className: 'dial-name', textContent: name }));
+    const open = (e: MouseEvent) => {
+      e.preventDefault();
+      void openLinks([link.url]);
+    };
+    a.addEventListener('click', open);
+    a.addEventListener('auxclick', (e) => e.button === 1 && open(e));
+    box.append(a);
+  }
   return box;
 }
 
-function grid(links: QuickLink[], bySite = false) {
-  const g = el('div', { className: 'tile-grid' });
-  g.append(...links.map((l) => tile(l, bySite)));
-  return g;
-}
-
-function section(title: string, links: QuickLink[], opts: { icon?: IconName; openAll?: boolean; bySite?: boolean } = {}) {
-  const box = el('section', { className: 'link-section' });
-  const head = el('div', { className: 'section-head' });
-  if (opts.icon) head.append(icon(opts.icon, 14));
-  head.append(el('span', { className: 'section-title', textContent: title }));
-  head.append(el('span', { className: 'count', textContent: String(links.length) }));
-  if (opts.openAll !== false && links.length > 1) {
-    const all = el('button', { type: 'button', className: 'link-btn', textContent: 'Open all' });
+/** A group's card: its name (click to fold it away), how many, Open all, and its rows. */
+function groupCard(group: string | null, links: QuickLink[]) {
+  const key = group ?? '';
+  const isFolded = folded.has(key);
+  const card = el('section', { className: 'link-group' });
+  card.dataset.group = key;
+  const head = el('div', { className: 'link-group-head' });
+  const toggle = el('button', { type: 'button', className: 'link-group-toggle' });
+  toggle.setAttribute('aria-expanded', String(!isFolded));
+  toggle.title = isFolded ? 'Show these links' : 'Fold these links away';
+  toggle.append(
+    icon(isFolded ? 'chevronRight' : 'chevronDown', 14),
+    el('span', { className: 'link-group-name', textContent: group ?? OTHER }),
+    el('span', { className: 'count', textContent: String(links.length) }),
+  );
+  toggle.addEventListener('click', () => setFolded(key, !isFolded));
+  head.append(toggle);
+  if (links.length > 1) {
+    const all = el('button', { type: 'button', className: 'link-btn quiet', textContent: 'Open all' });
     all.title = `Open all ${links.length} in new tabs`;
     all.addEventListener('click', () => openAll(links));
     head.append(all);
   }
-  box.append(head, grid(links, opts.bySite));
-  return box;
+  card.append(head);
+  if (!isFolded) card.append(rowList(sortLinks(links, sort, visits, Date.now()), sort === 'mine'));
+  return card;
 }
 
-function pillButton(label: string, count: number, value: string) {
-  const b = el('button', { type: 'button', className: 'gpill' });
-  b.setAttribute('aria-pressed', String(pill === value));
-  b.append(label, el('span', { className: 'count', textContent: String(count) }));
-  b.addEventListener('click', () => setPill(value));
-  return b;
-}
-
-/** Scrolls the pill row (it scrolls sideways) so the chosen pill shows. */
-function pillInView() {
-  const pills = $('group-pills');
-  const active = pills.querySelector<HTMLElement>('[aria-pressed="true"]');
-  if (!active || !pills.clientWidth) return; // not laid out yet: the tab is hidden
-  const left = active.offsetLeft - pills.offsetLeft;
-  if (left < pills.scrollLeft || left + active.offsetWidth > pills.scrollLeft + pills.clientWidth) pills.scrollLeft = left - 24;
-}
-
-/** The links matching `text` as a grid of tiles, for the popup's search box. Null if none do. */
-export function findLinks(text: string): { grid: HTMLElement; count: number } | null {
+/** The links matching `text` as rows, for the popup's search box. Null if none do. */
+export function findLinks(text: string): { list: HTMLElement; count: number } | null {
   const q = squash(text);
   const found = q ? state.quickLinks.filter((l) => matches(l, q)) : [];
-  return found.length ? { grid: grid(found), count: found.length } : null;
+  return found.length ? { list: rowList(found), count: found.length } : null;
 }
 
-/** Draws the Links tab. Left until the tab is on show: the tiles read each site's icon. */
+/** Draws the Links tab. Left until the tab is on show: the rows read each site's icon. */
 export function renderLinks() {
   render();
 }
 
 function render() {
   if ($('panel-links').hidden) return;
-  const sections = groupLinks(state).filter((s) => s.links.length);
-  const named = sections.filter((s) => s.group !== null);
-  const other = sections.find((s) => s.group === null);
-  if (pill !== ALL && !named.some((s) => s.group === pill)) pill = ALL;
-
-  $('links-empty').hidden = state.quickLinks.length > 0;
-  const pills = $('group-pills');
-  pills.hidden = named.length === 0;
-  pills.replaceChildren(
-    pillButton('All', state.quickLinks.length, ALL),
-    ...named.map((s) => pillButton(s.group!, s.links.length, s.group!)),
-  );
-  pillInView();
+  const count = state.quickLinks.length;
+  $('links-title').textContent = count === 1 ? '1 link' : `${count} links`;
+  $('links-empty').hidden = count > 0;
+  $('links-sort').hidden = count < 2;
 
   const out: HTMLElement[] = [];
-  if (pill !== ALL) {
-    const s = named.find((x) => x.group === pill)!;
-    out.push(section(s.group!, s.links));
-  } else {
-    const top = showMostVisited ? mostVisitedLinks(state.quickLinks, visits, Date.now()) : [];
-    if (top.length) out.push(section('Most visited', top, { icon: 'trending', openAll: false, bySite: true }));
-    for (const s of named) out.push(section(s.group!, s.links));
-    if (other) out.push(named.length || top.length ? section(OTHER, other.links) : grid(other.links));
-  }
+  const top = showMostVisited ? mostVisitedLinks(state.quickLinks, visits, Date.now()) : [];
+  if (top.length > 1) out.push(dial(top));
+  const sections = groupLinks(state);
+  // Named groups in their order (one with no links still shows, so links can be dragged into it), then
+  // the links without a group.
+  for (const s of sections) if (s.group !== null) out.push(groupCard(s.group, s.links));
+  for (const s of sections) if (s.group === null && s.links.length) out.push(groupCard(null, s.links));
   $('links').replaceChildren(...out);
 }
 
 const NEW_GROUP = '\u0000new';
 
-/** "Add page": activeTab gives us the current tab's URL/title while the popup is open. */
+/** "Add this page": activeTab gives us the current tab's URL/title while the popup is open. */
 function setupAddPage(tab: chrome.tabs.Tab | undefined) {
   const btn = $<HTMLButtonElement>('add-page');
   const form = $<HTMLFormElement>('add-page-form');
@@ -308,7 +412,7 @@ function setupAddPage(tab: chrome.tabs.Tab | undefined) {
     const added = state.quickLinks.some((l) => l.url === url);
     btn.disabled = added;
     btn.title = added ? 'This page is in your quick links' : 'Save the page you’re on as a quick link';
-    btn.replaceChildren(icon(added ? 'check' : 'plus', 14), added ? 'Added' : 'Add page');
+    btn.replaceChildren(icon(added ? 'check' : 'plus', 14), added ? 'Page added' : 'Add this page');
   };
   mark();
   onChange = mark;
@@ -325,7 +429,8 @@ function setupAddPage(tab: chrome.tabs.Tab | undefined) {
       ...state.linkGroups.map((g) => new Option(g, g)),
       new Option('+ New group…', NEW_GROUP),
     );
-    select.value = pill; // the group being looked at
+    const last = stored(LAST_GROUP_KEY) ?? '';
+    select.value = state.linkGroups.includes(last) ? last : ''; // the group saved to last time
     newGroup.hidden = true;
     newGroup.value = '';
     showForm(true);
@@ -352,6 +457,7 @@ function setupAddPage(tab: chrome.tabs.Tab | undefined) {
       group = newGroup.value.trim();
       next = addGroup(next, group);
     }
+    store(LAST_GROUP_KEY, group);
     const link: QuickLink = { name: suggestLinkName(url, tab.title ?? '', next.quickLinks, SITES), url, ...(group && { group }) };
     showForm(false);
     void commit(appendLink(next, link));
@@ -363,29 +469,21 @@ export async function setupLinks(settings: Settings, tab: chrome.tabs.Tab | unde
   state = { quickLinks: settings.quickLinks, linkGroups: settings.linkGroups };
   showMostVisited = settings.mostVisited;
   openLinks = open;
-  pill = storedPill();
-  if (showMostVisited) {
-    try {
-      visits = (await chrome.storage.local.get<{ [VISITS_KEY]: Visits }>({ [VISITS_KEY]: {} }))[VISITS_KEY];
-    } catch {
-      visits = {};
-    }
+  folded = storedFolded();
+  sort = storedSort('links', LINK_SORTS);
+  // For "Most visited" at the top, and for sorting by it.
+  try {
+    visits = (await chrome.storage.local.get<{ [VISITS_KEY]: Visits }>({ [VISITS_KEY]: {} }))[VISITS_KEY];
+  } catch {
+    visits = {};
   }
 
-  // The Links tab may be hidden at first; once it shows, bring the chosen pill into view.
-  new ResizeObserver(pillInView).observe($('group-pills'));
-  // A mouse wheel scrolls the pill row sideways.
-  $('group-pills').addEventListener(
-    'wheel',
-    (e) => {
-      const row = e.currentTarget as HTMLElement;
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || row.scrollWidth <= row.clientWidth) return;
-      e.preventDefault();
-      row.scrollLeft += e.deltaY;
-    },
-    { passive: false },
-  );
-
+  sortButton($<HTMLButtonElement>('links-sort'), LINK_SORTS, () => sort, (value) => {
+    sort = value;
+    storeSort('links', value);
+    render();
+  });
+  setupDrag();
   setupAddPage(tab);
   render();
 }

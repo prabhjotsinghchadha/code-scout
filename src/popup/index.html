@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Code Scout</title>
+    <!-- The look picked in Settings, before anything is drawn (not a module: it must run first). -->
+    <script src="/theme-boot.js"></script>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
@@ -46,16 +48,16 @@
 
       <nav id="tabs" class="tabs" role="tablist" aria-label="Lists">
         <button type="button" class="tab" role="tab" id="tab-page" data-tab="page" aria-controls="panel-page" aria-selected="false">
-          This page <span id="codes-count" class="count"></span>
+          <i data-icon="globe" data-size="14"></i>This page <span id="codes-count" class="count"></span>
         </button>
         <button type="button" class="tab" role="tab" id="tab-favs" data-tab="favs" aria-controls="panel-favs" aria-selected="false">
-          Favourites <span id="favs-count" class="count"></span>
+          <i data-icon="star" data-size="14"></i>Favourites <span id="favs-count" class="count"></span>
         </button>
         <button type="button" class="tab" role="tab" id="tab-recent" data-tab="recent" aria-controls="panel-recent" aria-selected="false">
-          Recent
+          <i data-icon="clock" data-size="14"></i>Recent
         </button>
         <button type="button" class="tab" role="tab" id="tab-links" data-tab="links" aria-controls="panel-links" aria-selected="false">
-          Links
+          <i data-icon="link" data-size="14"></i>Links
         </button>
       </nav>
 
@@ -69,6 +71,10 @@
       </section>
 
       <section id="panel-page" class="panel" role="tabpanel" aria-labelledby="tab-page" hidden>
+        <div id="page-head" class="list-head" hidden>
+          <span id="page-title" class="list-title"></span>
+          <button type="button" id="page-sort" class="icon-btn sort-btn"></button>
+        </div>
         <ul id="codes" class="list"></ul>
         <div id="empty" class="empty" hidden>
           <i data-icon="search" data-size="28"></i>
@@ -81,7 +87,11 @@
           <button type="button" id="favs-kind-videos" class="gpill" aria-pressed="true">Videos <span id="favs-videos-count" class="count"></span></button>
           <button type="button" id="favs-kind-actresses" class="gpill" aria-pressed="false">Actresses <span id="favs-actresses-count" class="count"></span></button>
           <button type="button" id="favs-kind-tags" class="gpill" aria-pressed="false">Tags <span id="favs-tags-count" class="count"></span></button>
+          <span class="spacer"></span>
           <button type="button" id="fav-page" class="link-btn" hidden></button>
+          <button type="button" id="favs-sort-videos" class="icon-btn sort-btn"></button>
+          <button type="button" id="favs-sort-actresses" class="icon-btn sort-btn" hidden></button>
+          <button type="button" id="favs-sort-tags" class="icon-btn sort-btn" hidden></button>
         </div>
 
         <div id="favs-videos">
@@ -128,6 +138,10 @@
       </section>
 
       <section id="panel-recent" class="panel" role="tabpanel" aria-labelledby="tab-recent" hidden>
+        <div id="recent-head" class="list-head" hidden>
+          <span id="recent-title" class="list-title"></span>
+          <button type="button" id="recent-sort" class="icon-btn sort-btn"></button>
+        </div>
         <ul id="recent" class="list"></ul>
         <p id="recent-more" class="none" hidden></p>
         <div id="recent-empty" class="empty" hidden>
@@ -137,9 +151,10 @@
       </section>
 
       <section id="panel-links" class="panel" role="tabpanel" aria-labelledby="tab-links" hidden>
-        <div class="links-bar">
-          <div id="group-pills" class="group-pills" role="toolbar" aria-label="Groups" hidden></div>
-          <button type="button" id="add-page" class="btn sm"></button>
+        <div class="list-head">
+          <span id="links-title" class="list-title"></span>
+          <button type="button" id="add-page" class="link-btn"></button>
+          <button type="button" id="links-sort" class="icon-btn sort-btn"></button>
         </div>
         <form id="add-page-form" class="add-page" hidden>
           <select id="add-page-group" aria-label="Group"></select>
@@ -157,17 +172,19 @@
       </section>
 
       <footer id="site-bar" class="site-bar" hidden>
-        <div class="site-name">On <strong class="site-host"></strong></div>
+        <div class="site-line">
+        <strong class="site-host"></strong>
         <div class="pills">
           <label class="pill" title="▶ buttons next to codes, and the chip when you type a code">
             <input type="checkbox" id="site-buttons" /><i data-icon="play" data-size="12"></i>Buttons
           </label>
           <label class="pill" title="Stops pop-ups, ad tabs and redirects to ad sites on this site">
-            <input type="checkbox" id="site-popups" /><i data-icon="shield" data-size="14"></i>Block pop-ups
+            <input type="checkbox" id="site-popups" /><i data-icon="shield" data-size="14"></i>Pop-ups
           </label>
           <label class="pill" title="Faster loading, quality menu, download and English subtitles on this site's videos">
-            <input type="checkbox" id="site-video" /><i data-icon="film" data-size="14"></i>Video tools
+            <input type="checkbox" id="site-video" /><i data-icon="film" data-size="14"></i>Video
           </label>
+        </div>
         </div>
         <button type="button" id="reload-tab" class="link-btn" hidden><i data-icon="refresh" data-size="13"></i><span id="reload-label">Reload the page to apply</span></button>
       </footer>

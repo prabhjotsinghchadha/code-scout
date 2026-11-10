@@ -1,4 +1,6 @@
-/* Injected by Chrome via the manifest (not a <style> tag), so page CSP can't block it. */
+/* Injected by Chrome via the manifest (not a <style> tag), so page CSP can't block it.
+   The accent picked in Settings arrives as --javtr-… variables on <html> (theme.ts: applyPageAccent);
+   without them (the script hasn't run yet) everything is rose. */
 
 /* Marks on pages: ▶ next to a code (★ a favourite, ✓ already seen), ♥ after a favourite actress's name,
    # at the end of a link to a favourite tag's page. One shape, the popup's colours. The white ring keeps
@@ -14,7 +16,7 @@
   height: 1.4em;
   margin: 0 0.2em 0 0.35em;
   border-radius: 50%;
-  background: #e11d48 !important;
+  background: var(--javtr-accent, #e11d48) !important;
   color: #fff !important;
   box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.92), 0 1px 3px 1px rgb(0 0 0 / 0.22);
   font: 700 0.62em/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
@@ -47,7 +49,7 @@
 .javtr-actress:focus-visible {
   opacity: 1;
   transform: scale(1.18);
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(225 29 72 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px color-mix(in srgb, var(--javtr-accent, #e11d48) 45%, transparent), 0 2px 6px rgb(0 0 0 / 0.3);
 }
 .javtr-open-btn.javtr-fav:hover,
 .javtr-open-btn.javtr-fav:focus-visible {
@@ -102,12 +104,12 @@
 #javtr-chip button.javtr-primary {
   margin-right: 2px;
   padding: 7px 11px;
-  background: #e11d48 !important;
-  color: #fff !important;
+  background: var(--javtr-ui, #e11d48) !important;
+  color: var(--javtr-on-ui, #fff) !important;
 }
 #javtr-chip button.javtr-primary:hover,
 #javtr-chip button.javtr-primary:focus-visible {
-  background: #be123c !important;
+  background: var(--javtr-ui-hover, #be123c) !important;
 }
 #javtr-chip button.javtr-star {
   padding: 6px 8px;
@@ -194,14 +196,14 @@
   color: #fbbf24;
 }
 #javtr-menu button.javtr-menu-go::before {
-  color: #fb7185;
+  color: var(--javtr-soft, #fb7185);
 }
 #javtr-menu button:hover,
 #javtr-menu button:focus-visible {
   background: #2e2e33 !important;
 }
 #javtr-menu button.javtr-menu-all {
-  color: #fda4af !important;
+  color: var(--javtr-soft, #fda4af) !important;
   font-weight: 600 !important;
 }
 #javtr-menu button.javtr-menu-muted {
@@ -277,16 +279,16 @@
   color: #fff !important;
 }
 .javtr-video-bar > .javtr-ahead {
-  color: #fda4af !important;
+  color: var(--javtr-soft, #fda4af) !important;
 }
 .javtr-video-bar > button.javtr-pip-btn.javtr-on,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on {
-  background: #e11d48 !important;
-  color: #fff !important;
+  background: var(--javtr-ui, #e11d48) !important;
+  color: var(--javtr-on-ui, #fff) !important;
 }
 .javtr-video-bar > button.javtr-pip-btn.javtr-on:hover,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on:hover {
-  background: #be123c !important;
+  background: var(--javtr-ui-hover, #be123c) !important;
 }
 /* Picture-in-picture: an icon (a screen with a small window in its corner) */
 .javtr-video-bar > button.javtr-pip-btn {
@@ -329,7 +331,7 @@
   background: #3f3f46 !important;
 }
 .javtr-video-bar > button.javtr-speed-btn.javtr-changed {
-  color: #fda4af !important;
+  color: var(--javtr-soft, #fda4af) !important;
 }
 .javtr-video-bar [hidden] {
   display: none !important;
@@ -364,7 +366,7 @@
   margin-bottom: 4px;
 }
 .javtr-video-menu button.javtr-menu-toggle[aria-pressed='true'] .javtr-menu-name {
-  color: #fda4af !important;
+  color: var(--javtr-soft, #fda4af) !important;
 }
 .javtr-video-menu .javtr-menu-head {
   border-top: 1px solid #2e2e33 !important;
@@ -399,7 +401,7 @@
   cursor: text !important;
 }
 .javtr-video-menu input.javtr-menu-code:focus {
-  border-color: #e11d48 !important;
+  border-color: var(--javtr-ui, #e11d48) !important;
 }
 .javtr-menu-list {
   display: flex;

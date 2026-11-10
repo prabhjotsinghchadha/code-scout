@@ -1,7 +1,12 @@
-/* Shared look for the extension's own pages (popup, Settings): colour tokens and base components. */
+/* Shared look for the extension's own pages (popup, Settings): typeface, colour tokens and base components.
+   Light, dark and the accent come from data-theme / data-accent on <html> (theme.ts, Settings → Appearance). */
+@import '@fontsource-variable/geist/wght.css';
+@import '@fontsource-variable/geist-mono/wght.css';
 
 :root {
   color-scheme: light dark;
+  --font: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
   --bg: #ffffff;
   --surface: #f6f6f7;
   --surface-2: #ececef;
@@ -10,11 +15,19 @@
   --text: #18181b;
   --text-2: #3f3f46;
   --muted: #71717a;
-  --accent: #e11d48;
-  --accent-hover: #be123c;
-  --accent-text: #be123c;
-  --accent-tint: color-mix(in srgb, #e11d48 10%, transparent);
-  --accent-line: color-mix(in srgb, #e11d48 40%, transparent);
+  /* The accent, as picked: --a… are one accent's colours (below); these are what everything else uses. */
+  --a: #e11d48;
+  --a-hover: #be123c;
+  --a-text: #be123c;
+  --a-dark: #e11d48;
+  --a-dark-hover: #f43f5e;
+  --a-dark-text: #fb7185;
+  --a-dark-on: #ffffff;
+  --accent: var(--a);
+  --accent-hover: var(--a-hover);
+  --accent-text: var(--a-text);
+  --accent-tint: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --on-accent: #ffffff;
   --star: #d97706;
   --violet: #7c3aed;
@@ -24,22 +37,92 @@
   --radius: 8px;
   --radius-lg: 12px;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 20px rgb(0 0 0 / 0.08);
-  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 13px/1.4 var(--font);
+}
+:root[data-accent='orange'] {
+  --a: #ea580c;
+  --a-hover: #c2410c;
+  --a-text: #c2410c;
+  --a-dark: #ea580c;
+  --a-dark-hover: #f97316;
+  --a-dark-text: #fb923c;
+}
+:root[data-accent='green'] {
+  --a: #16a34a;
+  --a-hover: #15803d;
+  --a-text: #15803d;
+  --a-dark: #16a34a;
+  --a-dark-hover: #22c55e;
+  --a-dark-text: #4ade80;
+}
+:root[data-accent='blue'] {
+  --a: #2563eb;
+  --a-hover: #1d4ed8;
+  --a-text: #1d4ed8;
+  --a-dark: #2563eb;
+  --a-dark-hover: #3b82f6;
+  --a-dark-text: #60a5fa;
+}
+:root[data-accent='purple'] {
+  --a: #9333ea;
+  --a-hover: #7e22ce;
+  --a-text: #7e22ce;
+  --a-dark: #9333ea;
+  --a-dark-hover: #a855f7;
+  --a-dark-text: #c084fc;
+}
+:root[data-accent='graphite'] {
+  --a: #3f3f46;
+  --a-hover: #18181b;
+  --a-text: #3f3f46;
+  --a-dark: #e4e4e7;
+  --a-dark-hover: #ffffff;
+  --a-dark-text: #e4e4e7;
+  --a-dark-on: #18181b;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+/* Dark: picked in Settings, or the system's when nothing is picked (the same tokens twice). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #131315;
+  --surface: #1b1b1e;
+  --surface-2: #26262a;
+  --border: #29292e;
+  --border-strong: #3a3a41;
+  --text: #f4f4f5;
+  --text-2: #d4d4d8;
+  --muted: #a1a1aa;
+  --accent: var(--a-dark);
+  --accent-hover: var(--a-dark-hover);
+  --accent-text: var(--a-dark-text);
+  --on-accent: var(--a-dark-on);
+  --accent-tint: color-mix(in srgb, var(--accent-text) 14%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent-text) 45%, transparent);
+  --star: #fbbf24;
+  --violet: #a78bfa;
+  --teal: #2dd4bf;
+  --danger: #f87171;
+  --success: #4ade80;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141416;
-    --surface: #1c1c1f;
-    --surface-2: #27272b;
-    --border: #2a2a2f;
+  :root:not([data-theme]) {
+    --bg: #131315;
+    --surface: #1b1b1e;
+    --surface-2: #26262a;
+    --border: #29292e;
     --border-strong: #3a3a41;
     --text: #f4f4f5;
     --text-2: #d4d4d8;
     --muted: #a1a1aa;
-    --accent-hover: #f43f5e;
-    --accent-text: #fb7185;
-    --accent-tint: color-mix(in srgb, #fb7185 14%, transparent);
-    --accent-line: color-mix(in srgb, #fb7185 45%, transparent);
+    --accent: var(--a-dark);
+    --accent-hover: var(--a-dark-hover);
+    --accent-text: var(--a-dark-text);
+    --on-accent: var(--a-dark-on);
+    --accent-tint: color-mix(in srgb, var(--accent-text) 14%, transparent);
+    --accent-line: color-mix(in srgb, var(--accent-text) 45%, transparent);
     --star: #fbbf24;
     --violet: #a78bfa;
     --teal: #2dd4bf;
@@ -480,7 +563,7 @@ input.switch:checked::after {
 }
 /* …set like one: "NSFS-484" in the popup's lists */
 .code.id {
-  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12.5px;
   letter-spacing: 0;
 }
@@ -493,7 +576,7 @@ kbd {
   border-radius: 6px;
   background: var(--surface);
   color: var(--text);
-  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 500 11.5px var(--mono);
 }
 
 * {

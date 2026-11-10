@@ -12,6 +12,7 @@ import {
 } from '../shared/favourites';
 import { siteKey } from '../shared/hosts';
 import { hydrateIcons, icon } from '../shared/icons';
+import { followLook } from '../shared/look';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { recentSeen, seenAgo, type Seen } from '../shared/seen';
@@ -19,9 +20,11 @@ import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { actressRows, setupActresses } from './actresses';
 import { findLinks, renderLinks, setupLinks } from './links';
 import { setupRecent } from './recent';
-import { iconButton, rowActions, rowMain } from './rows';
+import { iconButton, rowActions, rowMain, sortButton } from './rows';
+import { PAGE_SORTS, sortByTime, sortPageCodes, storedSort, storeSort, TIME_SORTS, type PageSort, type TimeSort } from './sort';
 import { setupTags, tagRows } from './tags';
 
+followLook();
 hydrateIcons();
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -123,7 +126,7 @@ function showTab(tab: Tab) {
 /** What the arrow keys move between: the rows and tiles of the list on show. */
 function navItems(): HTMLElement[] {
   const panel = searching ? $('panel-find') : currentTab && $(`panel-${currentTab}`);
-  return panel ? [...panel.querySelectorAll<HTMLElement>('.row-main, .tile-link')] : [];
+  return panel ? [...panel.querySelectorAll<HTMLElement>('.row-main, .link-main')] : [];
 }
 
 /** ↓ from the box goes into the list, ↑ from its first row back to the box; typing anywhere goes to the box. */
@@ -191,6 +194,7 @@ function showFavKind(kind: FavKind) {
   for (const k of FAV_KINDS) {
     $(`favs-kind-${k}`).setAttribute('aria-pressed', String(k === kind));
     $(`favs-${k}`).hidden = k !== kind;
+    $(`favs-sort-${k}`).hidden = k !== kind; // each kind has its own sort
   }
 }
 
@@ -352,7 +356,7 @@ function setupStarPage() {
 function paintStarPage() {
   const btn = $<HTMLButtonElement>('fav-page');
   const on = !!tabPage && !!favouriteFor(favs, tabPage.url);
-  btn.replaceChildren(icon(on ? 'starFilled' : 'star', 14), on ? 'Page starred' : 'Star this page');
+  btn.replaceChildren(icon(on ? 'starFilled' : 'star', 14), on ? 'Page starred' : 'Star page');
   btn.classList.toggle('on', on);
   btn.title = on ? 'Remove this page from favourites' : 'Add the page you’re on to favourites';
 }
@@ -360,12 +364,19 @@ function paintStarPage() {
 /** Lower case, without spaces and dashes, so "nsfs484" finds "NSFS-484". */
 const squash = (s: string) => s.toLowerCase().replace(/[\s-]/g, '');
 
+/** How the favourite videos are sorted (the Videos view's sort button). */
+let favSort: TimeSort = storedSort('favs-videos', TIME_SORTS);
+
+function paintFavs() {
+  $('favs').replaceChildren(...sortByTime(favs, favSort, (f) => f.added, (f) => f.code).map(favRow));
+}
+
 async function renderFavourites() {
   favs = await getFavourites();
   starred = new Set(favs.flatMap((f) => (f.code ? [formatCode(f.code)] : [])));
   paintFavsCounts();
   $('favs-empty').hidden = favs.length > 0;
-  $('favs').replaceChildren(...favs.map(favRow));
+  paintFavs();
   document.querySelectorAll<HTMLButtonElement>('button.star[data-code]').forEach(paintStar);
   paintStarPage();
 }
@@ -447,12 +458,22 @@ function noContentScript(tab: chrome.tabs.Tab | undefined) {
   $('reload-tab').hidden = false;
 }
 
+/** How This page is sorted. */
+let pageSort: PageSort = storedSort('page', PAGE_SORTS);
+
+function paintPageCodes() {
+  const codes = sortPageCodes(pageCodeList, pageSort, (code) => !!seenCodes[formatCode(code)]);
+  list.replaceChildren(...codes.map((code) => codeRow(code, codeLabel(code), tabPage)));
+}
+
 function renderPageCodes(codes: VideoCode[]) {
   empty.hidden = codes.length > 0;
   pageCodeList = codes;
   onPage = new Set(codes.map(formatCode));
   $('codes-count').textContent = codes.length ? String(codes.length) : '';
-  list.replaceChildren(...codes.map((code) => codeRow(code, codeLabel(code), tabPage)));
+  $('page-head').hidden = codes.length < 2; // nothing to sort
+  $('page-title').textContent = `${codes.length} codes on this page`;
+  paintPageCodes();
   if (searching) paintFind(); // the page's codes came in after the first keys
 }
 
@@ -539,7 +560,7 @@ function paintFind() {
   const tags = tagRows(raw);
   if (tags.length) out.push(findSection('Tags', rowList(tags), tags.length));
   const links = findLinks(raw);
-  if (links) out.push(findSection('Links', links.grid, links.count));
+  if (links) out.push(findSection('Links', links.list, links.count));
   box.replaceChildren(...out);
   $('panel-find').scrollTop = 0;
 
@@ -631,6 +652,16 @@ const CODES_WAIT_MS = 400;
 async function init() {
   setupTabs();
   setupKeys();
+  sortButton($<HTMLButtonElement>('page-sort'), PAGE_SORTS, () => pageSort, (value) => {
+    pageSort = value;
+    storeSort('page', value);
+    paintPageCodes();
+  });
+  sortButton($<HTMLButtonElement>('favs-sort-videos'), TIME_SORTS, () => favSort, (value) => {
+    favSort = value;
+    storeSort('favs-videos', value);
+    paintFavs();
+  });
   input.addEventListener('input', paintFind);
   const [settings, [tab]] = await Promise.all([
     getSettings(),

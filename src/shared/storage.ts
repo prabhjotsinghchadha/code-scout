@@ -2,6 +2,7 @@
 import type { OpenMode } from './codes';
 import type { OpenOnSite } from './open-on.ts';
 import type { QuickLink } from './quick-links.ts';
+import { DEFAULT_ACCENT, DEFAULT_THEME, type Accent, type Theme } from './theme.ts';
 import { BUILT_INS, LEGACY_KEYS, offeredByVersion, seed, type BuiltIns } from './seed.ts';
 
 export type { QuickLink } from './quick-links';
@@ -45,6 +46,10 @@ export interface Settings {
    * their ▶ buttons and the popup's Recent tab. See seen.ts.
    */
   rememberSeen: boolean;
+  /** Appearance: light, dark, or whichever the system is in. */
+  theme: Theme;
+  /** Appearance: the accent colour, in the popup and Settings and for what's drawn on pages (theme.ts). */
+  accent: Accent;
 }
 
 export const defaultSettings: Settings = {
@@ -64,6 +69,8 @@ export const defaultSettings: Settings = {
   subBackground: 100,
   mostVisited: true,
   rememberSeen: true,
+  theme: DEFAULT_THEME,
+  accent: DEFAULT_ACCENT,
 };
 
 /** Accepts "example.com/path" or a full URL; returns a normalized http(s) URL or null. */

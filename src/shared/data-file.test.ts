@@ -109,6 +109,12 @@ test('settings are checked one by one', () => {
   assert.deepEqual(settingsFrom({ 'fav:NSFS-484': { added: 1 } }), {});
 });
 
+test('the look: a known theme and accent, or neither', () => {
+  assert.deepEqual(settingsFrom({ theme: 'dark', accent: 'blue' }), { theme: 'dark', accent: 'blue' });
+  assert.deepEqual(settingsFrom({ theme: 'sepia', accent: 'toString' }), {});
+  assert.deepEqual(settingsFrom({ theme: 3, accent: null }), {});
+});
+
 test('favourites, actresses and tags are read as the extension stores them', () => {
   const found = favouritesIn({
     'fav:NSFS-484': { added: 1, url: 'https://missav.ws/en/nsfs-484', title: 'T', extra: 'x' },

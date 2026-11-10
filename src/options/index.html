@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Code Scout – Settings</title>
+    <!-- The look picked in Settings, before anything is drawn (not a module: it must run first). -->
+    <script src="/theme-boot.js"></script>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
@@ -19,12 +21,17 @@
           <input id="settings-search" type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
         </div>
         <nav aria-label="Sections">
+          <p class="nav-head">Look</p>
+          <a href="#appearance"><i data-icon="palette"></i>Appearance</a>
+          <p class="nav-head">Finding videos</p>
           <a href="#general"><i data-icon="settings"></i>General</a>
           <a href="#pages"><i data-icon="play" data-size="14"></i>On pages</a>
           <a href="#open-on"><i data-icon="globe"></i>Open on sites</a>
           <a href="#quick-links"><i data-icon="link"></i>Quick links</a>
-          <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
+          <p class="nav-head">Watching</p>
           <a href="#video"><i data-icon="film"></i>Video tools</a>
+          <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
+          <p class="nav-head">More</p>
           <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
           <a href="#backup"><i data-icon="download"></i>Backup</a>
         </nav>
@@ -32,6 +39,44 @@
 
       <main>
         <p id="no-match" class="none" hidden></p>
+        <section class="card" id="appearance">
+          <h2>Appearance</h2>
+          <p class="desc">How Code Scout looks: the popup, these settings, and what it draws on the pages you visit.</p>
+          <h3>Theme</h3>
+          <div class="segmented" role="radiogroup" aria-label="Theme">
+            <label><input type="radio" name="theme" value="system" /><i data-icon="monitor"></i>Match system</label>
+            <label><input type="radio" name="theme" value="light" /><i data-icon="sun"></i>Light</label>
+            <label><input type="radio" name="theme" value="dark" /><i data-icon="moon"></i>Dark</label>
+          </div>
+          <h3>Accent colour</h3>
+          <p class="hint">
+            For buttons and what’s picked, and for the ▶ buttons, chip and video toolbar on pages. A favourite’s ★, a seen
+            code’s ✓, an actress’s ♥ and a tag’s # keep their own colours.
+          </p>
+          <div id="accents" class="swatches" role="radiogroup" aria-label="Accent colour"></div>
+          <div id="look-preview" class="look-preview" aria-hidden="true">
+            <div class="look-popup">
+              <div class="field look-box"><i data-icon="search" data-size="14"></i><span class="code id">NSFS-484</span></div>
+              <div class="look-row">
+                <span class="look-go"><i data-icon="play" data-size="10"></i></span><span class="code id">SONE-123</span>
+                <i data-icon="starFilled" data-size="14"></i>
+              </div>
+              <div class="look-buttons">
+                <span class="btn primary sm"><i data-icon="play" data-size="10"></i>Open</span>
+                <span class="btn sm">Search</span>
+                <span class="pill look-on">Buttons</span>
+              </div>
+            </div>
+            <div class="look-page">
+              <small>On a page</small>
+              <p>
+                New: JUR-628<span class="look-mark">▶&#xFE0E;</span> MIDV-901<span class="look-mark fav">★</span>
+                IPZZ-077<span class="look-mark seen">✓</span>
+              </p>
+              <span class="look-chip"><b>ABW-321</b><i>▶&#xFE0E; Open</i><u>Search</u></span>
+            </div>
+          </div>
+        </section>
         <section class="card" id="general">
           <h2>General</h2>
           <p class="desc">What Open does with a code.</p>
@@ -141,7 +186,7 @@
             to another site (the “video opens in a new tab, this tab goes to an ad” trick). Links you click on the same
             site still open; Ctrl/⌘-click or middle-click always opens a new tab.
           </p>
-          <p class="hint">Tip: switch on <em>Block pop-ups</em> in the popup, then reload the page.</p>
+          <p class="hint">Tip: switch on <em>Pop-ups</em> in the popup, then reload the page.</p>
           <ul id="popup-sites" class="rows"></ul>
           <p id="popup-empty" class="none" hidden>No sites yet.</p>
           <form id="add-popup-site" class="add">
@@ -180,7 +225,7 @@
           </label>
           <h3>Turned off on these sites</h3>
           <p class="hint">
-            No toolbar or faster loading on these sites and their subdomains. Tip: switch off <em>Video tools</em> in the
+            No toolbar or faster loading on these sites and their subdomains. Tip: switch off <em>Video</em> in the
             popup while you’re on the site.
           </p>
           <ul id="video-sites" class="rows"></ul>

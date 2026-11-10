@@ -5,7 +5,8 @@ import { favouriteError } from '../shared/favourites';
 import { siteKey } from '../shared/hosts';
 import { openMenu } from '../shared/menu';
 import { capitalized, cleanName } from '../shared/names';
-import { iconButton, rowActions, rowMain } from './rows';
+import { iconButton, rowActions, rowMain, sortButton } from './rows';
+import { NAME_SORTS, sortByName, storedSort, storeSort, type NameSort } from './sort';
 import { addTag, getTags, onTagsChanged, removeTag, removeTagPage, tagLinks, tagNameKey, type Tag } from '../shared/tags';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -14,6 +15,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const CONFIRM_OVER = 8;
 
 let tags: Tag[] = [];
+let sort: NameSort = 'newest';
 let openLinks: (urls: string[]) => unknown = () => {};
 let onCount: (n: number) => void = () => {};
 
@@ -95,7 +97,8 @@ export function tagRows(text: string): HTMLLIElement[] {
 function paint() {
   const typed = input().value;
   const query = squash(typed);
-  const shown = query ? tags.filter((t) => squash(t.name).includes(query)) : tags;
+  const sorted = sortByName(tags, sort);
+  const shown = query ? sorted.filter((t) => squash(t.name).includes(query)) : sorted;
   $('tags').replaceChildren(...shown.map(row));
   $('tags-empty').hidden = tags.length > 0;
   $('tags-none').hidden = !tags.length || shown.length > 0;
@@ -119,6 +122,12 @@ async function render() {
 export async function setupTags(open: (urls: string[]) => unknown, count: (n: number) => void) {
   openLinks = open;
   onCount = count;
+  sort = storedSort('favs-tags', NAME_SORTS);
+  sortButton($<HTMLButtonElement>('favs-sort-tags'), NAME_SORTS, () => sort, (value) => {
+    sort = value;
+    storeSort('favs-tags', value);
+    paint();
+  });
   input().addEventListener('input', () => {
     $('tag-error').hidden = true;
     paint();

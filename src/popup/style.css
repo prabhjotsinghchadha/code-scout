@@ -1,7 +1,7 @@
 @import '../shared/ui.css';
 
 body {
-  width: 360px;
+  width: 380px;
 }
 /* The box, tabs and site bar stay put; only the open list scrolls (Chrome caps popups at 600px). */
 .popup {
@@ -124,8 +124,9 @@ body {
 .tabs .tab {
   position: relative;
   flex: 0 0 auto;
-  height: 34px;
-  padding: 0 9px;
+  gap: 5px;
+  height: 36px;
+  padding: 0 8px;
   border-radius: 6px 6px 0 0;
   font-size: 12.5px;
   white-space: nowrap;
@@ -134,12 +135,19 @@ body {
   background: none;
   box-shadow: none;
 }
+.tabs .tab .ico {
+  opacity: 0.75;
+}
+.tabs .tab[aria-selected='true'] .ico {
+  color: var(--accent-text);
+  opacity: 1;
+}
 .tabs .tab[aria-selected='true']::after {
   content: '';
   position: absolute;
-  right: 9px;
+  right: 8px;
   bottom: -1px;
-  left: 9px;
+  left: 8px;
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--accent);
@@ -165,6 +173,35 @@ body {
 }
 .panel-head .link-btn {
   margin-left: auto;
+}
+/* A list's one-line head: what it holds, then (on the right) what can be done with it and how it's sorted */
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 0 4px 6px 8px;
+}
+.list-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spacer {
+  flex: 1;
+}
+.sort-btn {
+  width: 26px;
+  height: 26px;
+}
+.sort-btn.on {
+  background: var(--accent-tint);
+  color: var(--accent-text);
 }
 .none {
   margin: 0;
@@ -358,21 +395,11 @@ body {
 .find-section .section-head {
   padding: 0 8px;
 }
-.find-section .tile-grid {
-  padding: 0 6px;
-}
 #find-empty p {
   max-width: 260px;
 }
 
-/* Favourites: Videos | Actresses | Tags, and the boxes that add an actress or a tag */
-.fav-kinds {
-  align-items: center;
-}
-.fav-kinds .link-btn {
-  margin-left: auto;
-  padding-left: 6px;
-}
+/* The boxes that add an actress or a tag */
 .add-bar {
   display: flex;
   align-items: center;
@@ -392,33 +419,19 @@ body {
   height: 30px;
 }
 
-/* Quick links: group pills and "Add page", then tiles */
-.links-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 6px 8px;
-}
-.links-bar .btn {
-  flex: none;
-  margin-left: auto;
-}
-.links-bar:not(:has(> :not([hidden]))) {
-  display: none;
-}
+/* Favourites: Videos | Actresses | Tags, then Star page and the sort */
 .group-pills {
   display: flex;
-  flex: 1;
+  align-items: center;
   gap: 4px;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.group-pills::-webkit-scrollbar {
-  display: none;
 }
 .fav-kinds {
-  margin: 0 6px 8px;
+  margin: 0 4px 8px 6px;
+}
+.fav-kinds .link-btn {
+  margin: 0 2px 0 0;
+  padding: 0;
 }
 .gpill {
   display: inline-flex;
@@ -450,123 +463,216 @@ body {
   color: inherit;
   opacity: 0.7;
 }
-#links {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 6px;
-}
 .section-head {
   display: flex;
   align-items: center;
   gap: 6px;
   min-height: 22px;
-  margin-bottom: 4px;
-  padding: 0 2px;
+  margin-bottom: 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-.section-head .section-title {
-  overflow: hidden;
-  color: var(--text-2);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .section-head .count {
   font-size: 10.5px;
   letter-spacing: 0;
 }
-.section-head .link-btn {
-  margin-left: auto;
-  font-size: 11.5px;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.tile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-}
-.tile {
-  position: relative;
-  min-width: 0;
-}
-.tile-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 24px 0 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  text-decoration: none;
-  transition: border-color 0.12s, background 0.12s;
-}
-.tile-link:hover {
-  border-color: var(--border-strong);
-  background: var(--surface);
-  text-decoration: none;
-}
-.tile-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.tile-text {
+
+/* Links: the most visited sites as big icons, then each group's links as rows */
+#links {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  line-height: 1.25;
+  gap: 8px;
+  padding: 0 4px;
 }
-.tile-title,
-.tile-host {
+.dial {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.dial-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 4px 9px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.12s, transform 0.12s;
+}
+.dial-item:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+.dial-item .site-icon {
+  border-radius: 7px;
+}
+.dial-name {
+  max-width: 100%;
   overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tile-title {
+.link-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.link-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 2px;
+}
+.link-group-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.link-group-toggle > .ico {
+  color: var(--muted);
+}
+.link-group-name {
+  overflow: hidden;
   font-size: 12.5px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.tile-host {
-  color: var(--muted);
-  font-size: 11px;
-}
-.tile-rename {
-  width: 100%;
-  height: 22px;
-  padding: 0 4px;
-  font-size: 12px;
-}
-.tile-more {
-  position: absolute;
-  top: 50%;
-  right: 3px;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
+.link-group-head .quiet {
   opacity: 0;
-  transform: translateY(-50%);
-  transition: opacity 0.12s;
 }
-.tile:hover .tile-more,
-.tile-more:focus-visible {
+.link-group:hover .link-group-head .quiet,
+.link-group-head .quiet:focus-visible {
   opacity: 1;
 }
-.tile-more:hover {
-  background: var(--surface-2);
+.link-rows {
+  margin: 0;
+  padding: 0 4px 4px;
+  list-style: none;
+}
+.link-rows:empty::after {
+  content: 'No links here yet. Drag one in.';
+  display: block;
+  padding: 2px 8px 8px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.link-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius);
+}
+.link-row:hover,
+.link-row:focus-within {
+  background: var(--surface);
+}
+.link-row > .link-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--radius);
   color: var(--text);
+  text-decoration: none;
+}
+.link-main:focus-visible {
+  outline-offset: -2px;
+}
+.link-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-host {
+  flex: 0 1 auto;
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-rename {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+.link-row .quiet {
+  opacity: 0;
+}
+.link-row:hover .quiet,
+.link-row:focus-within .quiet {
+  opacity: 1;
+}
+.link-more {
+  width: 24px;
+  height: 26px;
+  margin-right: 2px;
+}
+.link-row .link-more:hover {
+  background: var(--surface-2);
+}
+/* The handle sits over the left edge of the row's icon while the row is pointed at */
+.link-grip {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 100%;
+  color: var(--muted);
+  cursor: grab;
+}
+.link-grip:active {
+  cursor: grabbing;
+}
+/* While dragging: the row being moved fades; a line shows where it will go */
+.link-row.dragging {
+  opacity: 0.4;
+}
+.link-row.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.link-row.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.link-group.drop-into {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+/* What the box found among the links: rows, without the cards */
+.find-section .link-rows {
+  padding: 0 4px;
 }
 .add-page {
   display: flex;
@@ -601,39 +707,40 @@ body {
   white-space: nowrap;
 }
 
-/* The site you're on: three switches */
+/* The site you're on: its name, then three switches, on one line */
 .site-bar {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px 10px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-.site-name {
+.site-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.site-host {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
-  padding: 0 2px;
-  color: var(--muted);
-  font-size: 11.5px;
+  padding-left: 2px;
+  font-size: 12px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.site-name strong {
-  color: var(--text);
-  font-weight: 600;
-}
 .pills {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex: none;
   gap: 4px;
 }
 .pills .pill {
-  justify-content: center;
   gap: 5px;
-  padding: 0 4px;
+  height: 26px;
+  padding: 0 9px 0 8px;
   border-color: var(--border);
-  border-radius: var(--radius);
   font-size: 11.5px;
 }
 .site-bar #reload-tab {

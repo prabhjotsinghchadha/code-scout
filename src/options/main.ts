@@ -2,6 +2,7 @@ import type { OpenMode } from '../shared/codes';
 import { siteKey } from '../shared/hosts';
 import { dataFileName, exportData, importData, importSummary } from '../shared/data-file';
 import { hydrateIcons, icon, type IconName } from '../shared/icons';
+import { followLook } from '../shared/look';
 import {
   newSiteId,
   PLACEHOLDERS,
@@ -14,9 +15,11 @@ import { moveItem } from '../shared/quick-links';
 import { clearSeen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { subtitleLookVars } from '../shared/subtitles';
+import { ACCENTS, applyTheme, isAccent, isTheme, onPageAccentVars, type Accent } from '../shared/theme';
 import { createTranslators, translatorStatus } from '../shared/translator';
 import { setupLinksEditor } from './links-editor';
 
+followLook();
 hydrateIcons();
 
 const status = document.getElementById('status') as HTMLDivElement;
@@ -419,6 +422,52 @@ function setupSections() {
   window.addEventListener('load', () => window.scrollTo(0, 0));
 }
 
+/** Appearance: theme and accent. A change shows at once (here, and in an open popup) and is saved. */
+async function setupAppearance() {
+  const settings = await getSettings();
+  let look = { theme: settings.theme, accent: settings.accent };
+  const preview = $<HTMLDivElement>('look-preview');
+  const paint = () => {
+    applyTheme(look);
+    // The marks in the preview are the on-page ones: their colours come from the page variables.
+    for (const [name, value] of Object.entries(onPageAccentVars(look.accent))) preview.style.setProperty(name, value);
+  };
+
+  const themes = document.querySelectorAll<HTMLInputElement>('input[name="theme"]');
+  themes.forEach((r) => {
+    r.checked = r.value === look.theme;
+    r.addEventListener('change', () => {
+      if (!r.checked || !isTheme(r.value)) return;
+      look = { ...look, theme: r.value };
+      paint();
+      void save({ theme: r.value });
+    });
+  });
+
+  const swatches = $<HTMLDivElement>('accents');
+  swatches.replaceChildren(
+    ...(Object.keys(ACCENTS) as Accent[]).map((name) => {
+      const label = document.createElement('label');
+      label.className = 'swatch';
+      const radio = Object.assign(document.createElement('input'), { type: 'radio', name: 'accent', value: name, checked: name === look.accent });
+      const dot = document.createElement('span');
+      dot.className = 'swatch-dot';
+      dot.style.setProperty('--swatch', ACCENTS[name].swatch);
+      dot.append(icon('check', 14));
+      label.append(radio, dot, ACCENTS[name].label);
+      radio.addEventListener('change', () => {
+        if (!radio.checked || !isAccent(radio.value)) return;
+        look = { ...look, accent: radio.value };
+        paint();
+        void save({ accent: radio.value });
+      });
+      return label;
+    }),
+  );
+  paint();
+}
+
 void init();
+void setupAppearance();
 void showShortcuts();
 setupSections();

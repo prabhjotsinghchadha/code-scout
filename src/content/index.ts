@@ -2,6 +2,7 @@ import { findCodes, formatCode, type VideoCode } from '../shared/codes';
 import { isSiteOff } from '../shared/hosts';
 import type { Message } from '../shared/messages';
 import { getSettings, onSettingsChanged, type Settings } from '../shared/storage';
+import { applyPageAccent } from '../shared/theme';
 import { lastContextLink, watchContextLinks } from './context-link';
 import { activeCode } from './editable';
 import { disableFavouriteMarks, enableFavouriteMarks } from './favourite-marks';
@@ -42,6 +43,7 @@ async function init() {
 
   const state = { inlineButtons: false, fieldChip: false, seen: initial.rememberSeen };
   const apply = (settings: Settings) => {
+    applyPageAccent(settings.accent); // the colour of the ▶ buttons, chip, menus and video toolbar
     if (settings.rememberSeen !== state.seen) {
       state.seen = settings.rememberSeen;
       void setSeenMarks(settings.rememberSeen).catch(() => {});

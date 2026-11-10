@@ -12,6 +12,7 @@ import { isWebUrl, validateTemplate, type OpenOnSite } from './open-on.ts';
 import { MAX_GROUP_NAME, type QuickLink } from './quick-links.ts';
 import { MAX_SEEN, SEEN_KEY, type Seen, type SeenEntry } from './seen.ts';
 import { defaultSettings, seedBuiltIns, type Settings } from './storage.ts';
+import { isAccent, isTheme } from './theme.ts';
 import { isTagKey, tagKey, tagsFrom } from './tags.ts';
 import { VISITS_KEY, type Visits } from './visits.ts';
 
@@ -150,6 +151,8 @@ export function settingsFrom(sync: Dump): Partial<Settings> {
   };
   (['inlineButtons', 'fieldChip', 'openInBackground', 'videoTools', 'playerKeys', 'mostVisited', 'rememberSeen'] as const).forEach(bool);
   if (sync.openMode === 'video' || sync.openMode === 'search') out.openMode = sync.openMode;
+  if (isTheme(sync.theme)) out.theme = sync.theme;
+  if (isAccent(sync.accent)) out.accent = sync.accent;
   list('quickLinks', quickLinks);
   list('linkGroups', groups);
   list('openOnSites', openOnSites);

@@ -14,11 +14,13 @@ import {
 import { rawSearchUrl } from '../shared/codes';
 import { favouriteError } from '../shared/favourites';
 import { icon } from '../shared/icons';
-import { iconButton, rowActions, rowMain } from './rows';
+import { iconButton, rowActions, rowMain, sortButton } from './rows';
+import { NAME_SORTS, sortByName, storedSort, storeSort, type NameSort } from './sort';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 let actresses: Actress[] = [];
+let sort: NameSort = 'newest';
 let openLinks: (urls: string[]) => unknown = () => {};
 let onCount: (n: number) => void = () => {};
 
@@ -80,7 +82,8 @@ const squash = (s: string) => nameKey(s).replace(/\s/g, '');
 function paint() {
   const typed = input().value;
   const query = squash(typed);
-  const shown = query ? actresses.filter((a) => squash(a.name).includes(query)) : actresses;
+  const sorted = sortByName(actresses, sort);
+  const shown = query ? sorted.filter((a) => squash(a.name).includes(query)) : sorted;
   $('actresses').replaceChildren(...shown.map(row));
   $('actresses-empty').hidden = actresses.length > 0;
   $('actresses-none').hidden = !actresses.length || shown.length > 0;
@@ -104,6 +107,12 @@ async function render(list?: Actress[]) {
 export async function setupActresses(open: (urls: string[]) => unknown, count: (n: number) => void) {
   openLinks = open;
   onCount = count;
+  sort = storedSort('favs-actresses', NAME_SORTS);
+  sortButton($<HTMLButtonElement>('favs-sort-actresses'), NAME_SORTS, () => sort, (value) => {
+    sort = value;
+    storeSort('favs-actresses', value);
+    paint();
+  });
   input().addEventListener('input', () => {
     $('actress-error').hidden = true;
     paint();
