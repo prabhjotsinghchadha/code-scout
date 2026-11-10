@@ -35,6 +35,8 @@ export interface Settings {
    * < and > change the speed, M mutes, P is picture-in-picture. Where video tools are on.
    */
   playerKeys: boolean;
+  /** The video toolbar's messages under it ("Quality: 720p", "Saved …", errors, a key's "+5s"). Off unless switched on. */
+  toolbarMessages: boolean;
   /** English subtitles: text size, % of the usual (which follows the video's height). */
   subSize: number;
   /** English subtitles: how opaque the box behind them is, %. 100 hides the original line; 0 is text only. */
@@ -72,6 +74,7 @@ export const defaultSettings: Settings = {
   videoTools: true,
   videoOffSites: [],
   playerKeys: true,
+  toolbarMessages: false,
   subSize: 100,
   subBackground: 100,
   mostVisited: true,

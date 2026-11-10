@@ -6,7 +6,7 @@ import { sendToBackground } from '../shared/messages';
 import { getSettings, onSettingsChanged, type Settings } from '../shared/storage';
 import { applyPageAccent } from '../shared/theme';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
-import { setPlayerKeys, setVideoTools } from './video-auto';
+import { setPlayerKeys, setToolbarMessages, setVideoTools } from './video-auto';
 
 /** The site of the page this frame is in, or the frame's own when Chrome doesn't say. */
 function pageHost(): string {
@@ -27,6 +27,7 @@ if (window !== window.top && /^https?:$/.test(location.protocol)) {
     if (videoTools) applyPageAccent(settings.accent); // the toolbar's colour
     setVideoTools(videoTools);
     setPlayerKeys(videoTools && settings.playerKeys);
+    setToolbarMessages(settings.toolbarMessages);
     if (isSiteOff(page, settings.popupBlockSites)) {
       enablePopupGuard();
       // The blocker's page-side script: registered for the page's own site only, so added here.

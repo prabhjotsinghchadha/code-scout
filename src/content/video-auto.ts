@@ -29,6 +29,13 @@ export function setPlayerKeys(on: boolean) {
   document.documentElement.toggleAttribute('data-javtr-keys', on);
 }
 
+/** The toolbar's messages under it (video-tools.ts): shown only if switched on in Settings → Video tools. */
+let messagesOn = false;
+export function setToolbarMessages(on: boolean) {
+  messagesOn = on;
+}
+export const toolbarMessages = () => messagesOn;
+
 export function setVideoTools(on: boolean) {
   // Also stops the faster loading of video-boost.iife.ts here (it can't read the settings itself).
   if (!on) window.dispatchEvent(new CustomEvent('javtr:video-off'));

@@ -13,7 +13,7 @@ import { serveFrames } from './frame-bridge';
 import { disableInline, enableInline } from './inline';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
 import { setSeenMarks } from './seen';
-import { setPlayerKeys, setVideoTools } from './video-auto';
+import { setPlayerKeys, setToolbarMessages, setVideoTools } from './video-auto';
 
 function pageCodes(): VideoCode[] {
   const seen = new Map<string, VideoCode>();
@@ -75,6 +75,7 @@ async function init() {
     const videoTools = settings.videoTools && !isSiteOff(location.hostname, settings.videoOffSites);
     setVideoTools(videoTools);
     setPlayerKeys(videoTools && settings.playerKeys);
+    setToolbarMessages(settings.toolbarMessages);
   };
   apply(initial);
   onSettingsChanged(apply);

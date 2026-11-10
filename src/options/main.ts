@@ -241,6 +241,9 @@ async function setupVideoToolsSwitch() {
   const keys = $<HTMLInputElement>('playerKeys');
   keys.checked = settings.playerKeys;
   keys.addEventListener('change', () => save({ playerKeys: keys.checked }));
+  const messages = $<HTMLInputElement>('toolbarMessages');
+  messages.checked = settings.toolbarMessages;
+  messages.addEventListener('change', () => save({ toolbarMessages: messages.checked }));
 }
 void setupVideoToolsSwitch();
 siteListEditor('videoOffSites', 'video', {

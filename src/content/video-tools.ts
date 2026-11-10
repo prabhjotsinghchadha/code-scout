@@ -20,6 +20,7 @@ import { shortDuration } from '../shared/range-fetch';
 import { CcMenu, pageCode } from './cc-menu';
 import { SubtitleReader, type StatusKind } from './subs';
 import { button, markUi, onActivate } from './ui-events';
+import { toolbarMessages } from './video-auto';
 import { CancelledError, downloadFileName, VideoDownload, type DownloadProgress, type DownloadSource } from './video-download';
 
 interface VideoInfo {
@@ -358,7 +359,7 @@ class VideoUi {
     // the video, and then it's gone (not back each time the toolbar shows, which while paused is all the
     // time). A wait ("Setting up translation…") stays until the next message.
     if (this.status.textContent && now > this.statusUntil && now >= this.hoverUntil) this.status.textContent = '';
-    this.status.hidden = !this.status.textContent;
+    this.status.hidden = !toolbarMessages() || !this.status.textContent;
   }
 
   /**
