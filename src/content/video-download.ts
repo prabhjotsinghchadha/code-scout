@@ -3,7 +3,7 @@
 // HLS videos (a playlist of short MPEG-TS segments) are downloaded segment by segment, each as parallel
 // byte ranges (range-fetch.ts), and remuxed to MP4 on the fly with Mediabunny: no re-encoding, and the
 // file is written to disk as it goes, so memory stays small even for a 2 GB video. A plain video file
-// (<video src="….mp4">) is streamed to disk as is.
+// (<video src="….mp4">) is saved as it is, also downloaded as parallel byte ranges and written in order.
 //
 // How many requests run at once is measured as it goes (parallel-tuner.ts): 6 to begin with, more while
 // more turns out faster (servers that slow down each request), up to 24. They're sent at low priority,
@@ -36,7 +36,7 @@ import {
   type MediaPlaylist,
 } from '../shared/hls-playlist';
 import { ParallelTuner } from '../shared/parallel-tuner';
-import { AbortError, fetchInRanges, Limiter, LinkExpiredError } from '../shared/range-fetch';
+import { AbortError, fetchInRanges, Limiter, LinkExpiredError, streamInRanges } from '../shared/range-fetch';
 import { fileTarget, inForeignFrame, saveInPage, type SaveTarget } from './frame-bridge';
 
 export interface DownloadSource {
@@ -56,7 +56,7 @@ export interface DownloadProgress {
   speed: number | null;
   /** Seconds left, once there's enough to estimate. */
   etaSec: number | null;
-  /** Requests at once (HLS only). */
+  /** Requests at once (null: one request, the server doesn't do ranges). */
   parallel: number | null;
 }
 
@@ -92,7 +92,7 @@ export class VideoDownload {
   /** Recent [time, bytes] readings, for the speed. */
   private samples: [number, number][] = [];
   private speed: number | null = null;
-  /** Requests at once, for HLS (null: a plain file, one request). */
+  /** Requests at once (null: a plain file from a server that doesn't do ranges, one request). */
   private parallel: number | null = null;
   /** Called every second while downloading (the HLS download tunes its requests). */
   private onTick: ((now: number) => void) | null = null;
@@ -181,18 +181,43 @@ export class VideoDownload {
     this.onProgress({ fraction, bytes, speed, etaSec, parallel: this.parallel });
   }
 
+  /**
+   * A plain video file: as parallel byte ranges written in order (streamInRanges), since the servers that
+   * hold such files often slow each request down. One request, as it comes, if the server doesn't do ranges.
+   */
   private async saveFile(url: string, writable: WritableStream<unknown>) {
-    const response = await fetch(url, { signal: this.controller.signal });
-    if (!response.ok || !response.body) throw new Error(`The video server answered HTTP ${response.status}.`);
-    const total = Number(response.headers.get('content-length')) || 0;
-    const counter = new TransformStream<Uint8Array, Uint8Array>({
-      transform: (chunk, c) => {
-        this.bytes += chunk.byteLength;
-        this.fraction = total ? this.bytes / total : 0;
-        c.enqueue(chunk);
+    const tuner = new ParallelTuner(Date.now(), { start: PARALLEL_START, max: PARALLEL_MAX });
+    const setParallel = (limit: number | null) => {
+      if (limit === null) return;
+      this.limiter.setMax(limit);
+      this.parallel = limit;
+    };
+    let total = 0;
+    const chunks = streamInRanges(url, {
+      limiter: this.limiter,
+      signal: this.controller.signal,
+      fetchPriority: 'low', // a video playing meanwhile keeps its turn
+      onBytes: (n) => {
+        this.bytes += n;
+        this.fraction = total ? Math.min(1, this.bytes / total) : 0;
+      },
+      onRetry: () => setParallel(tuner.backOff(Date.now())),
+      onStart: (info) => {
+        total = info.total ?? 0;
+        if (!info.ranges) return;
+        this.parallel = tuner.limit;
+        this.onTick = (now) => setParallel(tuner.update(now, this.bytes));
       },
     });
-    await response.body.pipeThrough(counter).pipeTo(writable, { signal: this.controller.signal });
+    const writer = writable.getWriter();
+    try {
+      for await (const chunk of chunks) await writer.write(chunk);
+      await writer.close();
+    } catch (err) {
+      this.failed = true;
+      await writer.abort(err).catch(() => {});
+      throw err;
+    }
   }
 
   private async fetchText(url: string): Promise<string> {

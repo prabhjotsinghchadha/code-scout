@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AbortError, fetchInRanges, Limiter, LinkExpiredError, shortDuration } from './range-fetch.ts';
+import { AbortError, fetchInRanges, Limiter, LinkExpiredError, shortDuration, streamInRanges } from './range-fetch.ts';
 
 /** A fake server holding `file`, answering Range requests like a CDN would. */
 function fakeServer(file: Uint8Array, opts: { ignoreRange?: boolean; failFirst?: number; status?: number } = {}) {
@@ -171,4 +171,106 @@ test('formats short durations', () => {
   assert.equal(shortDuration(45), '45s');
   assert.equal(shortDuration(80), '1:20');
   assert.equal(shortDuration(3725), '1:02:05');
+});
+
+/** Everything streamInRanges hands over, joined. */
+async function collect(stream: AsyncGenerator<Uint8Array>): Promise<Uint8Array> {
+  const parts: Uint8Array[] = [];
+  for await (const part of stream) parts.push(part);
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.byteLength;
+  }
+  return out;
+}
+
+test('streams a file as parallel ranges, in order', async () => {
+  for (const size of [1000, 1024, 100, 128, 129]) {
+    const file = bytes(size);
+    const server = fakeServer(file);
+    let seen = 0;
+    let start: unknown;
+    const out = await collect(
+      streamInRanges('https://cdn.example.com/a.mp4', {
+        limiter: new Limiter(6),
+        chunkSize: 128,
+        fetch: server.fetch,
+        onBytes: (n) => (seen += n),
+        onStart: (info) => (start = info),
+      }),
+    );
+    assert.deepEqual(out, file, `size ${size}`);
+    assert.equal(seen, size);
+    assert.equal((start as { ranges: boolean }).ranges, true);
+    if (size >= 1000) assert.ok(server.maxActive() > 1, 'ranges ran side by side');
+  }
+});
+
+test('streams the whole file in one request when the server ignores Range', async () => {
+  const file = bytes(1000);
+  const server = fakeServer(file, { ignoreRange: true });
+  let start: { ranges: boolean; total: number | null } | undefined;
+  const out = await collect(
+    streamInRanges('https://cdn.example.com/a.mp4', { limiter: new Limiter(6), chunkSize: 128, fetch: server.fetch, onStart: (info) => (start = info) }),
+  );
+  assert.deepEqual(out, file);
+  assert.equal(server.calls.length, 1);
+  assert.equal(start?.ranges, false);
+});
+
+test('a stream uses Content-Range for the size, and asks for nothing past the end', async () => {
+  const file = bytes(1000);
+  const calls: string[] = [];
+  const fetchWithSize = (async (_url: string, init?: RequestInit) => {
+    const range = new Headers(init?.headers).get('Range')!;
+    calls.push(range);
+    const [, from, to] = /bytes=(\d+)-(\d+)/.exec(range)!.map(Number);
+    const last = Math.min(to, file.length - 1);
+    return new Response(file.slice(from, last + 1), { status: 206, headers: { 'Content-Range': `bytes ${from}-${last}/${file.length}` } });
+  }) as typeof fetch;
+  let total: number | null = null;
+  const out = await collect(
+    streamInRanges('https://cdn.example.com/a.mp4', { limiter: new Limiter(6), chunkSize: 128, fetch: fetchWithSize, onStart: (info) => (total = info.total) }),
+  );
+  assert.deepEqual(out, file);
+  assert.equal(total, 1000);
+  assert.equal(calls.length, 8); // ceil(1000 / 128)
+});
+
+test('a stream retries a busy server and fails on an expired link', async () => {
+  const file = bytes(600);
+  const busy = fakeServer(file, { failFirst: 2 });
+  let retries = 0;
+  const out = await collect(
+    streamInRanges('https://cdn.example.com/a.mp4', { limiter: new Limiter(4), chunkSize: 128, fetch: busy.fetch, retryDelayMs: 1, onRetry: () => retries++ }),
+  );
+  assert.deepEqual(out, file);
+  assert.ok(retries >= 2);
+  const expired = fakeServer(file, { status: 403 });
+  await assert.rejects(collect(streamInRanges('https://cdn.example.com/a.mp4', { limiter: new Limiter(4), chunkSize: 128, fetch: expired.fetch })), LinkExpiredError);
+});
+
+test('a stream stops when aborted', async () => {
+  const server = fakeServer(bytes(5000));
+  const controller = new AbortController();
+  const stream = streamInRanges('https://cdn.example.com/a.mp4', { limiter: new Limiter(4), chunkSize: 128, fetch: server.fetch, signal: controller.signal });
+  await stream.next();
+  controller.abort();
+  await assert.rejects(collect(stream), AbortError);
+});
+
+test('a stream falls back to a plain request when the Range request is refused', async () => {
+  const file = bytes(700);
+  const calls: string[] = [];
+  const refusing = (async (_url: string, init?: RequestInit) => {
+    const range = new Headers(init?.headers).get('Range');
+    calls.push(range ?? 'plain');
+    if (range) throw new TypeError('Failed to fetch'); // what a refused CORS preflight looks like
+    return new Response(file, { status: 200 });
+  }) as typeof fetch;
+  const out = await collect(streamInRanges('https://cdn.example.com/a.mp4', { limiter: new Limiter(4), chunkSize: 128, fetch: refusing, retryDelayMs: 1 }));
+  assert.deepEqual(out, file);
+  assert.equal(calls.at(-1), 'plain');
 });

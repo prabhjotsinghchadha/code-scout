@@ -226,6 +226,174 @@ export async function fetchInRanges(url: string, options: RangeFetchOptions): Pr
   }
 }
 
+/** Size of the ranges a big file is streamed in (streamInRanges). */
+export const STREAM_CHUNK_SIZE = 4 * 1024 * 1024;
+
+export interface RangeStreamOptions {
+  limiter: Limiter;
+  signal?: AbortSignal;
+  chunkSize?: number;
+  /** Ranges fetched ahead of the one being handed over, read each time more are started (memory: this × chunkSize). */
+  ahead?: () => number;
+  attempts?: number;
+  /** Bytes as they arrive; negative when a range that broke off is fetched again. */
+  onBytes?: (bytes: number) => void;
+  onRetry?: () => void;
+  /** Once the first answer is in: whether the server does ranges, and the file's size if it said. */
+  onStart?: (info: { ranges: boolean; total: number | null }) => void;
+  fetchPriority?: RequestPriority;
+  /** For tests. */
+  fetch?: typeof fetch;
+  retryDelayMs?: number;
+}
+
+/**
+ * A big file (a plain MP4) as parallel byte ranges, handed over in order as they're ready, so it can be
+ * written to disk as it goes. For servers that slow each request down but allow several at once.
+ * A server that ignores Range and sends the whole file is streamed as it comes, in one request.
+ * Where the file ends is learned from Content-Range if the page may read it, else from the first range
+ * that comes back short or past the end.
+ */
+export async function* streamInRanges(url: string, options: RangeStreamOptions): AsyncGenerator<Uint8Array, void, undefined> {
+  const { limiter, chunkSize = STREAM_CHUNK_SIZE, attempts = 3, onBytes, onRetry, fetchPriority, retryDelayMs = 500 } = options;
+  const ahead = options.ahead ?? (() => limiter.max + 2);
+  const doFetch = options.fetch ?? fetch.bind(globalThis);
+
+  const controller = new AbortController();
+  const outer = options.signal;
+  const onOuterAbort = () => controller.abort();
+  if (outer?.aborted) throw new AbortError();
+  outer?.addEventListener('abort', onOuterAbort, { once: true });
+  const signal = controller.signal;
+
+  // Later ranges go straight to where the first one ended up (a link that redirects to the file server).
+  let target = url;
+
+  type Answer = { kind: 'part'; bytes: Uint8Array; total: number | null } | { kind: 'past-end' } | { kind: 'whole'; response: Response };
+
+  const fetchChunk = async (index: number): Promise<Answer> => {
+    const from = index * chunkSize;
+    for (let attempt = 1; ; attempt++) {
+      let error: unknown;
+      let retryable = true;
+      let counted = 0;
+      try {
+        const init: RequestInit = { headers: { Range: `bytes=${from}-${from + chunkSize - 1}` }, signal };
+        if (fetchPriority) init.priority = fetchPriority;
+        const response = await doFetch(target, init);
+        if (index === 0 && response.ok && /^https?:/i.test(response.url)) target = response.url;
+        if (response.status === 416) return { kind: 'past-end' };
+        if (EXPIRED.has(response.status)) throw new LinkExpiredError(response.status);
+        if (response.status === 200) {
+          if (index === 0) return { kind: 'whole', response };
+          void response.body?.cancel().catch(() => {});
+          throw new Error('The video server stopped answering range requests.');
+        }
+        if (response.status === 206) {
+          const size = Number(/\/(\d+)\s*$/.exec(response.headers.get('content-range') ?? '')?.[1]);
+          const bytes = await readBody(response, (n) => {
+            counted += n;
+            onBytes?.(n);
+          });
+          return { kind: 'part', bytes, total: size > 0 ? size : null };
+        }
+        error = new Error(`HTTP ${response.status}`);
+        retryable = response.status === 429 || response.status >= 500;
+      } catch (err) {
+        if (signal.aborted) throw new AbortError();
+        if (err instanceof LinkExpiredError) throw err;
+        error = err;
+        if (counted) onBytes?.(-counted); // the range starts again
+      }
+      if (!retryable || attempt >= attempts) throw error;
+      onRetry?.();
+      await new Promise((r) => setTimeout(r, retryDelayMs * attempt));
+      if (signal.aborted) throw new AbortError();
+    }
+  };
+
+  /** The file's size from a plain request's headers (its body isn't read), or null. */
+  const sizeOf = async (): Promise<number | null> => {
+    const probe = new AbortController();
+    const stop = () => probe.abort();
+    signal.addEventListener('abort', stop, { once: true });
+    try {
+      const response = await doFetch(target, { signal: probe.signal });
+      const size = response.status === 200 ? Number(response.headers.get('content-length')) : 0;
+      return size > 0 ? size : null;
+    } catch {
+      return null;
+    } finally {
+      probe.abort();
+      signal.removeEventListener('abort', stop);
+    }
+  };
+
+  try {
+    let first: Answer;
+    try {
+      first = await limiter.run(() => fetchChunk(0), 0, signal);
+    } catch (err) {
+      if (signal.aborted || err instanceof LinkExpiredError) throw err;
+      // A server (or its CORS rules) that refuses a Range request: the plain request, as a page's own player sends.
+      const response = await doFetch(url, { signal });
+      if (EXPIRED.has(response.status)) throw new LinkExpiredError(response.status);
+      if (!response.ok) throw err;
+      first = { kind: 'whole', response };
+    }
+    if (first.kind === 'past-end') throw new Error('Empty response');
+    if (first.kind === 'whole') {
+      const { response } = first;
+      options.onStart?.({ ranges: false, total: Number(response.headers.get('content-length')) || null });
+      if (!response.body) throw new Error('Empty response');
+      const reader = response.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        onBytes?.(value.byteLength);
+        yield value;
+      }
+    }
+    const whole = first.bytes.byteLength < chunkSize;
+    // The size, for the progress: Content-Range, else (the page may not read it) the plain request's Content-Length.
+    const total = first.total ?? (whole ? first.bytes.byteLength : await sizeOf());
+    options.onStart?.({ ranges: true, total });
+    yield first.bytes;
+    if (whole) return;
+
+    let end = total ? Math.ceil(total / chunkSize) : Infinity; // number of ranges in the file
+    let started = 1;
+    let next = 1;
+    const pending = new Map<number, Promise<Answer>>();
+    const fill = () => {
+      while (started < end && started < next + Math.max(1, ahead())) {
+        const index = started++;
+        const p = limiter
+          .run(() => fetchChunk(index), index, signal)
+          .then((answer) => {
+            if (answer.kind === 'past-end') end = Math.min(end, index);
+            else if (answer.kind === 'part' && answer.bytes.byteLength < chunkSize) end = Math.min(end, index + 1);
+            return answer;
+          });
+        p.catch(() => {}); // awaited when its turn comes
+        pending.set(index, p);
+      }
+    };
+    while (next < end) {
+      fill();
+      const answer = await pending.get(next)!;
+      pending.delete(next++);
+      if (answer.kind !== 'part') return;
+      yield answer.bytes;
+    }
+  } catch (err) {
+    throw err instanceof AbortError || signal.aborted ? new AbortError() : err;
+  } finally {
+    controller.abort(); // ranges started past the end, or still running when the reader stopped
+    outer?.removeEventListener('abort', onOuterAbort);
+  }
+}
+
 /** The response's bytes, reported to `onBytes` as they arrive (a range can take seconds on a slow server). */
 async function readBody(response: Response, onBytes?: (bytes: number) => void): Promise<Uint8Array> {
   if (!onBytes || !response.body) {
