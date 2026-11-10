@@ -6,12 +6,11 @@
 // Some video servers send each request slowly (18JAV's CDN: about 50 KB/s per request, while the video
 // needs about 250 KB/s) but let several requests run at once. So each segment is downloaded as parallel
 // byte ranges, with the next 10 minutes of video fetched ahead (also while paused, so pausing lets it
-// load; at most 250 MB), and handed to the player from memory:
-//  - hls.js on the page (window.Hls): it gets a loader that hands it the bytes through a blob: URL, which
-//    its own loader reads instantly.
-//  - Any other player (hls.js bundled inside it, JW Player, Video.js, Shaka): the same at the network
-//    level. Playlists the page downloads (XMLHttpRequest or fetch) are remembered, and when the player
-//    then asks for one of their segments, the request is answered with the bytes fetched ahead.
+// load; at most 250 MB), and handed to the player from memory,
+// at the network level, whatever the player (hls.js, JW Player, Video.js, Shaka): playlists the page
+// downloads (XMLHttpRequest or fetch; hls.js on the page also through its loader) are remembered, and when
+// the player then asks for one of their segments, the request is answered with the bytes fetched ahead.
+// No blob: URLs for that: many sites' Content-Security-Policy blocks requests to them.
 // Only finished videos (not live streams). Anything unusual (byte-range segments, a failed range
 // request) falls back to the player's normal loading. While a download runs in the frame
 // (video-download.ts sends "javtr:downloading"), only a few segments are fetched ahead, leaving the
@@ -76,8 +75,6 @@ type Loose = any;
   let lastMaster = '';
   /** Players served at the network level: the list they're playing, for the toolbar. */
   let generic: { list: string[] } | null = null;
-  /** Segments to load the player's way once (their fetch ahead failed). */
-  const plainOnce = new Set<string>();
 
   /** A video here has played (and may be paused now): not just a preview sitting on the page. */
   const anyStarted = () => [...players.keys(), ...document.getElementsByTagName('video')].some((m) => m.played.length > 0);
@@ -204,66 +201,16 @@ type Loose = any;
     return job?.promise ?? null;
   }
 
-  const isSegment = (context: Loose) =>
-    !!context?.frag &&
-    !context.part &&
-    context.responseType === 'arraybuffer' &&
-    !(typeof context.rangeEnd === 'number' && context.rangeEnd > 0);
-
   const isPlaylistLoad = (context: Loose) => !context?.frag && typeof context?.type === 'string';
 
-  /** hls.js's loader, with segments fetched in parallel ranges and playlists remembered. */
+  /**
+   * hls.js's loader, with playlists remembered. Its segment requests are answered like any other
+   * player's, at the network level below.
+   */
   function turboLoader(Base: Loose): Loose {
     return class TurboLoader extends Base {
-      javtrToken: object | null = null;
-
       load(context: Loose, config: Loose, callbacks: Loose) {
-        const token = {};
-        this.javtrToken = token;
-        if (isSegment(context)) {
-          let pending: Promise<Uint8Array> | null = null;
-          try {
-            pending = want(context.url);
-          } catch {
-            pending = null;
-          }
-          if (pending) {
-            pending.then(
-              (bytes) => {
-                if (this.javtrToken !== token) return; // aborted meanwhile
-                const original = context.url;
-                const blobUrl = URL.createObjectURL(new Blob([bytes as BlobPart]));
-                const finish = () => {
-                  URL.revokeObjectURL(blobUrl);
-                  context.url = original;
-                };
-                context.url = blobUrl;
-                super.load(context, config, {
-                  ...callbacks,
-                  onSuccess: (response: Loose, ...rest: Loose[]) => {
-                    finish();
-                    if (response && typeof response === 'object') response.url = original;
-                    callbacks.onSuccess(response, ...rest);
-                  },
-                  onError: (...args: Loose[]) => {
-                    finish();
-                    callbacks.onError(...args);
-                  },
-                  onTimeout: (...args: Loose[]) => {
-                    finish();
-                    callbacks.onTimeout?.(...args);
-                  },
-                });
-              },
-              () => {
-                if (this.javtrToken !== token) return;
-                plainOnce.add(context.url);
-                super.load(context, config, callbacks);
-              },
-            );
-            return;
-          }
-        } else if (isPlaylistLoad(context)) {
+        if (isPlaylistLoad(context)) {
           const onSuccess = callbacks.onSuccess;
           callbacks = {
             ...callbacks,
@@ -278,16 +225,6 @@ type Loose = any;
           };
         }
         super.load(context, config, callbacks);
-      }
-
-      abort() {
-        this.javtrToken = null;
-        super.abort();
-      }
-
-      destroy() {
-        this.javtrToken = null;
-        super.destroy();
       }
     };
   }
@@ -397,7 +334,7 @@ type Loose = any;
 
   /** The bytes for a segment the player asked for, or null to let its request go ahead as usual. */
   function serve(url: string): Promise<Uint8Array> | null {
-    if (off || !url || !positions.has(url) || plainOnce.delete(url)) return null;
+    if (off || !url || !positions.has(url)) return null;
     let pending: Promise<Uint8Array> | null = null;
     try {
       pending = want(url);
@@ -437,9 +374,57 @@ type Loose = any;
     }
   }
 
+  /** What answer() sets on a request object; open() clears them when the object is used again. */
+  const ANSWERED = ['readyState', 'status', 'statusText', 'response', 'responseText', 'responseURL', 'getResponseHeader', 'getAllResponseHeaders'];
+
+  /** Answers an opened, unsent request with bytes from memory: the properties and events of a 200. */
+  function answer(request: XMLHttpRequest, state: XhrState, bytes: Uint8Array) {
+    const current = () => xhrStates.get(request) === state && !state.aborted; // not aborted or opened again
+    if (!current()) return;
+    const type = request.responseType;
+    const set = (name: string, value: unknown) => Object.defineProperty(request, name, { configurable: true, value });
+    const text = () => new TextDecoder().decode(bytes);
+    let body: unknown;
+    try {
+      if (type === 'arraybuffer') body = bytes.byteLength === bytes.buffer.byteLength ? bytes.buffer : bytes.slice().buffer;
+      else if (type === 'blob') body = new Blob([bytes as BlobPart]);
+      else if (type === 'json') body = JSON.parse(text());
+      else if (type === '' || type === 'text') body = text();
+      else throw new Error(type); // "document": not something a segment is asked as
+    } catch {
+      nativeSend.call(request); // the player's way
+      return;
+    }
+    const headers: Record<string, string> = { 'content-length': String(bytes.byteLength) };
+    set('status', 200);
+    set('statusText', 'OK');
+    set('responseURL', state.url);
+    set('getResponseHeader', (name: string) => headers[String(name).toLowerCase()] ?? null);
+    set('getAllResponseHeaders', () => Object.entries(headers).map(([k, v]) => `${k}: ${v}\r\n`).join(''));
+    const size = { lengthComputable: true, loaded: bytes.byteLength, total: bytes.byteLength };
+    const steps: [number, string[]][] = [
+      [2, []],
+      [3, ['progress']],
+      [4, ['load', 'loadend']],
+    ];
+    for (const [readyState, events] of steps) {
+      set('readyState', readyState);
+      if (readyState === 4) {
+        set('response', body);
+        if (typeof body === 'string') set('responseText', body);
+      }
+      request.dispatchEvent(new Event('readystatechange'));
+      for (const name of events) {
+        if (!current()) return;
+        request.dispatchEvent(new ProgressEvent(name, size));
+      }
+      if (!current()) return;
+    }
+  }
+
   xhr.open = function (this: XMLHttpRequest, ...args: Loose[]) {
     // The same request object used again: forget what was set for the last one.
-    if (Object.prototype.hasOwnProperty.call(this, 'responseURL')) delete (this as Loose).responseURL;
+    for (const name of ANSWERED) if (Object.prototype.hasOwnProperty.call(this, name)) delete (this as Loose)[name];
     // open(method, url) is async; with a third argument, that argument decides (undefined = not async).
     const async = args.length < 3 || !!args[2];
     xhrStates.set(this, { url: absolute(args[1]), method: String(args[0]).toUpperCase(), async, range: false, aborted: false });
@@ -467,20 +452,10 @@ type Loose = any;
     const pending = state && state.async && state.method === 'GET' && !state.range ? serve(state.url) : null;
     if (!pending) return nativeSend.call(this, body);
     // Until the bytes are here the request looks sent but unanswered (readyState 1), as usual. Then it's
-    // pointed at a blob: URL of them and really sent, so the player gets its normal events and response.
+    // answered on the object itself (not through a blob: URL: sites whose Content-Security-Policy leaves
+    // blob: out block that, and each blocked request is an error against the extension).
     pending.then(
-      (bytes) => {
-        if (state!.aborted) return;
-        const blobUrl = URL.createObjectURL(new Blob([bytes as BlobPart]));
-        try {
-          nativeOpen.call(this, 'GET', blobUrl, true);
-          Object.defineProperty(this, 'responseURL', { configurable: true, get: () => state!.url });
-          this.addEventListener('loadend', () => URL.revokeObjectURL(blobUrl), { once: true });
-          nativeSend.call(this);
-        } catch {
-          URL.revokeObjectURL(blobUrl);
-        }
-      },
+      (bytes) => answer(this, state!, bytes),
       () => {
         if (state!.aborted) return;
         try {
