@@ -3,7 +3,7 @@
 // so anything the user removed, renamed or regrouped afterwards stays that way. Pure; storage.ts runs it.
 import type { OpenOnSite } from './open-on.ts';
 import { hasGroup, type QuickLink } from './quick-links.ts';
-import { GROUPS, SITES, type Site } from './sites.ts';
+import { GROUP_AUDIENCE, GROUPS, SITES, type Site } from './sites.ts';
 
 export interface SeedState {
   quickLinks: QuickLink[];
@@ -11,22 +11,27 @@ export interface SeedState {
   openOnSites: OpenOnSite[];
 }
 
+/** Who a built-in is for: a new install only, or installs from before there were starting points. */
+export type Audience = 'new' | 'earlier';
+
 export interface BuiltInLink extends QuickLink {
   key: string;
+  /** Offered to these installs only (its group's audience, see GROUP_AUDIENCE); to all when not set. */
+  audience?: Audience;
   /** Key for moving the user's own ungrouped copy of this link into its group (set when it has one). */
   groupKey?: string;
 }
 
 /** Built-in items with the keys installs remember them by. */
 export interface BuiltIns {
-  groups: { key: string; name: string }[];
+  groups: { key: string; name: string; audience?: Audience }[];
   links: BuiltInLink[];
   sites: (OpenOnSite & { key: string })[];
 }
 
 export function builtInsFrom(sites: Site[], groups: string[]): BuiltIns {
   return {
-    groups: groups.map((name) => ({ key: `group:${name}`, name })),
+    groups: groups.map((name) => ({ key: `group:${name}`, name, ...(GROUP_AUDIENCE[name] && { audience: GROUP_AUDIENCE[name] }) })),
     links: sites.flatMap((site) =>
       (site.pages ?? []).map((page) => {
         const key = `link:${site.id}/${page.id}`;
@@ -35,6 +40,7 @@ export function builtInsFrom(sites: Site[], groups: string[]): BuiltIns {
           name: page.label ? `${site.name} · ${page.label}` : site.name,
           url: new URL(page.path, site.origin).href,
           ...(page.group && { group: page.group, groupKey: `${key}@${page.group}` }),
+          ...(page.group && GROUP_AUDIENCE[page.group] && { audience: GROUP_AUDIENCE[page.group] }),
         };
       }),
     ),
@@ -59,16 +65,23 @@ export function builtInKeys({ groups, links, sites }: BuiltIns): string[] {
  * Adds the built-ins whose keys aren't in `offered`: groups the user doesn't have, links whose URL they
  * don't have, "Open on" sites they don't have (same id or URL pattern). A link they already have
  * ungrouped is moved into its built-in group, once. Returns null when there's nothing new to offer.
+ *
+ * `fresh`: this install has never been offered anything. It gets the built-ins for new installs ("Start
+ * here") and not the ones for earlier installs; any other install, the reverse. Either way every key is
+ * recorded as offered, so a built-in that wasn't for this install is never added to it later.
  */
 export function seed(
   state: SeedState,
   offered: Iterable<string>,
   builtIns: BuiltIns = BUILT_INS,
+  fresh = false,
 ): { state: SeedState; offered: string[] } | null {
   const done = new Set(offered);
   const keys = builtInKeys(builtIns);
   if (keys.every((k) => done.has(k))) return null;
   const isNew = (key: string) => !done.has(key);
+  const forUs = (item: { audience?: Audience }) => !item.audience || item.audience === (fresh ? 'new' : 'earlier');
+  builtIns = { ...builtIns, groups: builtIns.groups.filter(forUs), links: builtIns.links.filter(forUs) };
 
   const linkGroups = [
     ...state.linkGroups,

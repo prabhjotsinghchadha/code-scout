@@ -85,20 +85,22 @@ const V10_LINKS = [
 const ALL_GROUPS = ['Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
 const ALL_SITES = ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru', 'Jable', 'SupJav', 'BestJavPorn', 'SexTB'];
 
-test('seeds everything on a fresh install, writing only the seeded lists and the record', async () => {
+test('seeds a fresh install with the starting points, writing only the seeded lists and the record', async () => {
   const { sync, local, writes } = fakeChrome({}, {});
   await seedBuiltIns();
   assert.deepEqual(Object.keys(sync).sort(), ['linkGroups', 'openOnSites', 'quickLinks', 'seededBuiltIns']);
   assert.deepEqual(writes, [SEED_WRITE, 'local:seededBuiltIns']);
-  assert.deepEqual(sync.linkGroups, ALL_GROUPS);
+  // A new install: "Start here", and none of the groups by taste (those were the first user's own).
+  assert.deepEqual(sync.linkGroups, ['Start here', 'All Japanese', 'Subtitles', 'More sites']);
   assert.deepEqual(names(sync), [
     `MissAV · English subtitle ${SUBS}`,
     'JavLibrary · Most wanted',
-    'JavMost · Cuckold [Cuckold]',
-    'Javtiful · Affair (popular) [Cheating]',
-    'JavTrailers · Cheating Wife [Cheating]',
-    'JavTrailers · Adultery [Cheating]',
-    'Beeg · Cuckold Japanese [Cuckold]',
+    'JavTrailers · New releases [Start here]',
+    'JavTrailers · Browse genres [Start here]',
+    'JavTrailers · Browse performers [Start here]',
+    'JavTrailers · Browse studios [Start here]',
+    'JavTrailers · Browse series [Start here]',
+    'JavTrailers · Release calendar [Start here]',
     'FapHouse · Japanese [All Japanese]',
     'Pornhub · Japanese [All Japanese]',
     'YouPorn · Japanese [All Japanese]',
@@ -111,7 +113,7 @@ test('seeds everything on a fresh install, writing only the seeded lists and the
   assert.deepEqual(new Set(local.seededBuiltIns as string[]), new Set(ALL));
   assert.deepEqual(sync.openOnSites!.map((x) => x.name), ALL_SITES);
   await seedBuiltIns(); // nothing new: no further writes
-  assert.equal(sync.quickLinks!.length, 19);
+  assert.equal(sync.quickLinks!.length, 20);
   assert.equal(writes.length, 2);
 });
 
@@ -205,7 +207,8 @@ test('upgrades a v10 install: lists untouched, record copied to sync once', asyn
   await seedBuiltIns();
   const { seededBuiltIns, ...lists } = sync;
   assert.deepEqual(lists, EDITED);
-  assert.deepEqual(new Set(seededBuiltIns), new Set(offeredByVersion(10)));
+  // The record also notes the starting points for new installs as offered: they're never added here.
+  assert.deepEqual(new Set(seededBuiltIns), new Set(ALL));
   assert.deepEqual(writes, ['sync:seededBuiltIns', 'local:seededBuiltIns']);
   await seedBuiltIns();
   assert.equal(writes.length, 2);
@@ -266,9 +269,9 @@ test('built-ins removed after seeding stay removed on later updates', async () =
   await seedBuiltIns();
   sync.quickLinks = sync.quickLinks!.filter((l) => !l.name.startsWith('SexTB'));
   sync.openOnSites = sync.openOnSites!.filter((s) => s.id !== 'sextb');
-  sync.linkGroups = sync.linkGroups!.filter((g) => g !== 'NTR');
+  sync.linkGroups = sync.linkGroups!.filter((g) => g !== 'All Japanese');
   await seedBuiltIns();
-  assert.equal(sync.quickLinks!.length, 18);
+  assert.equal(sync.quickLinks!.length, 19);
   assert.ok(!sync.openOnSites!.some((s) => s.id === 'sextb'));
-  assert.ok(!sync.linkGroups!.includes('NTR'));
+  assert.ok(!sync.linkGroups!.includes('All Japanese'));
 });

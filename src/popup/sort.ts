@@ -81,6 +81,21 @@ export function sortLinks(links: QuickLink[], by: LinkSort, visits: Visits, now:
   return links;
 }
 
+/** The day a time falls on, as a heading: "Today", "Yesterday", "Monday" (this past week), "9 November", "9 November 2025". */
+export function dayLabel(at: number, now: number): string {
+  const day = (t: number) => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const days = Math.round((day(now) - day(at)) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  const date = new Date(at);
+  if (days < 7) return date.toLocaleDateString('en-GB', { weekday: 'long' });
+  const sameYear = date.getFullYear() === new Date(now).getFullYear();
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', ...(!sameYear && { year: 'numeric' }) });
+}
+
 /** The sort last picked for a list ("page", "favs-videos", "links"…), if it's still one of its choices. */
 export function storedSort<T extends string>(list: string, choices: readonly SortChoice<T>[]): T {
   try {

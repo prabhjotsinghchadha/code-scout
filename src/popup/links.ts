@@ -42,6 +42,8 @@ let showMostVisited = true;
 let sort: LinkSort = 'mine';
 let folded = new Set<string>();
 let openLinks: (urls: string[]) => unknown = () => {};
+/** The performers and studios the favourites have most of, with their pages (from the popup's main script). */
+let picks: () => { kind: string; value: string; url?: string }[] = () => [];
 /** Called after every change, e.g. to update "Add page". */
 let onChange = () => {};
 /** The link being dragged (its URL), while a drag is on. */
@@ -335,6 +337,20 @@ function dial(links: QuickLink[]) {
   return box;
 }
 
+/** "From your favourites": the performers and studios starred most, each a click from their page. */
+function pickRow(items: { kind: string; value: string; url?: string }[]) {
+  const box = el('div', { className: 'picks' });
+  box.append(el('span', { className: 'picks-label', textContent: 'From your favourites' }));
+  for (const item of items) {
+    const chip = el('button', { type: 'button', className: `chip link-main${item.kind === 'performer' ? ' pick-heart' : ''}`, title: `Open ${item.value} on javtrailers` });
+    if (item.kind === 'performer') chip.append(icon('heart', 10));
+    chip.append(item.value);
+    chip.addEventListener('click', () => void openLinks([item.url!]));
+    box.append(chip);
+  }
+  return box;
+}
+
 /** A group's card: its name (click to fold it away), how many, Open all, and its rows. */
 function groupCard(group: string | null, links: QuickLink[]) {
   const key = group ?? '';
@@ -385,6 +401,8 @@ function render() {
   const out: HTMLElement[] = [];
   const top = showMostVisited ? mostVisitedLinks(state.quickLinks, visits, Date.now()) : [];
   if (top.length > 1) out.push(dial(top));
+  const mine = picks().filter((p) => p.url);
+  if (mine.length) out.push(pickRow(mine));
   const sections = groupLinks(state);
   // Named groups in their order (one with no links still shows, so links can be dragged into it), then
   // the links without a group.
@@ -465,7 +483,13 @@ function setupAddPage(tab: chrome.tabs.Tab | undefined) {
   });
 }
 
-export async function setupLinks(settings: Settings, tab: chrome.tabs.Tab | undefined, open: (urls: string[]) => unknown) {
+export async function setupLinks(
+  settings: Settings,
+  tab: chrome.tabs.Tab | undefined,
+  open: (urls: string[]) => unknown,
+  favouritePicks: typeof picks = () => [],
+) {
+  picks = favouritePicks;
   state = { quickLinks: settings.quickLinks, linkGroups: settings.linkGroups };
   showMostVisited = settings.mostVisited;
   openLinks = open;

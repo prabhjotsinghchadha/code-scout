@@ -157,12 +157,18 @@ export async function seedBuiltIns(builtIns: BuiltIns = BUILT_INS): Promise<void
     linkGroups: stored.linkGroups ?? [],
     openOnSites: stored.openOnSites ?? [],
   };
-  const result = seed(state, offered, builtIns);
+  // Never offered anything: a new install, which gets the starting points for new users (seed.ts).
+  const result = seed(state, offered, builtIns, offered.length === 0);
   const record = result?.offered ?? [...new Set(offered)];
+  // Only the lists that changed: a built-in that isn't for this install adds its key to the record and
+  // nothing else, and lists that are the same aren't written back over what another device may have synced.
+  const changed = Object.fromEntries(
+    SEEDED_KEYS.filter((k) => result && JSON.stringify(result.state[k]) !== JSON.stringify(state[k])).map((k) => [k, result!.state[k]]),
+  );
 
   // One write, so the lists and the record land together or not at all. Sync before local: a failed
   // sync write must not mark anything as offered on this device.
-  const patch = { ...result?.state, ...(record.some((k) => !synced.includes(k)) && { seededBuiltIns: record }) };
+  const patch = { ...changed, ...(record.some((k) => !synced.includes(k)) && { seededBuiltIns: record }) };
   if (Object.keys(patch).length) await chrome.storage.sync.set(patch);
   if (record.some((k) => !local.seededBuiltIns.includes(k))) await chrome.storage.local.set({ seededBuiltIns: record });
 }

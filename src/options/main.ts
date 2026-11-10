@@ -181,6 +181,9 @@ function siteListEditor(
   let sites: string[] = [];
   const render = () => {
     $(`${prefix}-empty`).hidden = sites.length > 0;
+    // Where the list is folded away, its heading says how many it holds.
+    const count = document.getElementById(`${prefix}-count`);
+    if (count) count.textContent = sites.length ? String(sites.length) : '';
     $(`${prefix}-sites`).replaceChildren(
       ...sites.map((host) => {
         const li = el('li');
@@ -392,6 +395,12 @@ function setupSections() {
       const on = query ? squash(section.textContent ?? '').includes(query) : section.id === current;
       section.hidden = !on;
       if (on) shown++;
+      // What was looked for may be in a folded part: unfold it.
+      if (on && query) {
+        section.querySelectorAll<HTMLDetailsElement>('details.more').forEach((d) => {
+          if (squash(d.textContent ?? '').includes(query)) d.open = true;
+        });
+      }
     }
     for (const [id, a] of links) a.setAttribute('aria-current', String(!query && id === current));
     document.body.classList.toggle('searching', !!query);

@@ -4,6 +4,7 @@ import { sendToBackground } from '../shared/messages';
 import type { FavouritePage } from '../shared/favourites';
 import { fillTemplate } from '../shared/open-on';
 import { seenAgo } from '../shared/seen';
+import { getLater, isLater, setLater } from '../shared/later';
 import { getSettings } from '../shared/storage';
 import { isStarred, thisPage, toggleStar } from './favourites';
 import { seenEntryFor } from './seen';
@@ -68,7 +69,8 @@ export async function openSiteMenu(
   opts: { onClose?: () => void; anchorEl?: Element; page?: () => FavouritePage | null } = {},
 ) {
   closeSiteMenu();
-  const { openOnSites } = await getSettings();
+  const [{ openOnSites }, later] = await Promise.all([getSettings(), getLater().catch(() => ({}))]);
+  const queued = isLater(later, code);
 
   const el = markUi(document.createElement('div'));
   el.id = 'javtr-menu';
@@ -91,6 +93,10 @@ export async function openSiteMenu(
     isStarred(code)
       ? item('Remove from favourites', () => void toggleStar(code, null), 'javtr-menu-on', '★')
       : item('Add to favourites', () => void toggleStar(code, (opts.page ?? thisPage)()), '', '☆'),
+    // Put aside to watch (the popup's Favourites → Later), apart from the favourites.
+    queued
+      ? item('Remove from Watch later', () => void setLater(code, false), '', '✓')
+      : item('Watch later', () => void setLater(code, true, (opts.page ?? thisPage)()), '', '+'),
     Object.assign(document.createElement('hr'), { className: 'javtr-menu-sep' }),
   );
   if (openOnSites.length) {

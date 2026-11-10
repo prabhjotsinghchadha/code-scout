@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { VideoCode } from '../shared/codes.ts';
-import { sortByName, sortByTime, sortLinks, sortPageCodes } from './sort.ts';
+import { dayLabel, sortByName, sortByTime, sortLinks, sortPageCodes } from './sort.ts';
 
 const code = (prefix: string, number: number): VideoCode => ({ prefix, number });
 const names = (codes: VideoCode[]) => codes.map((c) => `${c.prefix}-${c.number}`);
@@ -51,4 +51,14 @@ test('links: my order, most visited, A–Z by the page’s name', () => {
   assert.equal(sortLinks(links, 'mine', visits, now), links);
   assert.deepEqual(titles('visited'), ['Jav Guru · Cheating', 'MissAV · Subtitles', 'MissAV · Cuckold', 'Jable']);
   assert.deepEqual(titles('az'), ['Jav Guru · Cheating', 'MissAV · Cuckold', 'Jable', 'MissAV · Subtitles']);
+});
+
+test('the day a time falls on, as a heading', () => {
+  const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
+  const now = at(2026, 11, 10, 15);
+  assert.equal(dayLabel(at(2026, 11, 10, 0), now), 'Today');
+  assert.equal(dayLabel(at(2026, 11, 9, 23), now), 'Yesterday');
+  assert.equal(dayLabel(at(2026, 11, 7), now), 'Saturday');
+  assert.equal(dayLabel(at(2026, 11, 3), now), '3 November');
+  assert.equal(dayLabel(at(2025, 12, 31), now), '31 December 2025');
 });

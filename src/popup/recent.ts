@@ -4,8 +4,10 @@ import { formatCode, type VideoCode } from '../shared/codes';
 import type { FavouritePage } from '../shared/favourites';
 import { icon } from '../shared/icons';
 import { forgetSeenCode, getSeen, onSeenChanged, recentSeen, seenAgo, type Seen, type SeenCode } from '../shared/seen';
-import { sortButton } from './rows';
-import { sortByTime, storedSort, storeSort, TIME_SORTS, type TimeSort } from './sort';
+import { allDetails } from './details';
+import { matchesFacet, type Facet } from './filter';
+import { filterButton, sortButton } from './rows';
+import { dayLabel, sortByTime, storedSort, storeSort, TIME_SORTS, type TimeSort } from './sort';
 
 /** Rows shown at most; the box at the top of the popup searches every seen code. */
 const SHOW = 100;
@@ -25,6 +27,8 @@ export async function setupRecent({ row, pageLink, onChange }: RecentOptions): P
   const list = $<HTMLUListElement>('recent');
   let seen = await getSeen();
   let sort: TimeSort = storedSort('recent', TIME_SORTS);
+  /** Narrowed to one label, performer or studio (null: everything). Not kept between openings. */
+  let facet: Facet | null = null;
 
   const recentRow = (s: SeenCode) => {
     const li = row(s.code, s.url ? { url: s.url, title: s.title } : null);
@@ -48,15 +52,42 @@ export async function setupRecent({ row, pageLink, onChange }: RecentOptions): P
   };
 
   const paint = () => {
-    const all = sortByTime(recentSeen(seen), sort, (s) => s.at, (s) => s.code);
-    list.replaceChildren(...all.slice(0, SHOW).map(recentRow));
-    $('recent-empty').hidden = all.length > 0;
-    $('recent-head').hidden = all.length < 2; // nothing to sort
-    $('recent-title').textContent = `${all.length.toLocaleString()} codes seen`;
+    const everything = recentSeen(seen);
+    const kept = facet ? everything.filter((s) => matchesFacet(s.code, facet!, allDetails())) : everything;
+    const all = sortByTime(kept, sort, (s) => s.at, (s) => s.code);
+    // By time, the list is in days: a heading where each day starts.
+    const rows: HTMLElement[] = [];
+    let day = '';
+    const now = Date.now();
+    for (const s of all.slice(0, SHOW)) {
+      const label = sort === 'code' ? '' : dayLabel(s.at, now);
+      if (label !== day) {
+        day = label;
+        rows.push(Object.assign(document.createElement('li'), { className: 'day-head', textContent: label }));
+      }
+      rows.push(recentRow(s));
+    }
+    list.replaceChildren(...rows);
+    $('recent-empty').hidden = everything.length > 0;
+    $('recent-head').hidden = everything.length < 2; // nothing to sort or narrow
+    $('recent-title').textContent = facet
+      ? `${all.length.toLocaleString()} of ${everything.length.toLocaleString()}`
+      : `${everything.length.toLocaleString()} videos seen`;
     const more = $('recent-more');
     more.hidden = all.length <= SHOW;
     more.textContent = `The first ${SHOW} of ${all.length.toLocaleString()}. Search above to find the others.`;
   };
+  filterButton(
+    $<HTMLButtonElement>('recent-filter'),
+    $<HTMLButtonElement>('recent-facet'),
+    () => recentSeen(seen).map((s) => s.code),
+    allDetails,
+    () => facet,
+    (next) => {
+      facet = next;
+      paint();
+    },
+  );
   sortButton($<HTMLButtonElement>('recent-sort'), TIME_SORTS, () => sort, (value) => {
     sort = value;
     storeSort('recent', value);

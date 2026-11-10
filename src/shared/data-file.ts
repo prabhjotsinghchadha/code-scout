@@ -12,6 +12,7 @@ import { isWebUrl, validateTemplate, type OpenOnSite } from './open-on.ts';
 import { MAX_GROUP_NAME, type QuickLink } from './quick-links.ts';
 import { MAX_SEEN, SEEN_KEY, type Seen, type SeenEntry } from './seen.ts';
 import { DETAILS_KEY, detailsFrom, mergeDetails } from './details.ts';
+import { LATER_KEY, MAX_LATER } from './later.ts';
 import { defaultSettings, seedBuiltIns, type Settings } from './storage.ts';
 import { isAccent, isTheme } from './theme.ts';
 import { isTagKey, tagKey, tagsFrom } from './tags.ts';
@@ -79,7 +80,7 @@ export function makeDataFile(sync: Dump, local: Dump, now: number): DataFile {
     version: FILE_VERSION,
     exported: new Date(now).toISOString(),
     sync: keep(sync, (k) => k in defaultSettings || k === SEEDED_KEY || isFavouriteKey(k)),
-    local: keep(local, (k) => k === SEEN_KEY || k === VISITS_KEY || k === DETAILS_KEY || k.startsWith(CC_PREFIX)),
+    local: keep(local, (k) => k === SEEN_KEY || k === VISITS_KEY || k === DETAILS_KEY || k === LATER_KEY || k.startsWith(CC_PREFIX)),
   };
 }
 
@@ -297,6 +298,10 @@ export function planImport(file: DataFile, sync: Dump, local: Dump): ImportPlan 
     for (const [site, v] of Object.entries(visitsInFile)) if (!visits[site] || v.at > visits[site].at) visits[site] = v;
     localPatch[VISITS_KEY] = visits;
   }
+
+  // Watch later (later.ts): the file's are added to the list here, kept like the seen codes are.
+  const laterInFile = seenFrom(file.local[LATER_KEY]);
+  if (Object.keys(laterInFile).length) localPatch[LATER_KEY] = mergeSeen(seenFrom(local[LATER_KEY]), laterInFile, MAX_LATER);
 
   // What the codes are (details.ts): the file's are added to the ones here; for a code in both, the later read.
   const detailsInFile = detailsFrom(file.local[DETAILS_KEY]);

@@ -17,13 +17,15 @@ import { hydrateIcons, icon } from '../shared/icons';
 import { followLook } from '../shared/look';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
+import { getLater, isLater, onLaterChanged, setLater, type Later } from '../shared/later';
 import { recentSeen, seenAgo, type Seen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { actressRows, setupActresses } from './actresses';
 import { allDetails, detailCard, findKnown, learn, setupDetails, subLine } from './details';
 import { findLinks, renderLinks, setupLinks } from './links';
 import { setupRecent } from './recent';
-import { iconButton, rowActions, rowMain, sortButton } from './rows';
+import { facetsOf, matchesFacet, type Facet } from './filter';
+import { filterButton, iconButton, rowActions, rowMain, sortButton } from './rows';
 import { PAGE_SORTS, sortByTime, sortPageCodes, storedSort, storeSort, TIME_SORTS, type PageSort, type TimeSort } from './sort';
 import { setupTags, tagRows } from './tags';
 
@@ -199,19 +201,36 @@ function startTab(codes: number): Tab {
 }
 
 // --- Favourites: Videos | Actresses | Tags ---
-type FavKind = 'videos' | 'actresses' | 'tags';
-const FAV_KINDS: FavKind[] = ['videos', 'actresses', 'tags'];
+type FavKind = 'videos' | 'actresses' | 'tags' | 'later';
+const FAV_KINDS: FavKind[] = ['videos', 'actresses', 'tags', 'later'];
+let favKind: FavKind = 'videos';
 const FAV_KIND_KEY = 'favsKind';
 /** How many favourite actresses and tags there are (their views keep these current). */
 let actressCount = 0;
 let tagCount = 0;
 
 function showFavKind(kind: FavKind) {
+  favKind = kind;
   for (const k of FAV_KINDS) {
     $(`favs-kind-${k}`).setAttribute('aria-pressed', String(k === kind));
     $(`favs-${k}`).hidden = k !== kind;
     $(`favs-sort-${k}`).hidden = k !== kind; // each kind has its own sort
   }
+  paintFavHead();
+}
+
+/** The line under the pills: what the view on show holds, and what can be done with it. */
+function paintFavHead() {
+  const videos = favKind === 'videos';
+  const facet = videos ? favFacet : favKind === 'later' ? laterFacet : null;
+  const all = videos ? favs.length : favKind === 'later' ? Object.keys(later).length : favKind === 'actresses' ? actressCount : tagCount;
+  const noun = { videos: 'favourite', actresses: 'performer', tags: 'genre', later: 'video' }[favKind];
+  const shown = videos ? shownFavs().length : favKind === 'later' ? shownLater().length : all;
+  $('favs-title').textContent = facet ? `${shown} of ${all}` : `${all} ${noun}${all === 1 ? '' : 's'}${favKind === 'later' ? ' to watch' : ''}`;
+  $('fav-page').hidden = !videos || !tabPage;
+  $('favs-filter').hidden = !(videos || favKind === 'later') || all < 2;
+  // The chip belongs to the view on show.
+  paintFavFilter();
 }
 
 /** The switch at the top of Favourites; the kind picked last is a per-browser convenience (localStorage). */
@@ -238,10 +257,13 @@ function setupFavKinds() {
 /** The Favourites tab counts every kind; each kind's pill counts its own. */
 function paintFavsCounts() {
   const count = (n: number) => (n ? String(n) : '');
-  $('favs-count').textContent = count(favs.length + actressCount + tagCount);
+  const laterCount = Object.keys(later).length;
+  $('favs-count').textContent = count(favs.length + actressCount + tagCount + laterCount);
+  $('favs-later-count').textContent = count(laterCount);
   $('favs-videos-count').textContent = count(favs.length);
   $('favs-actresses-count').textContent = count(actressCount);
   $('favs-tags-count').textContent = count(tagCount);
+  paintFavHead();
 }
 
 // --- Favourites ---
@@ -387,8 +409,41 @@ const squash = (s: string) => s.toLowerCase().replace(/[\s-]/g, '');
 /** How the favourite videos are sorted (the Videos view's sort button). */
 let favSort: TimeSort = storedSort('favs-videos', TIME_SORTS);
 
+/** Favourites narrowed to one label, performer or studio (null: all of them). Not kept between openings. */
+let favFacet: Facet | null = null;
+let laterFacet: Facet | null = null;
+/** Redraws the filter button and chip for the view on show (set up in init). */
+let paintFavFilter = () => {};
+
+const shownFavs = () => (favFacet ? favs.filter((f) => f.code && matchesFacet(f.code, favFacet!, allDetails())) : favs);
+
 function paintFavs() {
-  $('favs').replaceChildren(...sortByTime(favs, favSort, (f) => f.added, (f) => f.code).map(favRow));
+  $('favs').replaceChildren(...sortByTime(shownFavs(), favSort, (f) => f.added, (f) => f.code).map(favRow));
+}
+
+// --- Watch later: videos put aside (later.ts), the fourth view in Favourites ---
+let later: Later = {};
+let laterSort: TimeSort = storedSort('favs-later', TIME_SORTS);
+
+const laterList = () => recentSeen(later);
+const shownLater = () => (laterFacet ? laterList().filter((l) => matchesFacet(l.code, laterFacet!, allDetails())) : laterList());
+
+function paintLater() {
+  const rows = sortByTime(shownLater(), laterSort, (l) => l.at, (l) => l.code).map((l) => {
+    const page = l.url ? { url: l.url, title: l.title } : null;
+    const li = codeRow(l.code, codeLabel(l.code), page, page);
+    li.classList.add('seen-row');
+    const meta = Object.assign(document.createElement('div'), { className: 'seen-meta' });
+    meta.append(Object.assign(document.createElement('span'), { className: 'when', textContent: `Added ${seenAgo(l.at, Date.now())}` }));
+    if (l.url) meta.append(pageLink(l.url, l.title));
+    const done = iconButton('x', `Take ${formatCode(l.code)} off Watch later`, 'forget quiet', () => void setLater(l.code, false));
+    done.replaceChildren(icon('x', 13));
+    meta.append(done);
+    li.append(meta);
+    return li;
+  });
+  $('later').replaceChildren(...rows);
+  $('later-empty').hidden = Object.keys(later).length > 0;
 }
 
 async function renderFavourites() {
@@ -416,7 +471,17 @@ function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null
       card.remove();
       card = null;
     } else {
-      card = detailCard(code, { openLinks, siteRow: (c) => (sites.length ? siteRow(() => c, 'Watch on') : null) }, source);
+      card = detailCard(
+        code,
+        {
+          openLinks,
+          siteRow: (c) => (sites.length ? siteRow(() => c, 'Watch on') : null),
+          isLater: (c) => isLater(later, c),
+          // With the page it's on, if it's one of this page's codes; else the page it was starred or seen on.
+          setLater: (c, on) => setLater(c, on, source ?? (onPage.has(formatCode(c)) ? tabPage : null)),
+        },
+        source,
+      );
       // After the row's own lines (they're part of this <li>), as the next row.
       li.after(card);
     }
@@ -723,6 +788,29 @@ async function init() {
     storeSort('favs-videos', value);
     paintFavs();
   });
+  sortButton($<HTMLButtonElement>('favs-sort-later'), TIME_SORTS, () => laterSort, (value) => {
+    laterSort = value;
+    storeSort('favs-later', value);
+    paintLater();
+  });
+  // One filter button for Favourites: it narrows the view on show (Videos or Later).
+  paintFavFilter = filterButton(
+    $<HTMLButtonElement>('favs-filter'),
+    $<HTMLButtonElement>('favs-facet'),
+    () => (favKind === 'later' ? laterList().map((l) => l.code) : favs.flatMap((f) => f.code ?? [])),
+    allDetails,
+    () => (favKind === 'later' ? laterFacet : favFacet),
+    (facet) => {
+      if (favKind === 'later') {
+        laterFacet = facet;
+        paintLater();
+      } else {
+        favFacet = facet;
+        paintFavs();
+      }
+      paintFavHead();
+    },
+  );
   input.addEventListener('input', paintFind);
   const [settings, [tab]] = await Promise.all([
     getSettings(),
@@ -745,6 +833,13 @@ async function init() {
   // Favourites before the page's codes, so their stars are right.
   document.body.classList.toggle('compact', settings.listStyle === 'compact');
   await setupDetails(); // before any row is drawn: rows say what their codes are
+  later = await getLater().catch(() => ({}));
+  onLaterChanged((next) => {
+    later = next;
+    paintLater();
+    paintFavsCounts();
+  });
+  paintLater();
   await Promise.all([renderFavourites(), setupActresses(openLinks, countActresses), setupTags(openLinks, countTags)]);
   onFavouritesChanged(() => void renderFavourites());
   setupStarPage();
@@ -756,7 +851,12 @@ async function init() {
     $('tab-recent').hidden = true;
   }
 
-  await setupLinks(settings, tab, openLinks);
+  // "From your favourites" in Links: the performers and studios the starred videos have most of.
+  const picks = () => {
+    const found = facetsOf(favs.flatMap((f) => f.code ?? []), allDetails(), 3);
+    return [...found.performer, ...found.studio].filter((f) => f.url);
+  };
+  await setupLinks(settings, tab, openLinks, picks);
   if (input.value) paintFind(); // typed while the lists were loading
 
   const openGuide = () => {

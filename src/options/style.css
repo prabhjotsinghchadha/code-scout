@@ -325,6 +325,43 @@ main {
   color: var(--javtr-on-ui);
 }
 
+/* The less-used part of a section, folded away until it's wanted (opened by the search when it matches) */
+details.more {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+details.more > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+details.more > summary::-webkit-details-marker {
+  display: none;
+}
+details.more > summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin: 0 4px 0 2px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+details.more[open] > summary::before {
+  transform: rotate(45deg);
+}
+details.more > summary:hover {
+  color: var(--accent-text);
+}
+details.more > :last-child {
+  margin-bottom: 14px;
+}
+
 /* Guide: plain reading */
 .guide p,
 .guide li,

@@ -8,7 +8,41 @@ const ALL = builtInKeys(BUILT_INS);
 
 test('nothing to do when everything was offered', () => {
   assert.equal(seed(empty, ALL), null);
-  assert.equal(seed(empty, offeredByVersion(10)), null);
+});
+
+/** The keys of the built-ins that are only for a new install ("Start here"). */
+const FOR_NEW = [
+  ...BUILT_INS.groups.filter((g) => g.audience === 'new').map((g) => g.key),
+  ...BUILT_INS.links.filter((l) => l.audience === 'new').flatMap((l) => [l.key, l.groupKey!]),
+];
+
+test('a new install gets the starting points, not the groups by taste', () => {
+  const first = seed(empty, [], BUILT_INS, true)!;
+  assert.equal(first.state.linkGroups[0], 'Start here');
+  for (const group of ['Cheating', 'Cuckold', 'NTR']) assert.ok(!first.state.linkGroups.includes(group), group);
+  const start = first.state.quickLinks.filter((l) => l.group === 'Start here').map((l) => l.name);
+  assert.deepEqual(start, [
+    'JavTrailers · New releases',
+    'JavTrailers · Browse genres',
+    'JavTrailers · Browse performers',
+    'JavTrailers · Browse studios',
+    'JavTrailers · Browse series',
+    'JavTrailers · Release calendar',
+  ]);
+  assert.ok(!first.state.quickLinks.some((l) => /cheating|cuckold|adultery|affair/i.test(l.name)));
+  assert.ok(first.state.quickLinks.some((l) => l.group === 'Subtitles'));
+  assert.ok(first.state.openOnSites.length > 0);
+  // Everything counts as offered: what wasn't for this install is never added to it later.
+  assert.deepEqual(new Set(first.offered), new Set(ALL));
+  assert.equal(seed(first.state, first.offered, BUILT_INS, false), null);
+});
+
+test('an install from before the starting points keeps its lists: they are only noted as offered', () => {
+  const state = { ...empty, quickLinks: [{ name: 'Mine', url: 'https://mine.example/' }], linkGroups: ['Mine'] };
+  const result = seed(state, offeredByVersion(10))!;
+  assert.deepEqual(result.state, state);
+  assert.deepEqual(new Set(result.offered), new Set(ALL));
+  for (const key of FOR_NEW) assert.ok(result.offered.includes(key), key);
 });
 
 test('a site added to the registry is offered once, with its pages and "Open on" pattern', () => {
@@ -72,5 +106,6 @@ test('old seed versions map to what they had offered', () => {
   assert.ok(!offeredByVersion(1).includes('link:javmost/cuckold@Cuckold'));
   assert.ok(offeredByVersion(6).includes('site:missav'));
   assert.ok(!offeredByVersion(9).includes('site:supjav'));
-  assert.deepEqual(new Set(offeredByVersion(10)), new Set(ALL));
+  // Everything since is for new installs only.
+  assert.deepEqual(new Set([...offeredByVersion(10), ...FOR_NEW]), new Set(ALL));
 });

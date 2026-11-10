@@ -1,7 +1,10 @@
 // What the popup's lists are made of: a row opens with one click on its name (a round glyph, then the
 // name), and its other actions are small icon buttons after it.
 import { icon, type IconName } from '../shared/icons';
-import { openMenu } from '../shared/menu';
+import type { VideoCode } from '../shared/codes';
+import type { DetailsCache } from '../shared/details';
+import { openMenu, type MenuItem } from '../shared/menu';
+import { facetsOf, facetText, type Facet, type FacetCount } from './filter';
 
 /** A square icon button; `label` is its tooltip and accessible name. */
 export function iconButton(name: IconName, label: string, className: string, onClick: () => void) {
@@ -71,6 +74,67 @@ export function sortButton<T extends string>(
       ],
       b,
     );
+  });
+  paint();
+  return paint;
+}
+
+/**
+ * A small button that narrows a list of videos to one label, performer or studio, picked from what the list
+ * has most of, and the chip that says what it's narrowed to (click it to show everything again). `codes`:
+ * the whole list; `details`: what's known about them; `picked` / `onPick`: the choice (null = everything).
+ */
+export function filterButton(
+  b: HTMLButtonElement,
+  chip: HTMLButtonElement,
+  codes: () => VideoCode[],
+  details: () => DetailsCache,
+  picked: () => Facet | null,
+  onPick: (facet: Facet | null) => void,
+) {
+  const paint = () => {
+    const facet = picked();
+    b.classList.toggle('on', !!facet);
+    b.title = facet ? `Showing only ${facetText(facet)}. Click to change` : 'Show only one label, performer or studio';
+    b.setAttribute('aria-label', b.title);
+    chip.hidden = !facet;
+    if (facet) {
+      chip.replaceChildren(facetText(facet), icon('x', 11));
+      chip.title = 'Show everything again';
+    }
+  };
+  const pick = (facet: Facet | null) => {
+    onPick(facet);
+    paint();
+  };
+  b.replaceChildren(icon('filter', 15));
+  b.setAttribute('aria-haspopup', 'menu');
+  chip.addEventListener('click', () => pick(null));
+  b.addEventListener('click', () => {
+    const now = picked();
+    const found = facetsOf(codes(), details());
+    const group = (heading: string, list: FacetCount[]): MenuItem[] =>
+      list.length
+        ? [
+            { heading },
+            ...list.map((f) => ({
+              label: `${f.value}  ·  ${f.count}`,
+              checked: !!now && now.kind === f.kind && now.value === f.value,
+              onClick: () => pick({ kind: f.kind, value: f.value }),
+            })),
+          ]
+        : [];
+    const items: MenuItem[] = [
+      ...(now ? [{ label: 'Show everything', icon: 'x' as const, onClick: () => pick(null) }, 'separator' as const] : []),
+      ...group('Label', found.label),
+      ...group('Performer', found.performer),
+      ...group('Studio', found.studio),
+    ];
+    // Performers and studios are known for videos that have been looked up: say so here, where it's asked.
+    if (!found.performer.length && !found.studio.length) {
+      items.push('separator', { label: 'Open a video’s card to filter by performer or studio', onClick: () => {}, disabled: true });
+    }
+    openMenu(b.getBoundingClientRect(), items, b);
   });
   paint();
   return paint;

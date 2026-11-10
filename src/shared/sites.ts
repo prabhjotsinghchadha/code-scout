@@ -32,7 +32,19 @@ export interface Site {
 }
 
 /** Built-in quick-link groups, in display order. A group may have no built-in links (NTR). */
-export const GROUPS = ['Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
+export const GROUPS = ['Start here', 'Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
+
+/**
+ * Who a group (and the links in it) is offered to. "Start here" is for a new install: plain places to
+ * begin for someone who doesn't know the sites yet. The groups by taste were the first user's own; they
+ * stay with installs that had them and aren't pressed on anyone new. The rest are for everyone.
+ */
+export const GROUP_AUDIENCE: Record<string, 'new' | 'earlier'> = {
+  'Start here': 'new',
+  Cheating: 'earlier',
+  Cuckold: 'earlier',
+  NTR: 'earlier',
+};
 
 export const SITES: Site[] = [
   {
@@ -69,6 +81,13 @@ export const SITES: Site[] = [
     name: 'JavTrailers',
     origin: 'https://javtrailers.com',
     pages: [
+      // Start here (new installs): the ways into everything, on the site Code Scout opens codes on.
+      { id: 'new-releases', label: 'New releases', path: '/videos', group: 'Start here' },
+      { id: 'genres', label: 'Browse genres', path: '/categories', group: 'Start here' },
+      { id: 'performers', label: 'Browse performers', path: '/casts', group: 'Start here' },
+      { id: 'studios', label: 'Browse studios', path: '/studios', group: 'Start here' },
+      { id: 'series', label: 'Browse series', path: '/series', group: 'Start here' },
+      { id: 'calendar', label: 'Release calendar', path: '/calendar', group: 'Start here' },
       { id: 'cheating-wife', label: 'Cheating Wife', path: '/categories/cheating-wife', group: 'Cheating' },
       { id: 'adultery', label: 'Adultery', path: '/categories/adultery', group: 'Cheating' },
     ],

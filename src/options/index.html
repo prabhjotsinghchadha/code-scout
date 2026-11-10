@@ -137,27 +137,35 @@
             </span>
             <input type="checkbox" class="switch" id="rememberSeen" />
           </label>
-          <h3>Turned off on these sites</h3>
-          <p class="hint">
-            No ▶ buttons or chip on these sites and their subdomains. Right-click and keyboard shortcuts still work.
-            Tip: switch off <em>Buttons</em> in the popup while you’re on the site.
-          </p>
-          <ul id="off-sites" class="rows"></ul>
-          <p id="off-empty" class="none" hidden>No sites yet.</p>
-          <form id="add-off-site" class="add">
-            <input id="off-site" type="text" placeholder="javtiful.com" aria-label="Site" required />
-            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Turn off</button>
-          </form>
-          <p id="off-error" class="error" hidden></p>
+          <details class="more">
+            <summary>Sites where these are turned off <span id="off-count" class="count"></span></summary>
+            <p class="hint">
+              No ▶ buttons or chip on these sites and their subdomains. Right-click and keyboard shortcuts still work.
+              The quick way: switch off <em>Buttons</em> in the popup while you’re on the site.
+            </p>
+            <ul id="off-sites" class="rows"></ul>
+            <p id="off-empty" class="none" hidden>No sites yet.</p>
+            <form id="add-off-site" class="add">
+              <input id="off-site" type="text" placeholder="javtiful.com" aria-label="Site" required />
+              <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Turn off</button>
+            </form>
+            <p id="off-error" class="error" hidden></p>
+          </details>
         </section>
 
         <section class="card" id="open-on">
           <h2>Open on sites</h2>
           <p class="desc">
-            Sites a code can be opened on: from the chip’s <em>Sites</em>, right-clicking a ▶ button, the right-click
-            menu or the popup. Put a placeholder where the code goes:
+            The sites under <em>Watch on</em>: where a video’s code is looked up when you want to watch it, from its card in
+            the popup, the chip’s <em>Sites</em>, or right-clicking a ▶ button. Rename, reorder or remove them here.
           </p>
-          <ul id="placeholders" class="placeholders"></ul>
+          <details class="more">
+            <summary>Adding a site of your own</summary>
+            <p class="hint">
+              Search the site for a code, copy the address of the results page, and put a placeholder where the code is:
+            </p>
+            <ul id="placeholders" class="placeholders"></ul>
+          </details>
           <ul id="sites" class="rows"></ul>
           <form id="add-site" class="add">
             <input id="site-template" type="text" placeholder="https://example.com/search?q={code}" aria-label="URL pattern" required />
@@ -233,18 +241,20 @@
             </span>
             <input type="checkbox" class="switch" id="playerKeys" />
           </label>
-          <h3>Turned off on these sites</h3>
-          <p class="hint">
-            No toolbar or faster loading on these sites and their subdomains. Tip: switch off <em>Video</em> in the
-            popup while you’re on the site.
-          </p>
-          <ul id="video-sites" class="rows"></ul>
-          <p id="video-empty" class="none" hidden>No sites yet.</p>
-          <form id="add-video-site" class="add">
-            <input id="video-site" type="text" placeholder="youtube.com" aria-label="Site" required />
-            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Turn off</button>
-          </form>
-          <p id="video-error" class="error" hidden></p>
+          <details class="more">
+            <summary>Sites where video tools are turned off <span id="video-count" class="count"></span></summary>
+            <p class="hint">
+              No toolbar or faster loading on these sites and their subdomains. The quick way: switch off <em>Video</em> in the
+              popup while you’re on the site.
+            </p>
+            <ul id="video-sites" class="rows"></ul>
+            <p id="video-empty" class="none" hidden>No sites yet.</p>
+            <form id="add-video-site" class="add">
+              <input id="video-site" type="text" placeholder="youtube.com" aria-label="Site" required />
+              <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Turn off</button>
+            </form>
+            <p id="video-error" class="error" hidden></p>
+          </details>
           <div class="translation">
             <button id="setup-translation" type="button" class="btn">Set up English subtitles</button>
             <span id="translation-status" class="muted"></span>
@@ -328,6 +338,8 @@
           <ul class="tips">
             <li>Type in the popup’s box to find anything you’ve saved or looked at; press Enter for the first result.</li>
             <li>↓ and ↑ move through a list, → opens a video’s card.</li>
+            <li>Not ready to call it a favourite? <strong>Watch later</strong> in a video’s card puts it aside under Favourites → Later.</li>
+            <li>The funnel above Favourites and Recent narrows a list to one label, performer or studio.</li>
             <li>Select a code on any page and use the <a href="#shortcuts">shortcuts</a>, or right-click it.</li>
             <li>Prefer denser lists? Switch to Compact under <a href="#appearance">Appearance</a>.</li>
           </ul>

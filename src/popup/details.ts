@@ -55,6 +55,9 @@ export interface CardTools {
   openLinks: (urls: string[], code?: VideoCode) => unknown;
   /** The "Watch on" site buttons for a code, or null when there are no sites. */
   siteRow: (code: VideoCode) => HTMLElement | null;
+  /** Watch later: whether the code is on the list, and putting it on or taking it off. */
+  isLater: (code: VideoCode) => boolean;
+  setLater: (code: VideoCode, on: boolean) => Promise<unknown>;
 }
 
 function group(label: string, ...children: HTMLElement[]) {
@@ -164,6 +167,32 @@ export function detailCard(code: VideoCode, tools: CardTools, source?: Favourite
   body.append(el('p', { className: 'detail-note', textContent: known ? '' : 'Looking it up on javtrailers…' }));
 
   const more = el('div', { className: 'detail-more' });
+  // Put aside to watch, apart from the favourites.
+  const laterChip = el('button', { type: 'button', className: 'chip toggle' });
+  const paintLaterChip = (on: boolean) => {
+    laterChip.classList.toggle('on', on);
+    laterChip.setAttribute('aria-pressed', String(on));
+    laterChip.replaceChildren(icon(on ? 'check' : 'clock', 12), on ? 'In Watch later' : 'Watch later');
+    laterChip.title = on ? 'Take it off your Watch later list' : 'Put it aside in Favourites → Later';
+  };
+  paintLaterChip(tools.isLater(code));
+  laterChip.addEventListener('click', () => {
+    const on = !tools.isLater(code);
+    void tools.setLater(code, on);
+    paintLaterChip(on);
+  });
+  const copy = el('button', { type: 'button', className: 'chip toggle', title: `Copy ${formatCode(code)}` });
+  copy.append(icon('copy', 12), 'Copy code');
+  copy.addEventListener('click', () => {
+    void navigator.clipboard.writeText(formatCode(code)).then(
+      () => {
+        copy.replaceChildren(icon('check', 12), 'Copied');
+        setTimeout(() => copy.replaceChildren(icon('copy', 12), 'Copy code'), 1400);
+      },
+      () => {},
+    );
+  });
+  more.append(laterChip);
   const label = code.prefix.toUpperCase();
   const series = el('button', { type: 'button', className: 'chip', textContent: `More ${label} releases` });
   series.title = `Other videos whose code starts with ${label} (the same label), on javtrailers`;
@@ -175,6 +204,7 @@ export function detailCard(code: VideoCode, tools: CardTools, source?: Favourite
     from.addEventListener('click', () => void tools.openLinks([source.url]));
     more.append(from);
   }
+  more.append(copy);
   const error = el('p', { className: 'error detail-error', hidden: true });
   card.append(body, more);
   const sites = tools.siteRow(code);

@@ -102,11 +102,17 @@
           <button type="button" id="favs-kind-videos" class="gpill" aria-pressed="true">Videos <span id="favs-videos-count" class="count"></span></button>
           <button type="button" id="favs-kind-actresses" class="gpill" aria-pressed="false">Performers <span id="favs-actresses-count" class="count"></span></button>
           <button type="button" id="favs-kind-tags" class="gpill" aria-pressed="false">Genres <span id="favs-tags-count" class="count"></span></button>
-          <span class="spacer"></span>
+          <button type="button" id="favs-kind-later" class="gpill" aria-pressed="false" title="Videos you’ve put aside to watch">Later <span id="favs-later-count" class="count"></span></button>
+        </div>
+        <div class="list-head">
+          <span id="favs-title" class="list-title"></span>
+          <button type="button" id="favs-facet" class="facet-chip" hidden></button>
           <button type="button" id="fav-page" class="link-btn" hidden></button>
+          <button type="button" id="favs-filter" class="icon-btn sort-btn"></button>
           <button type="button" id="favs-sort-videos" class="icon-btn sort-btn"></button>
           <button type="button" id="favs-sort-actresses" class="icon-btn sort-btn" hidden></button>
           <button type="button" id="favs-sort-tags" class="icon-btn sort-btn" hidden></button>
+          <button type="button" id="favs-sort-later" class="icon-btn sort-btn" hidden></button>
         </div>
 
         <div id="favs-videos">
@@ -114,6 +120,14 @@
           <div id="favs-empty" class="empty" hidden>
             <i data-icon="star" data-size="28"></i>
             <p>Press ☆ on a video, or star this page, to keep it here.</p>
+          </div>
+        </div>
+
+        <div id="favs-later" hidden>
+          <ul id="later" class="list"></ul>
+          <div id="later-empty" class="empty" hidden>
+            <i data-icon="clock" data-size="28"></i>
+            <p>Nothing put aside yet. Open a video’s card (the arrow on its row)<br />and press Watch later.</p>
           </div>
         </div>
 
@@ -155,6 +169,8 @@
       <section id="panel-recent" class="panel" role="tabpanel" aria-labelledby="tab-recent" hidden>
         <div id="recent-head" class="list-head" hidden>
           <span id="recent-title" class="list-title"></span>
+          <button type="button" id="recent-facet" class="facet-chip" hidden></button>
+          <button type="button" id="recent-filter" class="icon-btn sort-btn"></button>
           <button type="button" id="recent-sort" class="icon-btn sort-btn"></button>
         </div>
         <ul id="recent" class="list"></ul>
