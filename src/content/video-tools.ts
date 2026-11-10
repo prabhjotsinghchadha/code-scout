@@ -6,7 +6,7 @@
 //   ⬇ Download   save the video as MP4 (video-download.ts)
 //   EN subs      English over burned-in Chinese/Japanese subtitles (subs.ts)
 //   CC ▾         subtitle files for the video, from SubtitleCat or this computer (cc-menu.ts)
-//   1× ▾         playback speed
+//   « 1.00 »     playback speed: a step slower or faster; the number goes back to 1.00
 //   PiP          picture-in-picture: the video in its own small window
 // Player keys for the video being watched (space, arrows, J/K/L…, see VideoUi.key) come from the click
 // shield too, which takes them before the site's own player or its ad scripts can.
@@ -43,12 +43,15 @@ const OVERLAP_CHECK_MS = 600;
 const GAP = 8;
 /** A seek, speed or mute message: gone quickly, like a player's own. */
 const FLASH_MS = 1400;
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+/** Speed: « and » (and the < and > keys) change it by this much, between these. */
+const SPEED_STEP = 0.25;
+const MIN_SPEED = 0.25;
+const MAX_SPEED = 4;
 /** One frame, for , and . (the frame rate isn't known; most videos here are 30 a second). */
 const FRAME_SEC = 1 / 30;
 
-/** "1×", "1.25×" */
-const speedName = (rate: number) => `${Math.round(rate * 100) / 100}×`;
+/** "1.00", "1.30" */
+const speedName = (rate: number) => rate.toFixed(2);
 
 /** "12:34", "1:02:10" */
 function clock(seconds: number): string {
@@ -150,7 +153,11 @@ class VideoUi {
   private readonly cancelBtn = button('javtr-cancel', '✕', 'Cancel the download');
   private readonly subsBtn = button('javtr-subs-btn', 'EN subs', 'Cover Chinese/Japanese subtitles with English');
   private readonly ccBtn = button('javtr-cc-btn', 'CC ▾', 'Subtitle files for this video (SubtitleCat, or one on this computer)');
-  private readonly speedBtn = button('javtr-speed-btn', '1× ▾', 'Playback speed (< and > keys)');
+  private readonly slowerBtn = button('javtr-speed-step', '«', 'Slower (< key)');
+  private readonly speedBtn = button('javtr-speed-btn', '1.00', '');
+  private readonly fasterBtn = button('javtr-speed-step', '»', 'Faster (> key)');
+  /** The speed it was at before the number put it back to 1.00: clicking the number again returns to it. */
+  private lastSpeed = 0;
   private readonly pipBtn = button('javtr-pip-btn', 'PiP', 'Picture-in-picture: the video in its own small window (P key)');
   private readonly status = document.createElement('div');
   /** The pointer is on the video now. */
@@ -161,8 +168,8 @@ class VideoUi {
   private download: VideoDownload | null = null;
   private subs: SubtitleReader | null = null;
   private readonly cc: CcMenu;
-  /** Whose menu is open: quality, CC or speed (they share one). */
-  private menuOwner: 'quality' | 'cc' | 'speed' | null = null;
+  /** Whose menu is open, quality or CC (they share one). */
+  private menuOwner: 'quality' | 'cc' | null = null;
   private hoverUntil = 0;
   private statusUntil = 0;
   private lastPlace = '';
@@ -188,7 +195,7 @@ class VideoUi {
     this.status.hidden = true;
     this.pipBtn.setAttribute('aria-pressed', 'false');
     this.pipBtn.hidden = !document.pictureInPictureEnabled || video.disablePictureInPicture;
-    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.ccBtn, this.speedBtn, this.pipBtn, this.menu);
+    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.ccBtn, this.slowerBtn, this.speedBtn, this.fasterBtn, this.pipBtn, this.menu);
     this.layer.append(this.bar, this.status);
     document.documentElement.append(this.layer);
     this.cc = new CcMenu(video, this.layer, this.menu, (text, kind) => this.say(text, kind), (on) => {
@@ -206,7 +213,9 @@ class VideoUi {
     onActivate(this.cancelBtn, () => this.download?.cancel());
     onActivate(this.subsBtn, () => this.toggleSubs());
     onActivate(this.ccBtn, () => this.toggleCcMenu());
-    onActivate(this.speedBtn, () => this.toggleSpeedMenu());
+    onActivate(this.slowerBtn, () => this.stepSpeed(-1));
+    onActivate(this.speedBtn, () => this.resetSpeed());
+    onActivate(this.fasterBtn, () => this.stepSpeed(1));
     onActivate(this.pipBtn, () => this.togglePip());
     video.addEventListener('javtr:video-info', this.onInfo);
     for (const type of VideoUi.STATE_EVENTS) video.addEventListener(type, this.onState);
@@ -220,7 +229,15 @@ class VideoUi {
     const video = this.video;
     if (e?.type === 'emptied') this.watched = false; // another video in the same player
     if (!video.paused && !video.muted) this.watched = true;
-    this.speedBtn.textContent = `${speedName(video.playbackRate)} ▾`;
+    const rate = video.playbackRate;
+    const normal = Math.abs(rate - 1) < 0.001;
+    this.speedBtn.textContent = speedName(rate);
+    this.speedBtn.classList.toggle('javtr-changed', !normal);
+    this.speedBtn.title = normal
+      ? this.lastSpeed
+        ? `Playback speed. Click for ${speedName(this.lastSpeed)} again`
+        : 'Playback speed. « and » change it'
+      : 'Playback speed. Click to go back to 1.00';
     const inPip = document.pictureInPictureElement === video;
     this.pipBtn.setAttribute('aria-pressed', String(inPip));
     this.pipBtn.classList.toggle('javtr-on', inPip);
@@ -261,7 +278,7 @@ class VideoUi {
 
   closeMenuUnless(target: EventTarget | null) {
     const inside = (el: HTMLElement) => target instanceof Node && el.contains(target);
-    const buttons = [this.quality, this.ccBtn, this.speedBtn];
+    const buttons = [this.quality, this.ccBtn];
     if (!this.menu.hidden && !inside(this.menu) && !buttons.some(inside)) this.closeMenu();
   }
 
@@ -397,14 +414,9 @@ class VideoUi {
         this.flash(`${key === '.' ? 'Next' : 'Previous'} frame`);
         break;
       case '<':
-      case '>': {
-        // The next speed on the list, from wherever the site's own menu left it.
-        const rate = video.playbackRate;
-        const next = key === '>' ? SPEEDS.find((s) => s > rate + 0.001) : [...SPEEDS].reverse().find((s) => s < rate - 0.001);
-        if (next) this.setSpeed(next);
-        else this.flash(`Speed: ${speedName(rate)}`);
+      case '>':
+        this.stepSpeed(key === '>' ? 1 : -1);
         break;
-      }
       case 'm':
         if (repeat) break;
         video.muted = !video.muted;
@@ -435,30 +447,26 @@ class VideoUi {
   private setSpeed(rate: number) {
     this.video.playbackRate = rate;
     this.onState(); // the button says it now, not when the video reports the change
-    this.flash(`Speed: ${speedName(rate)}`);
+    this.flash(`Speed: ${speedName(rate)}×`);
   }
 
-  private toggleSpeedMenu() {
-    if (!this.menu.hidden) {
-      const mine = this.menuOwner === 'speed';
-      this.closeMenu();
-      if (mine) return;
-    }
+  /** « and »: a step slower or faster, from wherever the site's own menu left it. */
+  private stepSpeed(direction: 1 | -1) {
+    const next = Math.round((this.video.playbackRate + direction * SPEED_STEP) * 100) / 100;
+    this.setSpeed(Math.min(MAX_SPEED, Math.max(MIN_SPEED, next)));
+  }
+
+  /** The number between them: back to normal speed, or from normal back to the speed it was at. */
+  private resetSpeed() {
     const rate = this.video.playbackRate;
-    this.menu.classList.remove('javtr-cc-menu');
-    this.menu.style.maxHeight = '';
-    this.menu.replaceChildren(
-      ...SPEEDS.map((speed) => {
-        const b = button('javtr-menu-item', `${Math.abs(speed - rate) < 0.001 ? '✓ ' : ''}${speedName(speed)}`, '');
-        onActivate(b, () => {
-          this.closeMenu();
-          this.setSpeed(speed);
-        });
-        return b;
-      }),
-    );
-    this.menu.hidden = false;
-    this.menuOwner = 'speed';
+    if (Math.abs(rate - 1) > 0.001) {
+      this.lastSpeed = rate;
+      this.setSpeed(1);
+    } else if (this.lastSpeed) {
+      this.setSpeed(this.lastSpeed);
+    } else {
+      this.flash('Speed: 1.00×');
+    }
   }
 
   private togglePip() {
