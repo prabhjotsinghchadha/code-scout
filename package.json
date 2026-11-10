@@ -10,6 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "release": "node scripts/release.mjs",
+    "ios": "node scripts/ios.mjs",
+    "ios:sim": "node scripts/ios.mjs --sim",
     "test": "node --test \"src/**/*.test.ts\""
   },
   "devDependencies": {

@@ -866,6 +866,27 @@ async function setupSiteProxy(host: string) {
 const CODES_WAIT_MS = 400;
 
 /** "Version x is out": this copy is loaded from a folder, so Chrome never updates it by itself. */
+/**
+ * Safari asks for each site in turn, and leaves the background unable to fetch from the others (video
+ * details, searches, subtitle files). The card says where to allow them all: only Safari's own dialogs
+ * can (there, permissions.request answers yes without granting anything). Chrome grants them at
+ * install, so it never shows there. "Not now" holds for a week.
+ */
+const ACCESS_LATER_KEY = 'accessCardLater';
+const ACCESS_LATER_MS = 7 * 24 * 3600_000;
+
+async function showAccess() {
+  const allowed = await chrome.permissions.contains({ origins: ['*://*/*'] }).catch(() => true);
+  if (allowed) return;
+  const { [ACCESS_LATER_KEY]: later } = await chrome.storage.local.get(ACCESS_LATER_KEY);
+  if (typeof later === 'number' && Date.now() - later < ACCESS_LATER_MS) return;
+  $('access').hidden = false;
+  $('access-close').addEventListener('click', () => {
+    $('access').hidden = true;
+    void chrome.storage.local.set({ [ACCESS_LATER_KEY]: Date.now() });
+  });
+}
+
 async function showUpdate() {
   const release = await availableUpdate().catch(() => null);
   if (!release) return;
@@ -987,6 +1008,7 @@ async function init() {
   }
 
   void showUpdate();
+  void showAccess();
 
   for (const id of ['open-options', 'add-links']) {
     $(id).addEventListener('click', (e) => {

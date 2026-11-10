@@ -229,6 +229,10 @@
 .javtr-video-layer[hidden] {
   display: none !important;
 }
+/* While a menu is open it may hang below the video (see VideoUi.frame). */
+.javtr-video-layer.javtr-menu-open {
+  overflow: visible;
+}
 /* One bar: the buttons sit side by side in a single dark strip */
 .javtr-video-bar {
   position: absolute;
@@ -237,6 +241,11 @@
   display: flex;
   gap: 1px;
   align-items: center;
+  /* A phone's player is narrower than the bar with a download's progress in it: it wraps to a second row. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100% - 20px);
+  box-sizing: border-box;
   padding: 3px;
   border: 1px solid rgb(255 255 255 / 0.12) !important;
   border-radius: 11px;
@@ -348,6 +357,8 @@
   border-radius: 12px;
   background: #18181b !important;
   box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 12px 32px rgb(0 0 0 / 0.35);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .javtr-video-menu button {
   all: unset;

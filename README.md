@@ -25,6 +25,16 @@ Chrome doesn't update an extension installed this way. The popup shows **Version
 
 The new version takes the place of the old one, and your favourites and settings stay. Don't press **Remove** to update: removing the extension deletes its data (favourites are also kept in the bookmarks folder *Code Scout favourites*, and Settings can save everything to a file).
 
+### iPhone and iPad (Safari)
+
+Chrome on an iPhone can't load extensions; Safari can, inside a small app. It needs a Mac with Xcode.
+
+1. `npm run ios` builds the extension and puts it in the Xcode project `ios/Code Scout/` (made on the first run).
+2. Open `ios/Code Scout/Code Scout.xcodeproj`, pick your team under *Signing & Capabilities* for both targets, pick your phone and press Run. (`npm run ios:sim` runs it in the iPhone simulator instead.)
+3. On the phone: Settings › Apps › Safari › Extensions › Code Scout: switch it on, and set *All Websites* to *Allow*. Without that, Safari asks site by site, and video details, searches and subtitle files can't be fetched.
+
+The popup is under Safari's page menu (the button left of the address). What differs there: tap a video to show its toolbar; ⬇ downloads into the browser's storage first and Safari then asks to save the file; faster loading (⚡) and the quality menu work on players that use hls.js, not on videos Safari plays by itself. Not on iPhone: EN subs, the right-click menu, keyboard shortcuts, *Hide what you're watching*, the proxy and the bookmarks copy of your favourites (Settings → Backup still saves them to a file). With a free Apple ID the app stops opening after 7 days; run it from Xcode again.
+
 ## Features
 
 - **Type a code anywhere** — type `NSFS-484` (or `nsfs00484`) into any search box, comment field or editor on any site and a small chip appears under it: **▶ Open** or **Search**. Esc hides it.

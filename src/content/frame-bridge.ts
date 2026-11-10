@@ -56,6 +56,71 @@ export async function fileTarget(handle: FileSystemFileHandle): Promise<SaveTarg
   };
 }
 
+const TEMP_PREFIX = 'code-scout-download-';
+
+/**
+ * Where there's no "Save as" dialog for pages (Safari, on iPhone too): the file is written to the site's
+ * private storage in the browser, and handed to the browser's own downloads when it's complete, which
+ * asks where to put it. The copy in private storage is removed when the next download starts (the
+ * browser may still be reading it until then).
+ */
+async function tempFileTarget(name: string): Promise<SaveTarget> {
+  const root = await navigator.storage.getDirectory();
+  const entries = (root as unknown as { keys(): AsyncIterable<string> }).keys();
+  for await (const old of entries) {
+    if (old.startsWith(TEMP_PREFIX)) await root.removeEntry(old).catch(() => {});
+  }
+  const tempName = `${TEMP_PREFIX}${Date.now()}.mp4`;
+  const handle = await root.getFileHandle(tempName, { create: true });
+  if (typeof handle.createWritable !== 'function') {
+    await root.removeEntry(tempName).catch(() => {});
+    throw new Error(NO_SAVE);
+  }
+  const writer = await handle.createWritable();
+  return {
+    name,
+    write: (chunk) => writer.write(chunk as FileSystemWriteChunkType),
+    close: async () => {
+      await writer.close();
+      const url = URL.createObjectURL(await handle.getFile());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.hidden = true;
+      document.documentElement.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10 * 60_000);
+    },
+    abort: async () => {
+      await writer.abort().catch(() => {});
+      await root.removeEntry(tempName).catch(() => {});
+    },
+  };
+}
+
+const NO_SAVE = 'This browser can’t save files from this page.';
+
+/**
+ * The file a download is written to: picked in the "Save as" dialog (call from a click), or where the
+ * browser has none, one handed to its downloads at the end.
+ */
+export async function pickSaveTarget(name: string): Promise<SaveTarget | { cancelled: true }> {
+  const picker = (window as Window & { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
+  if (!picker) {
+    if (!navigator.storage?.getDirectory) throw new Error(NO_SAVE);
+    return tempFileTarget(name);
+  }
+  let handle: FileSystemFileHandle;
+  try {
+    handle = await picker({ suggestedName: name, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return { cancelled: true }; // closed the dialog
+    throw err;
+  }
+  return fileTarget(handle);
+}
+
 /** Write chunks: raw bytes, or the MP4 writer's { type: 'write', data, position }. */
 type Chunk = Uint8Array | { type: 'write'; data: Uint8Array; position?: number };
 
@@ -130,16 +195,14 @@ async function translateHere(text: string, from: SubtitleLang): Promise<Translat
 const saves = new Map<string, { target: SaveTarget; timer: ReturnType<typeof setTimeout> }>();
 
 async function openSave(token: string, name: string): Promise<SaveAnswer> {
-  const picker = (window as Window & { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
-  if (!picker) return { error: 'This browser can’t save files from a page (needs Chrome 86 or newer).' };
-  let handle: FileSystemFileHandle;
+  let target: SaveTarget;
   try {
-    handle = await picker({ suggestedName: name, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
+    const picked = await pickSaveTarget(name);
+    if ('cancelled' in picked) return picked;
+    target = picked;
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') return { cancelled: true };
     return { error: err instanceof Error ? err.message : String(err) };
   }
-  const target = await fileTarget(handle);
   // The frame connects straight away; if it never does (it went away), drop the empty file.
   const timer = setTimeout(() => {
     saves.delete(token);

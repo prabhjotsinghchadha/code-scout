@@ -39,6 +39,8 @@ interface VideoInfo {
 const MIN_WIDTH = 240;
 const MIN_HEIGHT = 135;
 const HIDE_AFTER_MS = 2500;
+/** After a tap: a finger has to come back to press a button, which takes longer than moving a pointer. */
+const HIDE_AFTER_TAP_MS = 5000;
 const STATUS_MS = 5000;
 /** Errors stay a little longer, to be read. */
 const ERROR_MS = 12000;
@@ -161,6 +163,27 @@ async function suggestedFileName(): Promise<string> {
   return downloadFileName(code ? formatCode(code) : null, title.split(/\s[|–—-]\s/)[0]);
 }
 
+/** Safari on iPhone has its own picture-in-picture calls instead of the standard ones. */
+type WebkitVideo = HTMLVideoElement & {
+  webkitSupportsPresentationMode?: (mode: string) => boolean;
+  webkitSetPresentationMode?: (mode: string) => void;
+  webkitPresentationMode?: string;
+};
+const PIP = 'picture-in-picture';
+
+function webkitPip(video: HTMLVideoElement): WebkitVideo | null {
+  const v = video as WebkitVideo;
+  return !document.pictureInPictureEnabled && v.webkitSetPresentationMode && v.webkitSupportsPresentationMode?.(PIP) ? v : null;
+}
+
+function canPip(video: HTMLVideoElement): boolean {
+  return (document.pictureInPictureEnabled && !video.disablePictureInPicture) || !!webkitPip(video);
+}
+
+function inPip(video: HTMLVideoElement): boolean {
+  return document.pictureInPictureElement === video || (video as WebkitVideo).webkitPresentationMode === PIP;
+}
+
 class VideoUi {
   readonly video: HTMLVideoElement;
   private readonly layer = markUi(document.createElement('div'));
@@ -223,7 +246,7 @@ class VideoUi {
     this.pipBtn.append(pipIcon());
     this.pipBtn.setAttribute('aria-label', 'Picture-in-picture');
     this.pipBtn.setAttribute('aria-pressed', 'false');
-    this.pipBtn.hidden = !document.pictureInPictureEnabled || video.disablePictureInPicture;
+    this.pipBtn.hidden = !canPip(video);
     this.bar.append(this.ahead, this.slowerBtn, this.speedBtn, this.fasterBtn, this.ccBtn, this.quality, this.downloadBtn, this.cancelBtn, this.pipBtn, this.menu);
     this.layer.append(this.bar, this.status);
     document.documentElement.append(this.layer);
@@ -251,7 +274,7 @@ class VideoUi {
     this.onState();
   }
 
-  private static readonly STATE_EVENTS = ['ratechange', 'playing', 'volumechange', 'emptied', 'enterpictureinpicture', 'leavepictureinpicture'];
+  private static readonly STATE_EVENTS = ['ratechange', 'playing', 'volumechange', 'emptied', 'loadedmetadata', 'enterpictureinpicture', 'leavepictureinpicture', 'webkitpresentationmodechanged'];
 
   /** The video's speed, sound or window changed: the buttons say so. */
   private readonly onState = (e?: Event) => {
@@ -267,9 +290,11 @@ class VideoUi {
         ? `Playback speed. Click for ${speedName(this.lastSpeed)} again`
         : 'Playback speed. « and » change it'
       : 'Playback speed. Click to go back to 1.00';
-    const inPip = document.pictureInPictureElement === video;
-    this.pipBtn.setAttribute('aria-pressed', String(inPip));
-    this.pipBtn.classList.toggle('javtr-on', inPip);
+    // Safari only knows whether a video can go picture-in-picture once it has loaded.
+    this.pipBtn.hidden = !canPip(video);
+    const pip = inPip(video);
+    this.pipBtn.setAttribute('aria-pressed', String(pip));
+    this.pipBtn.classList.toggle('javtr-on', pip);
   };
 
   private readonly onInfo = (e: Event) => {
@@ -295,11 +320,11 @@ class VideoUi {
     window.removeEventListener('beforeunload', this.warnBeforeLeaving);
   }
 
-  pointerAt(x: number, y: number) {
+  pointerAt(x: number, y: number, tap = false) {
     const r = this.video.getBoundingClientRect();
     this.pointerOver = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     if (this.pointerOver) {
-      this.hoverUntil = Date.now() + HIDE_AFTER_MS;
+      this.hoverUntil = Math.max(this.hoverUntil, Date.now() + (tap ? HIDE_AFTER_TAP_MS : HIDE_AFTER_MS));
       // Straight away, not on the next frame: a quick click must land on the button, not the video.
       if (!this.layer.hidden) this.bar.classList.add('javtr-show');
     }
@@ -345,6 +370,13 @@ class VideoUi {
     // they've played. While the main video plays, the ⚡ stays, faint, so the tools are seen to be there.
     const paused = video.paused && (main || video.played.length > 0);
     const show = now < this.hoverUntil || paused || !this.menu.hidden || this.busy;
+    // An open menu may reach past the video's bottom edge (a phone's player is shorter than the menu),
+    // down to the window's.
+    this.layer.classList.toggle('javtr-menu-open', !this.menu.hidden);
+    if (!this.menu.hidden) {
+      const room = window.innerHeight - this.bar.getBoundingClientRect().bottom - 14;
+      this.menu.style.maxHeight = `${Math.max(120, room)}px`;
+    }
     this.bar.classList.toggle('javtr-show', show);
     this.bar.classList.toggle('javtr-peek', !show && main);
     if (show && (!this.shown || now >= this.overlapCheckAt)) {
@@ -504,8 +536,13 @@ class VideoUi {
 
   private togglePip() {
     const video = this.video;
-    if (!document.pictureInPictureEnabled || video.disablePictureInPicture) {
+    if (!canPip(video)) {
       this.say('This player doesn’t allow picture-in-picture.');
+      return;
+    }
+    const webkit = webkitPip(video);
+    if (webkit) {
+      webkit.webkitSetPresentationMode!(inPip(video) ? 'inline' : PIP);
       return;
     }
     const done = document.pictureInPictureElement === video ? document.exitPictureInPicture() : video.requestPictureInPicture();
@@ -746,7 +783,11 @@ const onPointerMove = (e: PointerEvent) => {
   for (const ui of uis.values()) ui.pointerAt(e.clientX, e.clientY);
 };
 const onPointerDown = (e: PointerEvent) => {
-  for (const ui of uis.values()) ui.closeMenuUnless(e.composedPath()[0] ?? null);
+  for (const ui of uis.values()) {
+    ui.closeMenuUnless(e.composedPath()[0] ?? null);
+    // A finger doesn't hover: a tap on the video shows the toolbar, like pointing at it does.
+    ui.pointerAt(e.clientX, e.clientY, e.pointerType === 'touch');
+  }
 };
 
 export function enableVideoTools() {

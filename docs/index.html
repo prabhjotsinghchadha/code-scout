@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Code Scout: open any video code in one click</title>
-<meta name="description" content="Code Scout is a free Chrome extension that spots video codes like NSFS-484 on any website and opens them in one click. Download it and install it in about a minute.">
+<meta name="description" content="Code Scout is a free Chrome extension that spots video codes like NSFS-484 on any website and opens them in one click. Download it and install it in about a minute. Also runs in Safari on iPhone and iPad.">
 <link rel="icon" href="icon.png">
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -128,6 +128,11 @@ section .sub { margin-top: 12px; color: var(--text-2); max-width: 40em; }
 .steps .act { margin-top: auto; padding-top: 8px; }
 .addr { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); }
 .addr code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.steps li { min-width: 0; }
+.steps pre { margin: 0; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); font: 13px/1.6 var(--mono); overflow-x: auto; }
+.using { margin-top: 40px; font-size: 20px; font-weight: 600; }
+.uses { margin: 14px 0 0; padding-left: 1.3em; color: var(--text-2); display: grid; gap: 8px; max-width: 52em; }
+.uses strong { color: var(--text); }
 .notes { margin-top: 16px; color: var(--muted); font-size: 14px; max-width: 52em; }
 @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
 
@@ -167,6 +172,7 @@ footer span:first-child { margin-right: auto; }
     <nav>
       <a class="opt" href="#features">What it does</a>
       <a class="opt" href="#install">Install</a>
+      <a class="opt" href="#iphone">iPhone</a>
       <a class="opt" href="#questions">Questions</a>
       <a href="https://github.com/prabhjotsinghchadha/code-scout">GitHub</a>
     </nav>
@@ -187,7 +193,7 @@ footer span:first-child { margin-right: auto; }
           </a>
           <a class="btn ghost" href="#install">How to install</a>
         </div>
-        <p class="meta"><span data-download-meta>Free.</span> For Chrome, Edge, Brave and other Chromium browsers on a computer.</p>
+        <p class="meta"><span data-download-meta>Free.</span> For Chrome, Edge, Brave and other Chromium browsers on a computer. <a href="#iphone">On an iPhone or iPad</a> it runs in Safari.</p>
       </div>
 
       <div class="demo" aria-hidden="true">
@@ -233,6 +239,44 @@ footer span:first-child { margin-right: auto; }
       </ol>
       <p class="notes"><strong>If the page doesn't take the zip:</strong> unzip it, move the folder somewhere it can stay (not Downloads, the browser runs the extension from it), click <strong>Load unpacked</strong> and pick that folder, the one with <code>manifest.json</code> inside.</p>
       <p class="notes">The browser may now and then ask whether to keep developer-mode extensions on. Choose to keep them. A web page can't open <code>chrome://extensions</code> for you, which is why you paste it.</p>
+    </div>
+  </section>
+
+  <section id="iphone">
+    <div class="wrap">
+      <h2>On an iPhone or iPad</h2>
+      <p class="sub">Chrome on a phone can't load extensions, but Safari can. There is no download for this yet: you build Code Scout on a Mac with <a href="https://developer.apple.com/xcode/">Xcode</a> and a free Apple ID, and put it on your own phone over a cable.</p>
+      <ol class="steps">
+        <li>
+          <h3>Build it on a Mac</h3>
+          <p>With Xcode and <a href="https://nodejs.org">Node.js</a> installed, run these in Terminal. The last one makes an Xcode project in the <code>ios</code> folder.</p>
+          <div class="act"><pre>git clone https://github.com/prabhjotsinghchadha/code-scout
+cd code-scout
+npm install
+npm run ios</pre></div>
+        </li>
+        <li>
+          <h3>Put it on your phone</h3>
+          <p>Open <code>ios/Code Scout/Code Scout.xcodeproj</code>. Under <strong>Signing &amp; Capabilities</strong>, pick your team for both targets. Plug in the phone, pick it at the top of the window and press <strong>Run</strong>.</p>
+          <p>The first time, the phone asks you to turn on <strong>Developer Mode</strong> (Settings › Privacy &amp; Security) and to trust your Apple ID (Settings › General › VPN &amp; Device Management).</p>
+        </li>
+        <li>
+          <h3>Switch it on in Safari</h3>
+          <p>On the phone, open Settings › Apps › Safari › Extensions › Code Scout. Switch it on, and set <strong>All Websites</strong> to <strong>Allow</strong>.</p>
+          <p>Without that, Safari asks one site at a time, and video details, searches and subtitle files can't be fetched.</p>
+        </li>
+      </ol>
+      <p class="notes">With a free Apple ID the app stops opening after 7 days: press Run in Xcode again, and your favourites and settings stay. A paid developer account makes that a year. To update, pull the newest source, run <code>npm run ios</code> and press Run again.</p>
+
+      <h3 class="using">Using it on the phone</h3>
+      <ul class="uses">
+        <li><strong>The popup</strong> is in Safari's page menu, the button at the left of the address bar: tap <em>Code Scout</em> there for your favourites, recent codes, links and the switches for the site you're on.</li>
+        <li><strong>Codes on a page</strong> get the same ▶ button, and typing one into a box shows the same chip. Tap either to open the trailer in a new tab.</li>
+        <li><strong>The video toolbar</strong> shows while a video is paused. While it plays, tap the video to bring the toolbar back for a few seconds.</li>
+        <li><strong>Download</strong> saves the video inside Safari first. When it's done Safari asks whether to download the file, and it lands in the Files app under Downloads. Keep the tab open until then.</li>
+        <li><strong>Faster loading and the quality menu</strong> work on sites whose player is hls.js. Videos that Safari plays by itself get speed, subtitles and download only.</li>
+        <li><strong>Not on iPhone:</strong> English subtitles read from the picture, the right-click menu, keyboard shortcuts, hiding what you're watching, and the bookmarks copy of your favourites. Settings → Backup still saves everything to a file.</li>
+      </ul>
     </div>
   </section>
 
@@ -313,7 +357,7 @@ footer span:first-child { margin-right: auto; }
         </details>
         <details>
           <summary>Which browsers does it work in?</summary>
-          <p>Chrome, Edge, Brave, Vivaldi, Opera and other browsers built on Chromium, on Windows, macOS and Linux. It doesn't work in Firefox or Safari, or on phones.</p>
+          <p>Chrome, Edge, Brave, Vivaldi, Opera and other browsers built on Chromium, on Windows, macOS and Linux. It doesn't work in Firefox, in Safari on a Mac, or on Android phones. On an iPhone or iPad it runs in Safari: see <a href="#iphone">On an iPhone or iPad</a>.</p>
         </details>
         <details>
           <summary>The extension disappeared, or shows an error after I moved a folder.</summary>

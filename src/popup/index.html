@@ -49,6 +49,21 @@
         </div>
       </section>
 
+      <!-- Safari (iPhone too) lets an extension work only on the sites it has been allowed on, asked one site at a time. -->
+      <section id="access" class="intro" aria-label="Allow on every website" hidden>
+        <p>
+          <strong>Allow Code Scout on every website.</strong> Safari asks site by site. Until then, video details, searches and
+          subtitle files can't be fetched, and the ▶&#xFE0E; buttons only show on sites you've allowed.
+        </p>
+        <p class="hint">
+          When Safari asks, choose <strong>Always Allow…</strong>, then <strong>Always Allow on Every Website</strong>. Or: Settings ›
+          Apps › Safari › Extensions › Code Scout › All Websites › Allow.
+        </p>
+        <div class="intro-actions">
+          <button type="button" id="access-close" class="btn ghost sm">Not now</button>
+        </div>
+      </section>
+
       <!-- A newer version is on the releases page (this copy isn't updated by Chrome). Closing it holds until the next one. -->
       <section id="update" class="intro update" aria-label="Update available" hidden>
         <p><strong>Version <span id="update-version"></span> is out.</strong> You have <span id="update-current"></span>.</p>

@@ -450,7 +450,7 @@ async function openOn(code: VideoCode, siteId: string | undefined, sourceTab?: c
   if (sites.length) void noteSeen(code, sourceTab);
 }
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus?.onClicked.addListener((info, tab) => {
   const id = String(info.menuItemId);
   if (id === MENU_OPEN && info.selectionText) {
     void openText(info.selectionText, tab);
@@ -480,7 +480,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
-chrome.commands.onCommand.addListener(async (command, tab) => {
+chrome.commands?.onCommand.addListener(async (command, tab) => {
   // Works on any tab, the ones no content script runs on too.
   if (command === 'hide-watching') return toggleHidden();
   if (tab?.id === undefined) return;

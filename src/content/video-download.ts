@@ -37,7 +37,7 @@ import {
 } from '../shared/hls-playlist';
 import { ParallelTuner } from '../shared/parallel-tuner';
 import { AbortError, fetchInRanges, Limiter, LinkExpiredError, streamInRanges } from '../shared/range-fetch';
-import { fileTarget, inForeignFrame, saveInPage, type SaveTarget } from './frame-bridge';
+import { inForeignFrame, pickSaveTarget, saveInPage, type SaveTarget } from './frame-bridge';
 
 export interface DownloadSource {
   /** Master or media playlist (.m3u8). */
@@ -139,16 +139,9 @@ export class VideoDownload {
   }
 
   private async saveHere(name: string): Promise<SaveTarget> {
-    const picker = (window as Window & { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
-    if (!picker) throw new Error('This browser can’t save files from a page (needs Chrome 86 or newer).');
-    let handle: FileSystemFileHandle;
-    try {
-      handle = await picker({ suggestedName: name, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') throw new CancelledError(); // closed the dialog
-      throw err;
-    }
-    return fileTarget(handle);
+    const target = await pickSaveTarget(name);
+    if ('cancelled' in target) throw new CancelledError();
+    return target;
   }
 
   private async saveInPage(name: string): Promise<SaveTarget> {
