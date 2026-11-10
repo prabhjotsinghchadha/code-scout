@@ -279,16 +279,35 @@
 .javtr-video-bar > .javtr-ahead {
   color: #fda4af !important;
 }
-.javtr-video-bar > button.javtr-subs-btn.javtr-on,
 .javtr-video-bar > button.javtr-pip-btn.javtr-on,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on {
   background: #e11d48 !important;
   color: #fff !important;
 }
-.javtr-video-bar > button.javtr-subs-btn.javtr-on:hover,
 .javtr-video-bar > button.javtr-pip-btn.javtr-on:hover,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on:hover {
   background: #be123c !important;
+}
+/* Picture-in-picture: an icon (a screen with a small window in its corner) */
+.javtr-video-bar > button.javtr-pip-btn {
+  display: inline-flex;
+  padding: 4px 8px;
+}
+.javtr-video-bar > button.javtr-pip-btn svg {
+  display: block !important;
+  width: 16px !important;
+  height: 16px !important;
+  fill: none;
+  stroke: currentColor !important;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none !important;
+}
+/* ⬇ alone until a download runs, then "⬇ 42% · 3 min left" and ✕ to cancel it */
+.javtr-video-bar > button.javtr-download {
+  min-width: 14px;
+  text-align: center;
 }
 .javtr-video-bar > button.javtr-cancel {
   padding: 6px 7px;
@@ -340,7 +359,18 @@
 .javtr-video-menu button:focus-visible {
   background: #2e2e33 !important;
 }
-/* The CC menu: subtitle files for the video (cc-menu.ts). */
+/* The CC menu's first line: EN subs, on or off; under it, the subtitle files */
+.javtr-video-menu button.javtr-menu-toggle {
+  margin-bottom: 4px;
+}
+.javtr-video-menu button.javtr-menu-toggle[aria-pressed='true'] .javtr-menu-name {
+  color: #fda4af !important;
+}
+.javtr-video-menu .javtr-menu-head {
+  border-top: 1px solid #2e2e33 !important;
+  padding-top: 9px;
+}
+/* The CC menu: EN subs, then subtitle files for the video (cc-menu.ts). */
 .javtr-video-menu.javtr-cc-menu {
   width: min(320px, 80vw);
   overflow-y: auto;

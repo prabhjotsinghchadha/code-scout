@@ -2,12 +2,14 @@
 // while the pointer is over it or it's paused. The page's main video (the biggest on screen) has it up from
 // the start, and keeps a faint ⚡ in the corner while it plays.
 //   ⚡ 1:20      how far ahead the video has loaded (parallel loading, video-boost.iife.ts)
-//   720p ▾       quality menu, when the stream has more than one (just "720p" when it hasn't)
-//   ⬇ Download   save the video as MP4 (video-download.ts)
-//   EN subs      English over burned-in Chinese/Japanese subtitles (subs.ts)
-//   CC ▾         subtitle files for the video, from SubtitleCat or this computer (cc-menu.ts)
 //   « 1.00 »     playback speed: a step slower or faster; the number goes back to 1.00
-//   PiP          picture-in-picture: the video in its own small window
+//   CC ▾         subtitles, one menu: EN subs (English over burned-in Chinese/Japanese subtitles, subs.ts),
+//                then subtitle files for the video, from SubtitleCat or this computer (cc-menu.ts)
+//   720p ▾       quality menu, when the stream has more than one (just "720p" when it hasn't)
+//   ⬇            save the video as MP4 (video-download.ts); shows how far it is while it runs
+//   ⧉ (an icon)  picture-in-picture: the video in its own small window
+// Small on purpose: what is used while watching (speed, subtitles) comes first, and a button says more
+// than its sign only while it has something to say (a download's progress).
 // Player keys for the video being watched (space, arrows, J/K/L…, see VideoUi.key) come from the click
 // shield too, which takes them before the site's own player or its ad scripts can.
 // The toolbar sits in a layer that follows the video on screen (pointer-events: none except the buttons);
@@ -126,6 +128,25 @@ function speedText(bytesPerSec: number | null): string {
   return bytesPerSec >= 1e6 ? ` · ${(bytesPerSec / 1e6).toFixed(1)} MB/s` : ` · ${Math.round(bytesPerSec / 1e3)} KB/s`;
 }
 
+/** ⬇ as text (U+FE0E), never the emoji some systems would draw for it. */
+const DOWN = '⬇\uFE0E';
+const DOWNLOAD_TITLE = 'Download: save this video as an MP4 file';
+
+/** The picture-in-picture sign: a screen with a small window in its corner. */
+function pipIcon(): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const screen = document.createElementNS(NS, 'path');
+  screen.setAttribute('d', 'M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4');
+  screen.setAttribute('fill', 'none');
+  const small = document.createElementNS(NS, 'rect');
+  for (const [k, v] of Object.entries({ x: 12, y: 13, width: 10, height: 7, rx: 1.5, fill: 'currentColor' })) small.setAttribute(k, String(v));
+  svg.append(screen, small);
+  return svg;
+}
+
 /** Tells the page's faster loading (video-boost.iife.ts) a download started or ended in this frame. */
 function signalDownload(state: 'start' | 'end') {
   window.dispatchEvent(new CustomEvent('javtr:downloading', { detail: state }));
@@ -149,16 +170,20 @@ class VideoUi {
   private readonly ahead = document.createElement('span');
   private readonly quality = button('javtr-quality', 'Quality ▾', 'Video quality');
   private readonly menu = document.createElement('div');
-  private readonly downloadBtn = button('javtr-download', '⬇ Download', 'Save this video as an MP4 file');
+  private readonly downloadBtn = button('javtr-download', DOWN, DOWNLOAD_TITLE);
   private readonly cancelBtn = button('javtr-cancel', '✕', 'Cancel the download');
-  private readonly subsBtn = button('javtr-subs-btn', 'EN subs', 'Cover Chinese/Japanese subtitles with English');
-  private readonly ccBtn = button('javtr-cc-btn', 'CC ▾', 'Subtitle files for this video (SubtitleCat, or one on this computer)');
+  /** EN subs: the first line of the CC menu. */
+  private readonly subsBtn = button('javtr-menu-item javtr-menu-choice javtr-menu-toggle', '', 'Reads the subtitles in the picture on this computer and covers them with English');
+  private readonly subsName = document.createElement('span');
+  private readonly ccBtn = button('javtr-cc-btn', 'CC ▾', 'Subtitles: English over the ones in the picture, or a subtitle file for this video');
+  /** A subtitle file is showing (EN subs is `subs`): either lights the CC button. */
+  private fileOn = false;
   private readonly slowerBtn = button('javtr-speed-step', '«', 'Slower (< key)');
   private readonly speedBtn = button('javtr-speed-btn', '1.00', '');
   private readonly fasterBtn = button('javtr-speed-step', '»', 'Faster (> key)');
   /** The speed it was at before the number put it back to 1.00: clicking the number again returns to it. */
   private lastSpeed = 0;
-  private readonly pipBtn = button('javtr-pip-btn', 'PiP', 'Picture-in-picture: the video in its own small window (P key)');
+  private readonly pipBtn = button('javtr-pip-btn', '', 'Picture-in-picture: the video in its own small window (P key)');
   private readonly status = document.createElement('div');
   /** The pointer is on the video now. */
   private pointerOver = false;
@@ -187,25 +212,31 @@ class VideoUi {
     this.ahead.hidden = true;
     this.quality.hidden = true;
     this.cancelBtn.hidden = true;
-    this.subsBtn.setAttribute('aria-pressed', 'false');
-    this.ccBtn.setAttribute('aria-pressed', 'false');
+    this.subsName.className = 'javtr-menu-name';
+    const subsDetail = document.createElement('span');
+    subsDetail.className = 'javtr-menu-detail';
+    subsDetail.textContent = 'English over the Chinese or Japanese subtitles in the picture';
+    this.subsBtn.append(this.subsName, subsDetail);
+    this.setSubs(null);
     this.menu.className = 'javtr-video-menu';
     this.menu.hidden = true;
     this.status.className = 'javtr-video-status';
     this.status.hidden = true;
+    this.pipBtn.append(pipIcon());
+    this.pipBtn.setAttribute('aria-label', 'Picture-in-picture');
     this.pipBtn.setAttribute('aria-pressed', 'false');
     this.pipBtn.hidden = !document.pictureInPictureEnabled || video.disablePictureInPicture;
-    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.ccBtn, this.slowerBtn, this.speedBtn, this.fasterBtn, this.pipBtn, this.menu);
+    this.bar.append(this.ahead, this.slowerBtn, this.speedBtn, this.fasterBtn, this.ccBtn, this.quality, this.downloadBtn, this.cancelBtn, this.pipBtn, this.menu);
     this.layer.append(this.bar, this.status);
     document.documentElement.append(this.layer);
-    this.cc = new CcMenu(video, this.layer, this.menu, (text, kind) => this.say(text, kind), (on) => {
-      this.ccBtn.setAttribute('aria-pressed', String(on));
-      this.ccBtn.classList.toggle('javtr-on', on);
+    this.cc = new CcMenu(video, this.layer, this.menu, this.subsBtn, (text, kind) => this.say(text, kind), (on) => {
+      this.fileOn = on;
       if (on && this.subs) {
         // One English line at a time: the file's replaces EN subs.
         this.subs.stop();
         this.setSubs(null);
       }
+      this.paintCc();
     });
 
     onActivate(this.quality, () => this.toggleMenu());
@@ -506,10 +537,10 @@ class VideoUi {
       return;
     }
     this.quality.hidden = false;
-    this.quality.title = 'Video quality';
     const playing = levels[info.currentLevel];
     const name = playing ? levelName(playing) : 'Quality';
-    this.quality.textContent = `${info.auto ? `Auto · ${name}` : name} ▾`;
+    this.quality.title = info.auto ? `Video quality: automatic, playing ${name}` : 'Video quality';
+    this.quality.textContent = `${name} ▾`;
   }
 
   private toggleMenu() {
@@ -585,7 +616,7 @@ class VideoUi {
     // Only while it's this toolbar's download: a late report must not start the counting again.
     const download: VideoDownload = new VideoDownload(source, suggestedFileName(), (p) => this.download === download && this.showProgress(p));
     this.download = download;
-    this.downloadBtn.textContent = '⬇ Choose where to save…';
+    this.downloadBtn.textContent = `${DOWN} Choose where to save…`;
     // Runs straight away: its first step is the "Save as" dialog, which needs this click.
     download
       .run()
@@ -599,8 +630,8 @@ class VideoUi {
       .finally(() => {
         if (!this.cancelBtn.hidden) signalDownload('end');
         this.download = null;
-        this.downloadBtn.textContent = '⬇ Download';
-        this.downloadBtn.title = 'Save this video as an MP4 file';
+        this.downloadBtn.textContent = DOWN;
+        this.downloadBtn.title = DOWNLOAD_TITLE;
         this.cancelBtn.hidden = true;
         window.removeEventListener('beforeunload', this.warnBeforeLeaving);
       });
@@ -618,18 +649,27 @@ class VideoUi {
           : 'Downloading. Keep this tab open until it finishes. Pausing the video can make it faster.',
       );
     }
-    this.downloadBtn.textContent = `⬇ ${Math.floor(p.fraction * 100)}%${speedText(p.speed)}${eta(p.etaSec)}`;
+    this.downloadBtn.textContent = `${DOWN} ${Math.floor(p.fraction * 100)}%${eta(p.etaSec)}`;
     const parallel = p.parallel ? `, ${p.parallel} requests at once` : '';
-    this.downloadBtn.title = `${megabytes(p.bytes)} downloaded${parallel}. Keep this tab open until it finishes.`;
+    this.downloadBtn.title = `${megabytes(p.bytes)} downloaded${speedText(p.speed)}${parallel}. Keep this tab open until it finishes.`;
   }
 
   private setSubs(reader: SubtitleReader | null) {
     this.subs = reader;
     this.subsBtn.setAttribute('aria-pressed', String(!!reader));
-    this.subsBtn.classList.toggle('javtr-on', !!reader);
+    this.subsName.textContent = `${reader ? '✓ ' : ''}EN subs`;
+    this.paintCc();
+  }
+
+  /** The CC button is lit while there's an English line on the video, from EN subs or a subtitle file. */
+  private paintCc() {
+    const on = !!this.subs || this.fileOn;
+    this.ccBtn.setAttribute('aria-pressed', String(on));
+    this.ccBtn.classList.toggle('javtr-on', on);
   }
 
   private toggleSubs() {
+    this.closeMenu(); // it's a line of the CC menu
     if (this.subs) {
       this.subs.stop();
       this.setSubs(null);

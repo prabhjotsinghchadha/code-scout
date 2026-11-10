@@ -73,6 +73,8 @@ export class CcMenu {
   private readonly video: HTMLVideoElement;
   private readonly layer: HTMLElement;
   private readonly menu: HTMLElement;
+  /** The toolbar's own line at the top of the menu (EN subs). */
+  private readonly first: HTMLElement;
   private readonly say: (text: string, kind?: StatusKind) => void;
   private readonly onChange: (on: boolean) => void;
   /** What's on: its address (or file:<name>) and name. */
@@ -84,17 +86,22 @@ export class CcMenu {
   private openToken = 0;
   private loadToken = 0;
 
-  /** `onChange`: subtitles went on or off (the toolbar lights its button, and turns EN subs off). */
+  /**
+   * `first`: the line the menu starts with (the toolbar's EN subs switch). `onChange`: a subtitle file went
+   * on or off (the toolbar lights its button, and turns EN subs off).
+   */
   constructor(
     video: HTMLVideoElement,
     layer: HTMLElement,
     menu: HTMLElement,
+    first: HTMLElement,
     say: (text: string, kind?: StatusKind) => void,
     onChange: (on: boolean) => void,
   ) {
     this.video = video;
     this.layer = layer;
     this.menu = menu;
+    this.first = first;
     this.say = say;
     this.onChange = onChange;
   }
@@ -123,7 +130,7 @@ export class CcMenu {
     });
     const head = document.createElement('div');
     head.className = 'javtr-menu-head';
-    head.append(span('', 'Subtitles for'), input);
+    head.append(span('', 'Subtitle files for'), input);
 
     const fileBtn = button('javtr-menu-item', 'Load a file from this computer…', 'An .srt, .vtt or .ass file (one you downloaded from javsub.ai, say)');
     onActivate(fileBtn, () => this.pickFile());
@@ -136,7 +143,7 @@ export class CcMenu {
 
     this.menu.classList.add('javtr-cc-menu');
     this.menu.style.maxHeight = `${Math.max(180, this.video.getBoundingClientRect().height - 70)}px`;
-    this.menu.replaceChildren(head, list, fileBtn, javsub, ...this.controls());
+    this.menu.replaceChildren(this.first, head, list, fileBtn, javsub, ...this.controls());
     this.menu.hidden = false;
 
     void (async () => {
