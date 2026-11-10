@@ -274,11 +274,13 @@
   color: #fda4af !important;
 }
 .javtr-video-bar > button.javtr-subs-btn.javtr-on,
+.javtr-video-bar > button.javtr-pip-btn.javtr-on,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on {
   border-color: transparent !important;
   background: #e11d48 !important;
 }
 .javtr-video-bar > button.javtr-subs-btn.javtr-on:hover,
+.javtr-video-bar > button.javtr-pip-btn.javtr-on:hover,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on:hover {
   background: #be123c !important;
 }

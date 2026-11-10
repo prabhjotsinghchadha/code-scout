@@ -21,6 +21,14 @@ function whenPageHasVideo(found: () => void): () => void {
   return () => observer.disconnect();
 }
 
+/**
+ * Player keys (space, arrows, J/K/L…) on or off here: the click shield asks video-tools.ts about a key
+ * only while this attribute is set (shield.iife.ts can't read the settings itself).
+ */
+export function setPlayerKeys(on: boolean) {
+  document.documentElement.toggleAttribute('data-javtr-keys', on);
+}
+
 export function setVideoTools(on: boolean) {
   // Also stops the faster loading of video-boost.iife.ts here (it can't read the settings itself).
   if (!on) window.dispatchEvent(new CustomEvent('javtr:video-off'));

@@ -156,11 +156,25 @@
             <li><strong>⚡ Faster loading</strong><span>Downloads several pieces of the video at once, for servers that send each piece slowly.</span></li>
             <li><strong>Quality</strong><span>A menu, when the video has more than one.</span></li>
             <li><strong>⬇ Download</strong><span>Saves an MP4. Keep the tab open while it runs.</span></li>
+            <li><strong>Speed and PiP</strong><span>A speed menu, 0.25× to 3×, and picture-in-picture: the video in its own small window.</span></li>
             <li><strong>EN subs</strong><span>Reads burned-in Chinese or Japanese subtitles on this computer and covers them with English. Size and background are below.</span></li>
           </ul>
           <label class="setting">
             <span><strong>Video tools on all sites</strong><small>Switch off to hide the toolbar everywhere.</small></span>
             <input type="checkbox" class="switch" id="videoTools" />
+          </label>
+          <label class="setting" for="playerKeys">
+            <span>
+              <strong>Player keys</strong>
+              <small>
+                For the video you’re watching, whatever the site’s player: <kbd>Space</kbd> or <kbd>K</kbd> play and pause,
+                <kbd>←</kbd> <kbd>→</kbd> 5 seconds, <kbd>J</kbd> <kbd>L</kbd> 10 seconds, <kbd>,</kbd> <kbd>.</kbd> one frame,
+                <kbd>&lt;</kbd> <kbd>&gt;</kbd> slower and faster, <kbd>M</kbd> mute, <kbd>P</kbd> picture-in-picture. They work once
+                a video has played with sound, or while the pointer is on it; not while you type. In a player embedded from
+                another site, click the player first.
+              </small>
+            </span>
+            <input type="checkbox" class="switch" id="playerKeys" />
           </label>
           <h3>Turned off on these sites</h3>
           <p class="hint">

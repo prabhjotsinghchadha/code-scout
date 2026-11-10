@@ -11,7 +11,7 @@ import { serveFrames } from './frame-bridge';
 import { disableInline, enableInline } from './inline';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
 import { setSeenMarks } from './seen';
-import { setVideoTools } from './video-auto';
+import { setPlayerKeys, setVideoTools } from './video-auto';
 
 function pageCodes(): VideoCode[] {
   const seen = new Map<string, VideoCode>();
@@ -62,7 +62,9 @@ async function init() {
     if (isSiteOff(location.hostname, settings.popupBlockSites)) enablePopupGuard();
     else disablePopupGuard();
     // Video tools: on every site unless turned off (frames, e.g. embedded players: frame.ts).
-    setVideoTools(settings.videoTools && !isSiteOff(location.hostname, settings.videoOffSites));
+    const videoTools = settings.videoTools && !isSiteOff(location.hostname, settings.videoOffSites);
+    setVideoTools(videoTools);
+    setPlayerKeys(videoTools && settings.playerKeys);
   };
   apply(initial);
   onSettingsChanged(apply);

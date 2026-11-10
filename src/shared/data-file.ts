@@ -138,7 +138,7 @@ const groups = (value: unknown[]) => [...new Set(strings(value).map((g) => g.tri
 /** The settings in a file's sync part, checked one by one; ones missing or of the wrong kind are left out. */
 export function settingsFrom(sync: Dump): Partial<Settings> {
   const out: Partial<Settings> = {};
-  const bool = (key: 'inlineButtons' | 'fieldChip' | 'openInBackground' | 'videoTools' | 'mostVisited' | 'rememberSeen') => {
+  const bool = (key: 'inlineButtons' | 'fieldChip' | 'openInBackground' | 'videoTools' | 'playerKeys' | 'mostVisited' | 'rememberSeen') => {
     if (typeof sync[key] === 'boolean') out[key] = sync[key];
   };
   const list = <K extends keyof Settings>(key: K, clean: (value: unknown[]) => Settings[K]) => {
@@ -148,7 +148,7 @@ export function settingsFrom(sync: Dump): Partial<Settings> {
     const n = sync[key];
     if (typeof n === 'number' && Number.isFinite(n)) out[key] = clamp(Math.round(n), min, max);
   };
-  (['inlineButtons', 'fieldChip', 'openInBackground', 'videoTools', 'mostVisited', 'rememberSeen'] as const).forEach(bool);
+  (['inlineButtons', 'fieldChip', 'openInBackground', 'videoTools', 'playerKeys', 'mostVisited', 'rememberSeen'] as const).forEach(bool);
   if (sync.openMode === 'video' || sync.openMode === 'search') out.openMode = sync.openMode;
   list('quickLinks', quickLinks);
   list('linkGroups', groups);

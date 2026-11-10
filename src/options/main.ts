@@ -228,8 +228,12 @@ siteListEditor('popupBlockSites', 'popup', {
 // Video tools: on everywhere unless switched off here, or per site below.
 async function setupVideoToolsSwitch() {
   const box = $<HTMLInputElement>('videoTools');
-  box.checked = (await getSettings()).videoTools;
+  const settings = await getSettings();
+  box.checked = settings.videoTools;
   box.addEventListener('change', () => save({ videoTools: box.checked }));
+  const keys = $<HTMLInputElement>('playerKeys');
+  keys.checked = settings.playerKeys;
+  keys.addEventListener('change', () => save({ playerKeys: keys.checked }));
 }
 void setupVideoToolsSwitch();
 siteListEditor('videoOffSites', 'video', {

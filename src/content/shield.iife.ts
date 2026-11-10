@@ -51,6 +51,32 @@ declare global {
       true,
     );
   }
+
+  // Player keys (video-tools.ts): space, arrows, J/K/L and the rest for the video being watched. Asked
+  // here, ahead of every page script, so a key the extension takes never also reaches the site's player
+  // (two seeks for one press) or its ad scripts. Only while they're switched on (the attribute), never
+  // with Ctrl/⌘/Alt, and never while typing. Keys on our own UI were stopped above.
+  const PLAYER_KEYS = new Set([' ', 'k', 'j', 'l', 'm', 'p', ',', '.', '<', '>', 'ArrowLeft', 'ArrowRight']);
+  const typing = (e: Event) => {
+    const target = e.composedPath()[0];
+    return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+  };
+  /** Keys taken on the way down: their way up is kept from the page too. */
+  const taken = new Set<string>();
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (!document.documentElement.hasAttribute('data-javtr-keys')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing || !PLAYER_KEYS.has(e.key) || typing(e)) return;
+      const ask = new CustomEvent('javtr:player-key', { cancelable: true, detail: { key: e.key, repeat: e.repeat } });
+      if (window.dispatchEvent(ask)) return; // nobody took it: the page's as usual
+      taken.add(e.code);
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+  window.addEventListener('keyup', (e) => taken.delete(e.code) && e.stopImmediatePropagation(), true);
 })();
 
 export {};

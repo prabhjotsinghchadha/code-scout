@@ -5,7 +5,7 @@ import { isSiteOff } from '../shared/hosts';
 import { sendToBackground } from '../shared/messages';
 import { getSettings, onSettingsChanged, type Settings } from '../shared/storage';
 import { disablePopupGuard, enablePopupGuard } from './popup-guard';
-import { setVideoTools } from './video-auto';
+import { setPlayerKeys, setVideoTools } from './video-auto';
 
 /** The site of the page this frame is in, or the frame's own when Chrome doesn't say. */
 function pageHost(): string {
@@ -22,7 +22,9 @@ if (window !== window.top && /^https?:$/.test(location.protocol)) {
   let pageScriptAsked = false;
   const apply = (settings: Settings) => {
     const offHere = (sites: string[]) => isSiteOff(page, sites) || isSiteOff(location.hostname, sites);
-    setVideoTools(settings.videoTools && !offHere(settings.videoOffSites));
+    const videoTools = settings.videoTools && !offHere(settings.videoOffSites);
+    setVideoTools(videoTools);
+    setPlayerKeys(videoTools && settings.playerKeys);
     if (isSiteOff(page, settings.popupBlockSites)) {
       enablePopupGuard();
       // The blocker's page-side script: registered for the page's own site only, so added here.

@@ -29,6 +29,11 @@ export interface Settings {
   videoTools: boolean;
   /** Sites where video tools are turned off. */
   videoOffSites: string[];
+  /**
+   * Keys for the video being watched: space/K play and pause, arrows and J/L seek, , and . step a frame,
+   * < and > change the speed, M mutes, P is picture-in-picture. Where video tools are on.
+   */
+  playerKeys: boolean;
   /** English subtitles: text size, % of the usual (which follows the video's height). */
   subSize: number;
   /** English subtitles: how opaque the box behind them is, %. 100 hides the original line; 0 is text only. */
@@ -54,6 +59,7 @@ export const defaultSettings: Settings = {
   popupBlockSites: [],
   videoTools: true,
   videoOffSites: [],
+  playerKeys: true,
   subSize: 100,
   subBackground: 100,
   mostVisited: true,

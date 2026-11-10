@@ -6,6 +6,10 @@
 //   ⬇ Download   save the video as MP4 (video-download.ts)
 //   EN subs      English over burned-in Chinese/Japanese subtitles (subs.ts)
 //   CC ▾         subtitle files for the video, from SubtitleCat or this computer (cc-menu.ts)
+//   1× ▾         playback speed
+//   PiP          picture-in-picture: the video in its own small window
+// Player keys for the video being watched (space, arrows, J/K/L…, see VideoUi.key) come from the click
+// shield too, which takes them before the site's own player or its ad scripts can.
 // The toolbar sits in a layer that follows the video on screen (pointer-events: none except the buttons);
 // when the player goes full screen, the layer moves into the full-screen element so it stays visible.
 // Buttons get their clicks through the click shield (markUi/onUi), so the site's ad scripts never see them.
@@ -37,6 +41,23 @@ const ERROR_MS = 12000;
 /** How often to look for something else drawn where the toolbar sits, while it's shown. */
 const OVERLAP_CHECK_MS = 600;
 const GAP = 8;
+/** A seek, speed or mute message: gone quickly, like a player's own. */
+const FLASH_MS = 1400;
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+/** One frame, for , and . (the frame rate isn't known; most videos here are 30 a second). */
+const FRAME_SEC = 1 / 30;
+
+/** "1×", "1.25×" */
+const speedName = (rate: number) => `${Math.round(rate * 100) / 100}×`;
+
+/** "12:34", "1:02:10" */
+function clock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rest = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${rest}` : `${m}:${rest}`;
+}
 
 /** Where the toolbar sits: px from the video's top and its left or right edge. */
 interface Spot {
@@ -129,13 +150,19 @@ class VideoUi {
   private readonly cancelBtn = button('javtr-cancel', '✕', 'Cancel the download');
   private readonly subsBtn = button('javtr-subs-btn', 'EN subs', 'Cover Chinese/Japanese subtitles with English');
   private readonly ccBtn = button('javtr-cc-btn', 'CC ▾', 'Subtitle files for this video (SubtitleCat, or one on this computer)');
+  private readonly speedBtn = button('javtr-speed-btn', '1× ▾', 'Playback speed (< and > keys)');
+  private readonly pipBtn = button('javtr-pip-btn', 'PiP', 'Picture-in-picture: the video in its own small window (P key)');
   private readonly status = document.createElement('div');
+  /** The pointer is on the video now. */
+  private pointerOver = false;
+  /** It has played with sound, or a key was used on it: the video being watched (see key). */
+  private watched = false;
   private info: VideoInfo | null = null;
   private download: VideoDownload | null = null;
   private subs: SubtitleReader | null = null;
   private readonly cc: CcMenu;
-  /** Whose menu is open, quality or CC (they share one). */
-  private menuOwner: 'quality' | 'cc' | null = null;
+  /** Whose menu is open: quality, CC or speed (they share one). */
+  private menuOwner: 'quality' | 'cc' | 'speed' | null = null;
   private hoverUntil = 0;
   private statusUntil = 0;
   private lastPlace = '';
@@ -159,7 +186,9 @@ class VideoUi {
     this.menu.hidden = true;
     this.status.className = 'javtr-video-status';
     this.status.hidden = true;
-    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.ccBtn, this.menu);
+    this.pipBtn.setAttribute('aria-pressed', 'false');
+    this.pipBtn.hidden = !document.pictureInPictureEnabled || video.disablePictureInPicture;
+    this.bar.append(this.ahead, this.quality, this.downloadBtn, this.cancelBtn, this.subsBtn, this.ccBtn, this.speedBtn, this.pipBtn, this.menu);
     this.layer.append(this.bar, this.status);
     document.documentElement.append(this.layer);
     this.cc = new CcMenu(video, this.layer, this.menu, (text, kind) => this.say(text, kind), (on) => {
@@ -177,8 +206,25 @@ class VideoUi {
     onActivate(this.cancelBtn, () => this.download?.cancel());
     onActivate(this.subsBtn, () => this.toggleSubs());
     onActivate(this.ccBtn, () => this.toggleCcMenu());
+    onActivate(this.speedBtn, () => this.toggleSpeedMenu());
+    onActivate(this.pipBtn, () => this.togglePip());
     video.addEventListener('javtr:video-info', this.onInfo);
+    for (const type of VideoUi.STATE_EVENTS) video.addEventListener(type, this.onState);
+    this.onState();
   }
+
+  private static readonly STATE_EVENTS = ['ratechange', 'playing', 'volumechange', 'emptied', 'enterpictureinpicture', 'leavepictureinpicture'];
+
+  /** The video's speed, sound or window changed: the buttons say so. */
+  private readonly onState = (e?: Event) => {
+    const video = this.video;
+    if (e?.type === 'emptied') this.watched = false; // another video in the same player
+    if (!video.paused && !video.muted) this.watched = true;
+    this.speedBtn.textContent = `${speedName(video.playbackRate)} ▾`;
+    const inPip = document.pictureInPictureElement === video;
+    this.pipBtn.setAttribute('aria-pressed', String(inPip));
+    this.pipBtn.classList.toggle('javtr-on', inPip);
+  };
 
   private readonly onInfo = (e: Event) => {
     try {
@@ -195,6 +241,7 @@ class VideoUi {
 
   destroy() {
     this.video.removeEventListener('javtr:video-info', this.onInfo);
+    for (const type of VideoUi.STATE_EVENTS) this.video.removeEventListener(type, this.onState);
     this.download?.cancel();
     this.subs?.stop();
     this.cc.turnOff();
@@ -204,7 +251,8 @@ class VideoUi {
 
   pointerAt(x: number, y: number) {
     const r = this.video.getBoundingClientRect();
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+    this.pointerOver = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    if (this.pointerOver) {
       this.hoverUntil = Date.now() + HIDE_AFTER_MS;
       // Straight away, not on the next frame: a quick click must land on the button, not the video.
       if (!this.layer.hidden) this.bar.classList.add('javtr-show');
@@ -213,7 +261,8 @@ class VideoUi {
 
   closeMenuUnless(target: EventTarget | null) {
     const inside = (el: HTMLElement) => target instanceof Node && el.contains(target);
-    if (!this.menu.hidden && !inside(this.menu) && !inside(this.quality) && !inside(this.ccBtn)) this.closeMenu();
+    const buttons = [this.quality, this.ccBtn, this.speedBtn];
+    if (!this.menu.hidden && !inside(this.menu) && !buttons.some(inside)) this.closeMenu();
   }
 
   private closeMenu() {
@@ -302,6 +351,128 @@ class VideoUi {
   private say(text: string, kind: StatusKind = 'note') {
     this.status.textContent = text;
     this.statusUntil = kind === 'wait' ? Infinity : Date.now() + (kind === 'error' ? ERROR_MS : STATUS_MS);
+  }
+
+  /** A short message that goes by itself, for a key press. */
+  private flash(text: string) {
+    this.status.textContent = text;
+    this.statusUntil = Date.now() + FLASH_MS;
+  }
+
+  /**
+   * A player key (from the click shield). True if it was this video's to take: it's the one being watched
+   * (it has played with sound), the pointer is on it, or it's full screen. Otherwise the key stays the
+   * page's, so J and K still move through a feed whose previews play muted, and space still scrolls.
+   *   space, K   play / pause          ←, →   5 seconds          J, L   10 seconds
+   *   , and .    one frame (pauses)    <, >   slower / faster    M      mute       P   picture-in-picture
+   */
+  key(key: string, repeat: boolean): boolean {
+    const video = this.video;
+    const fs = document.fullscreenElement;
+    if (!this.watched && !this.pointerOver && !(fs && fs.contains(video))) return false;
+    this.watched = true;
+    switch (key) {
+      case ' ':
+      case 'k':
+        if (repeat) break;
+        if (video.paused) void video.play().catch(() => {});
+        else video.pause();
+        break;
+      case 'ArrowLeft':
+        this.seek(-5);
+        break;
+      case 'ArrowRight':
+        this.seek(5);
+        break;
+      case 'j':
+        this.seek(-10);
+        break;
+      case 'l':
+        this.seek(10);
+        break;
+      case ',':
+      case '.':
+        video.pause();
+        this.seekTo(video.currentTime + (key === '.' ? FRAME_SEC : -FRAME_SEC));
+        this.flash(`${key === '.' ? 'Next' : 'Previous'} frame`);
+        break;
+      case '<':
+      case '>': {
+        // The next speed on the list, from wherever the site's own menu left it.
+        const rate = video.playbackRate;
+        const next = key === '>' ? SPEEDS.find((s) => s > rate + 0.001) : [...SPEEDS].reverse().find((s) => s < rate - 0.001);
+        if (next) this.setSpeed(next);
+        else this.flash(`Speed: ${speedName(rate)}`);
+        break;
+      }
+      case 'm':
+        if (repeat) break;
+        video.muted = !video.muted;
+        this.flash(video.muted ? 'Muted' : 'Sound on');
+        break;
+      case 'p':
+        if (!repeat) this.togglePip();
+        break;
+      default:
+        return false;
+    }
+    return true;
+  }
+
+  private seekTo(time: number) {
+    const video = this.video;
+    const end = Number.isFinite(video.duration) ? video.duration : Infinity;
+    video.currentTime = Math.min(Math.max(0, time), end);
+  }
+
+  private seek(by: number) {
+    this.seekTo(this.video.currentTime + by);
+    const { currentTime, duration } = this.video;
+    const of = Number.isFinite(duration) ? ` / ${clock(duration)}` : '';
+    this.flash(`${by > 0 ? '+' : '−'}${Math.abs(by)} s · ${clock(currentTime)}${of}`);
+  }
+
+  private setSpeed(rate: number) {
+    this.video.playbackRate = rate;
+    this.onState(); // the button says it now, not when the video reports the change
+    this.flash(`Speed: ${speedName(rate)}`);
+  }
+
+  private toggleSpeedMenu() {
+    if (!this.menu.hidden) {
+      const mine = this.menuOwner === 'speed';
+      this.closeMenu();
+      if (mine) return;
+    }
+    const rate = this.video.playbackRate;
+    this.menu.classList.remove('javtr-cc-menu');
+    this.menu.style.maxHeight = '';
+    this.menu.replaceChildren(
+      ...SPEEDS.map((speed) => {
+        const b = button('javtr-menu-item', `${Math.abs(speed - rate) < 0.001 ? '✓ ' : ''}${speedName(speed)}`, '');
+        onActivate(b, () => {
+          this.closeMenu();
+          this.setSpeed(speed);
+        });
+        return b;
+      }),
+    );
+    this.menu.hidden = false;
+    this.menuOwner = 'speed';
+  }
+
+  private togglePip() {
+    const video = this.video;
+    if (!document.pictureInPictureEnabled || video.disablePictureInPicture) {
+      this.say('This player doesn’t allow picture-in-picture.');
+      return;
+    }
+    const done = document.pictureInPictureElement === video ? document.exitPictureInPicture() : video.requestPictureInPicture();
+    done.catch((err: unknown) => {
+      // Before the video has loaded, or in an embedded player whose page doesn't allow it.
+      const notReady = err instanceof DOMException && err.name === 'InvalidStateError';
+      this.say(notReady ? 'Play the video for a moment, then try picture-in-picture again.' : 'This player doesn’t allow picture-in-picture.', 'error');
+    });
   }
 
   private renderInfo() {
@@ -472,6 +643,15 @@ class VideoUi {
 const uis = new Map<HTMLVideoElement, VideoUi>();
 let observer: MutationObserver | null = null;
 let raf = 0;
+/** The page's main video as of the last frame: the one player keys are for. */
+let current: HTMLVideoElement | null = null;
+
+const onPlayerKey = (e: Event) => {
+  const { key, repeat } = (e as CustomEvent<{ key?: unknown; repeat?: unknown } | null>).detail ?? {};
+  const ui = current && uis.get(current);
+  // Cancelling it tells the shield the key was taken, so the page never sees it.
+  if (ui && typeof key === 'string' && ui.key(key, repeat === true)) e.preventDefault();
+};
 
 function attach(video: HTMLVideoElement) {
   if (!uis.has(video)) uis.set(video, new VideoUi(video));
@@ -507,8 +687,8 @@ function loop() {
       uis.delete(video);
     }
   }
-  const main = mainVideo();
-  for (const [video, ui] of uis) ui.frame(now, video === main);
+  current = mainVideo();
+  for (const [video, ui] of uis) ui.frame(now, video === current);
   raf = requestAnimationFrame(loop);
 }
 
@@ -528,6 +708,7 @@ export function enableVideoTools() {
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('pointermove', onPointerMove, { capture: true, passive: true });
   window.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true });
+  window.addEventListener('javtr:player-key', onPlayerKey);
   raf = requestAnimationFrame(loop);
 }
 
@@ -536,6 +717,8 @@ export function disableVideoTools() {
   observer = null;
   window.removeEventListener('pointermove', onPointerMove, { capture: true });
   window.removeEventListener('pointerdown', onPointerDown, { capture: true });
+  window.removeEventListener('javtr:player-key', onPlayerKey);
+  current = null;
   cancelAnimationFrame(raf);
   for (const ui of uis.values()) ui.destroy();
   uis.clear();
