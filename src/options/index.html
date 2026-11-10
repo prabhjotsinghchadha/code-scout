@@ -354,15 +354,45 @@
 
         <section class="card" id="shortcuts">
           <h2>Shortcuts</h2>
+          <h3>On any page</h3>
           <p class="desc">Select a code, or put the caret on one in a text box, then:</p>
           <ul class="shortcuts">
-            <li><kbd id="key-open">Alt+Shift+J</kbd> Open trailer</li>
-            <li><kbd id="key-search">Alt+Shift+K</kbd> Search javtrailers.com</li>
-            <li><kbd id="key-all">Alt+Shift+L</kbd> Open on all your “Open on” sites</li>
-            <li><kbd id="key-hide">Alt+Shift+H</kbd> Hide what you’re watching, on any page: videos pause, the tabs are muted and go out of sight. Press again to bring them back</li>
-            <li><kbd>Right-click</kbd> <em>Open trailer for “…”</em>, <em>Search trailers for “…”</em> or <em>Open “…” on</em></li>
+            <li><span class="keys"><kbd id="key-open">Alt+Shift+J</kbd></span> <span>Open trailer</span></li>
+            <li><span class="keys"><kbd id="key-search">Alt+Shift+K</kbd></span> <span>Search javtrailers.com</span></li>
+            <li><span class="keys"><kbd id="key-all">Alt+Shift+L</kbd></span> <span>Open on all your “Open on” sites</span></li>
+            <li><span class="keys"><kbd id="key-hide">Alt+Shift+H</kbd></span> <span>Hide what you’re watching, on any page: videos pause, the tabs are muted and go out of sight. Press again to bring them back</span></li>
+            <li><span class="keys"><kbd>Right-click</kbd></span> <span>On a selected code: <em>Open trailer for “…”</em>, <em>Search trailers for “…”</em>, <em>Open “…” on</em> or <em>Add “…” to favourites</em>. On a link, a performer’s or genre’s link, or the page: open its trailer or add it to favourites. On a ▶ button: more places to open the code</span></li>
+            <li><span class="keys"><kbd>Enter</kbd> <kbd>Space</kbd></span> <span>Press a ▶ button, a chip button or a video toolbar button that has the focus</span></li>
+            <li><span class="keys"><kbd>Esc</kbd></span> <span>Close the chip or an open menu</span></li>
           </ul>
           <button type="button" id="edit-shortcuts" class="btn"><i data-icon="keyboard"></i>Change shortcuts</button>
+          <p class="hint">The four <kbd>Alt+Shift</kbd> shortcuts can be changed or cleared; the keys below are fixed.</p>
+
+          <h3>Video player</h3>
+          <p class="desc">
+            For the video you’re watching, whatever the site’s player, once it has played with sound or while the pointer is on
+            it. Not while you type, and not with Ctrl, ⌘ or Alt held. Switch them off with <a href="#video">Player keys</a>.
+          </p>
+          <ul class="shortcuts">
+            <li><span class="keys"><kbd>Space</kbd> <kbd>K</kbd></span> <span>Play or pause</span></li>
+            <li><span class="keys"><kbd>←</kbd> <kbd>→</kbd></span> <span>Back or forward 5 seconds</span></li>
+            <li><span class="keys"><kbd>J</kbd> <kbd>L</kbd></span> <span>Back or forward 10 seconds</span></li>
+            <li><span class="keys"><kbd>,</kbd> <kbd>.</kbd></span> <span>One frame back or forward (pauses the video)</span></li>
+            <li><span class="keys"><kbd>&lt;</kbd> <kbd>&gt;</kbd></span> <span>Slower or faster, a step of 0.25</span></li>
+            <li><span class="keys"><kbd>M</kbd></span> <span>Mute or unmute</span></li>
+            <li><span class="keys"><kbd>P</kbd></span> <span>Picture-in-picture</span></li>
+          </ul>
+
+          <h3>In the popup</h3>
+          <ul class="shortcuts">
+            <li><span class="keys"><kbd>Enter</kbd></span> <span>Open what’s typed in the box, or the first match</span></li>
+            <li><span class="keys"><kbd>Shift+Enter</kbd></span> <span>Search for what’s typed instead</span></li>
+            <li><span class="keys"><kbd>Esc</kbd></span> <span>Clear the box (again closes the popup); cancel a rename</span></li>
+            <li><span class="keys"><kbd>↓</kbd> <kbd>↑</kbd></span> <span>From the box into the list and through its rows; <kbd>↑</kbd> on the first row goes back to the box</span></li>
+            <li><span class="keys"><kbd>→</kbd> <kbd>←</kbd></span> <span>On a row: open or close its card. On a tab: the next or previous tab</span></li>
+            <li><span class="keys"><kbd>Any letter</kbd></span> <span>On a row: typing goes to the box</span></li>
+            <li><span class="keys"><kbd>Right-click</kbd> <kbd>Shift+F10</kbd></span> <span>On a quick link: rename, move or remove it</span></li>
+          </ul>
         </section>
 
         <section class="card" id="backup">

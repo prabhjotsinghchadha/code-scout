@@ -769,13 +769,29 @@ small {
   list-style: none;
 }
 .shortcuts li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: baseline;
   gap: 4px 12px;
 }
-.shortcuts kbd {
-  min-width: 104px;
+.shortcuts .keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+#shortcuts h2 + h3 {
+  margin-top: 0;
+}
+#shortcuts h3 + .shortcuts {
+  margin-top: 10px;
+}
+#shortcuts .hint {
+  margin: 8px 0 0;
+}
+@media (max-width: 520px) {
+  .shortcuts li {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Narrow windows: one column, the sections become a strip along the top */
