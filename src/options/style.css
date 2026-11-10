@@ -596,6 +596,26 @@ small {
   color: var(--text);
   box-shadow: 0 0 0 3px var(--accent-tint);
 }
+/* Proxy servers: the one in use is picked with its radio button */
+.rows li.server {
+  cursor: pointer;
+}
+.rows li.server input[type='radio'] {
+  flex: none;
+  margin: 0 4px 0 0;
+  accent-color: var(--accent);
+}
+.rows li.server small {
+  display: block;
+  color: var(--muted);
+  font: 12px var(--mono);
+}
+.rows li.server small.problem {
+  color: var(--danger);
+  font: inherit;
+  font-size: 12px;
+  white-space: normal;
+}
 .rows li .icon-btn:hover {
   background: var(--surface-2);
 }
@@ -619,7 +639,8 @@ small {
   gap: 6px;
   margin-top: 8px;
 }
-.add input[type='text'] {
+.add input[type='text'],
+.add input[type='password'] {
   flex: 1 1 200px;
   height: 34px;
 }

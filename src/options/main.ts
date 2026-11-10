@@ -19,6 +19,7 @@ import { subtitleLookVars } from '../shared/subtitles';
 import { ACCENTS, applyTheme, isAccent, isTheme, onPageAccentVars, type Accent } from '../shared/theme';
 import { createTranslators, translatorStatus } from '../shared/translator';
 import { setupLinksEditor } from './links-editor';
+import { setupProxy } from './proxy';
 
 followLook();
 hydrateIcons();
@@ -502,4 +503,5 @@ async function setupAppearance() {
 void init();
 void setupAppearance();
 void showShortcuts();
+void setupProxy(flash);
 setupSections();

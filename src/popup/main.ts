@@ -18,6 +18,7 @@ import { followLook } from '../shared/look';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
 import { getLater, isLater, onLaterChanged, setLater, type Later } from '../shared/later';
+import { getProxy, isProxied, onProxyChanged, updateProxy, withSite, type ProxyState } from '../shared/proxy';
 import { recentSeen, seenAgo, type Seen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
 import { availableUpdate, dismissUpdate } from '../shared/update';
@@ -802,6 +803,63 @@ function setupSiteToggles(settings: Settings, tab: chrome.tabs.Tab | undefined) 
     if (tab?.id !== undefined) await chrome.tabs.reload(tab.id);
     window.close();
   });
+  void setupSiteProxy(host);
+}
+
+/**
+ * The site bar's Proxy switch (this site goes through the proxy server, shared/proxy.ts) and, under it, the
+ * server in use: picked from the ones saved in Settings, or Off for none.
+ */
+async function setupSiteProxy(host: string) {
+  const box = $<HTMLInputElement>('site-proxy');
+  const picker = $<HTMLSelectElement>('proxy-server');
+  let state = await getProxy();
+  const OFF = '';
+
+  const render = () => {
+    const through = isProxied(host, state.sites);
+    box.checked = through;
+    $('proxy-line').hidden = !state.servers.length || !state.sites.length;
+    picker.replaceChildren(
+      new Option('Off', OFF),
+      ...state.servers.map((s) => new Option(s.name, s.id)),
+    );
+    picker.value = state.on ? (state.active ?? OFF) : OFF;
+    const n = state.sites.length;
+    $('proxy-label').textContent = !state.on
+      ? 'Proxy is off: every site connects directly'
+      : through
+        ? 'This site goes through'
+        : `${n} site${n === 1 ? '' : 's'} (not this one) go${n === 1 ? 'es' : ''} through`;
+  };
+  const change = async (edit: (state: ProxyState) => ProxyState) => {
+    state = await updateProxy(edit);
+    render();
+    // Connections already open to the site stay as they were until the page loads again.
+    $('reload-tab').hidden = false;
+  };
+
+  box.addEventListener('change', () => {
+    // No server yet: Settings is where one is added.
+    if (box.checked && !state.servers.length) {
+      box.checked = false;
+      void sendToBackground({ type: 'OPEN_OPTIONS', section: 'proxy' });
+      window.close();
+      return;
+    }
+    // Switching a site on is asking for the proxy: it's turned on with it.
+    const through = box.checked;
+    void change((s) => ({ ...s, sites: withSite(s.sites, host, through), on: through ? true : s.on }));
+  });
+  picker.addEventListener('change', () => {
+    const id = picker.value;
+    void change((s) => (id === OFF ? { ...s, on: false } : { ...s, on: true, active: id }));
+  });
+  onProxyChanged((next) => {
+    state = next;
+    render();
+  });
+  render();
 }
 
 /** Wait this long for the page's codes before picking the starting tab without them. */

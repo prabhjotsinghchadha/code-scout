@@ -13,6 +13,7 @@ import { sendToTab, type ContextLink, type DetailsResult, type Message, type Ocr
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
 import { toggleHidden } from './hide';
+import { applyProxy } from './proxy';
 import { findSubtitles, getSubtitleFile } from './subtitle-search';
 import { webSearch } from './web-search';
 
@@ -101,10 +102,12 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await seedBuiltIns().catch((err) => console.error('Offering built-ins failed', err));
   buildMenus((await getSettings()).openOnSites);
   await syncPageScripts();
+  await applyProxy();
   await backUpFavourites({ restore: true });
 });
 chrome.runtime.onStartup.addListener(() => {
   void syncPageScripts();
+  void applyProxy();
   // Also here: a first sync right after a reinstall can replace the restored favourites with none.
   void backUpFavourites({ restore: true });
 });

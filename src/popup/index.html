@@ -227,8 +227,16 @@
           <label class="pill" title="Faster loading, quality menu, download and English subtitles on this site's videos">
             <input type="checkbox" id="site-video" /><i data-icon="film" data-size="14"></i>Video
           </label>
+          <label class="pill" title="Connect to this site through your proxy server (Settings → Proxy)">
+            <input type="checkbox" id="site-proxy" /><i data-icon="lock" data-size="13"></i>Proxy
+          </label>
         </div>
         </div>
+        <!-- With servers saved: which one the proxied sites go through, or none (off). -->
+        <label id="proxy-line" class="proxy-line" hidden>
+          <i data-icon="lock" data-size="13"></i><span id="proxy-label"></span>
+          <select id="proxy-server" aria-label="Proxy server"></select>
+        </label>
         <button type="button" id="reload-tab" class="link-btn" hidden><i data-icon="refresh" data-size="13"></i><span id="reload-label">Reload the page to apply</span></button>
       </footer>
     </main>

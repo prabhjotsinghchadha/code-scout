@@ -296,6 +296,7 @@ i[data-icon] {
 /* Text fields */
 input[type='text'],
 input[type='search'],
+input[type='password'],
 select {
   min-width: 0;
   height: 32px;
@@ -312,6 +313,7 @@ input::placeholder {
 }
 input[type='text']:focus,
 input[type='search']:focus,
+input[type='password']:focus,
 select:focus {
   outline: none;
   border-color: var(--accent);

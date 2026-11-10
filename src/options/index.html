@@ -31,6 +31,7 @@
           <p class="nav-head">Watching</p>
           <a href="#video"><i data-icon="film"></i>Video tools</a>
           <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
+          <a href="#proxy"><i data-icon="lock"></i>Proxy</a>
           <p class="nav-head">More</p>
           <a href="#guide"><i data-icon="help"></i>Guide</a>
           <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
@@ -212,6 +213,59 @@
             <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Block pop-ups</button>
           </form>
           <p id="popup-error" class="error" hidden></p>
+        </section>
+
+        <section class="card" id="proxy">
+          <h2>Proxy</h2>
+          <p class="desc">
+            Like a VPN, for the sites you pick: Chrome connects to them through a proxy server of yours, so they see the
+            server’s address and country instead of your own. Every other site connects directly, as before.
+          </p>
+          <label class="setting" for="proxy-on">
+            <span><strong>Use the proxy</strong><small id="proxy-state"></small></span>
+            <input type="checkbox" class="switch" id="proxy-on" />
+          </label>
+          <p id="proxy-warning" class="error" role="alert" hidden></p>
+
+          <h3>Servers</h3>
+          <p class="hint">
+            Code Scout has no servers of its own: add ones you have, from a VPN provider that offers proxy addresses or a
+            server you run. Pick the one to use here or in the popup. They’re kept on this computer only, and are not in
+            the backup file.
+          </p>
+          <ul id="proxy-servers" class="rows"></ul>
+          <p id="proxy-servers-empty" class="none" hidden>No servers yet. Add one below.</p>
+          <form id="add-proxy-server" class="add">
+            <select id="proxy-scheme" aria-label="Kind of proxy"></select>
+            <input id="proxy-address" type="text" placeholder="proxy.example.com:8080" aria-label="Server address and port" autocomplete="off" spellcheck="false" required />
+            <input id="proxy-name" class="narrow" type="text" placeholder="Name, like Japan (optional)" aria-label="Name" maxlength="40" />
+            <input id="proxy-user" class="narrow" type="text" placeholder="User name (optional)" aria-label="User name" autocomplete="off" spellcheck="false" />
+            <input id="proxy-pass" class="narrow" type="password" placeholder="Password (optional)" aria-label="Password" autocomplete="new-password" />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Add server</button>
+          </form>
+          <p id="proxy-server-error" class="error" hidden></p>
+
+          <h3>Sites that use it</h3>
+          <p class="hint">These sites and their subdomains. The quick way: switch on <em>Proxy</em> in the popup while you’re on the site.</p>
+          <ul id="proxy-sites" class="rows"></ul>
+          <p id="proxy-empty" class="none" hidden>No sites yet, so nothing goes through the proxy.</p>
+          <form id="add-proxy-site" class="add">
+            <input id="proxy-site" type="text" placeholder="missav.ws" aria-label="Site" required />
+            <button type="submit" class="btn"><i data-icon="plus" data-size="14"></i>Use the proxy</button>
+          </form>
+          <p id="proxy-error" class="error" hidden></p>
+
+          <details class="more">
+            <summary>What it does, and what it doesn’t</summary>
+            <ul class="tips">
+              <li>It covers Chrome only, and only the sites listed. It is not a VPN for the whole computer: other apps, and other sites, use your own connection.</li>
+              <li>A video is often sent from another address than the site it’s on (its video server). If a listed site opens but its video doesn’t play, add the video server’s site too.</li>
+              <li>If the server can’t be reached, a listed site fails to load. It never quietly falls back to your own connection.</li>
+              <li>Whoever runs the server can see which sites you connect to through it (and everything on pages that aren’t https). Use one you trust; free public proxies usually aren’t.</li>
+              <li>A user name and password work with HTTP and HTTPS proxies. Chrome can’t sign in to a SOCKS proxy; with an HTTP proxy the password is sent to it unencrypted.</li>
+              <li>It applies to incognito windows too. Only one extension can set Chrome’s proxy: another VPN or proxy extension may take over.</li>
+            </ul>
+          </details>
         </section>
 
         <section class="card" id="video">
