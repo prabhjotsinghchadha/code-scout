@@ -352,6 +352,19 @@ small {
   font-size: 13px;
 }
 
+/* Backup: export and import */
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.backup-status {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* English subtitles: size and background, with a preview over a stand-in picture */
 .sub-look {
   margin-top: 18px;

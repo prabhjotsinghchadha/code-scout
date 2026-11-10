@@ -1,5 +1,6 @@
 import type { OpenMode } from '../shared/codes';
 import { siteKey } from '../shared/hosts';
+import { dataFileName, exportData, importData, importSummary } from '../shared/data-file';
 import { hydrateIcons, icon, type IconName } from '../shared/icons';
 import {
   newSiteId,
@@ -305,6 +306,62 @@ async function showShortcuts() {
 document.getElementById('edit-shortcuts')!.addEventListener('click', () => {
   void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 });
+
+// --- Backup: everything in one file (shared/data-file.ts) ---
+/** The import's summary, kept over the reload that shows the imported settings. */
+const IMPORTED_KEY = 'importedSummary';
+
+function setupBackup() {
+  const status = $<HTMLParagraphElement>('backup-status');
+  const error = $<HTMLParagraphElement>('backup-error');
+  const picker = $<HTMLInputElement>('import-file');
+  const say = (text: string) => {
+    showError(error, null);
+    status.hidden = false;
+    status.textContent = text;
+  };
+
+  $('export-data').addEventListener('click', async () => {
+    try {
+      const now = Date.now();
+      const url = URL.createObjectURL(new Blob([JSON.stringify(await exportData(now), null, 2)], { type: 'application/json' }));
+      el('a', { href: url, download: dataFileName(now) }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      say(`Saved ${dataFileName(now)} to your downloads.`);
+    } catch (err) {
+      console.error('Export failed', err);
+      showError(error, 'Couldn’t make the backup file.');
+    }
+  });
+
+  $('import-data').addEventListener('click', () => picker.click());
+  picker.addEventListener('change', async () => {
+    const file = picker.files?.[0];
+    picker.value = ''; // so picking the same file again asks again
+    if (!file) return;
+    const sure = confirm(
+      `Import ${file.name}?\n\nThe settings, quick links and sites here are replaced with the file’s. Favourites, seen codes and subtitle choices are added to what’s here.`,
+    );
+    if (!sure) return;
+    status.hidden = true;
+    try {
+      const summary = importSummary(await importData(await file.text()));
+      // Every section reads its settings when the page loads: load it again, then say what was imported.
+      sessionStorage.setItem(IMPORTED_KEY, summary);
+      location.hash = 'backup';
+      location.reload();
+    } catch (err) {
+      showError(error, err instanceof Error ? err.message : 'Couldn’t import that file.');
+    }
+  });
+
+  const imported = sessionStorage.getItem(IMPORTED_KEY);
+  if (imported) {
+    sessionStorage.removeItem(IMPORTED_KEY);
+    say(imported);
+  }
+}
+setupBackup();
 
 // Highlight the section being read in the side nav.
 function trackSections() {

@@ -26,6 +26,7 @@
         <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
         <a href="#video"><i data-icon="film"></i>Video tools</a>
         <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
+        <a href="#backup"><i data-icon="download"></i>Backup</a>
       </nav>
 
       <main>
@@ -204,6 +205,26 @@
             <li><kbd>Right-click</kbd> <em>Open trailer for “…”</em>, <em>Search trailers for “…”</em> or <em>Open “…” on</em></li>
           </ul>
           <button type="button" id="edit-shortcuts" class="btn"><i data-icon="keyboard"></i>Change shortcuts</button>
+        </section>
+
+        <section class="card" id="backup">
+          <h2>Backup</h2>
+          <p class="desc">
+            Everything Code Scout keeps, in one file: settings, quick links and sites, favourite videos, actresses and
+            tags, seen codes, visit counts and the subtitle file picked for each video. For a reinstall, or to move to
+            another computer what is kept on this one only.
+          </p>
+          <div class="backup-actions">
+            <button type="button" id="export-data" class="btn"><i data-icon="download" data-size="14"></i>Export to a file</button>
+            <button type="button" id="import-data" class="btn"><i data-icon="upload" data-size="14"></i>Import from a file…</button>
+            <input type="file" id="import-file" accept=".json,application/json" hidden />
+          </div>
+          <p class="hint">
+            Importing replaces the settings, quick links and sites here with the file’s. Favourites, seen codes and
+            subtitle choices from the file are added to what’s here; none are removed.
+          </p>
+          <p id="backup-status" class="backup-status" role="status" hidden></p>
+          <p id="backup-error" class="error" role="alert" hidden></p>
         </section>
       </main>
     </div>
