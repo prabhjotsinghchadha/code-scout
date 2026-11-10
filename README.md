@@ -6,11 +6,13 @@ The extension's visible name and wording are kept neutral: *Code Scout*, *Search
 
 ## Install
 
-Code Scout isn't on the Chrome Web Store. It is installed from a folder, which takes a minute:
+Code Scout isn't on the Chrome Web Store. It is installed from a zip, which takes a minute:
 
-1. Download `code-scout-v….zip` from the [latest release](https://github.com/prabhjotsinghchadha/code-scout/releases/latest) and unzip it. You get a folder called `code-scout`. Put it somewhere it can stay (not Downloads): Chrome runs the extension from that folder.
+1. Download `code-scout-v….zip` from the [latest release](https://github.com/prabhjotsinghchadha/code-scout/releases/latest). Don't unzip it.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
-3. Click **Load unpacked** and pick the `code-scout` folder.
+3. Drag the zip onto that page and drop it.
+
+If the page doesn't take the zip: unzip it, put the folder somewhere it can stay (not Downloads, Chrome runs the extension from it), click **Load unpacked** and pick the folder.
 
 Works the same in Edge, Brave and other Chromium browsers. Chrome may now and then ask whether to keep developer-mode extensions on: keep them.
 
@@ -19,10 +21,9 @@ Works the same in Edge, Brave and other Chromium browsers. Chrome may now and th
 Chrome doesn't update an extension installed this way. The popup shows **Version … is out** when there is a newer release (it asks GitHub once a day, and sends nothing about you):
 
 1. Press **Get it** and download the new zip.
-2. Unzip it over the same `code-scout` folder, replacing the files.
-3. On `chrome://extensions`, press the reload arrow on Code Scout.
+2. Drop it on `chrome://extensions`, as before. (Or unzip it, **Load unpacked**, and pick the new folder.)
 
-Your favourites and settings stay. Don't press **Remove** to update: removing the extension deletes its data (favourites are also kept in the bookmarks folder *Code Scout favourites*, and Settings can save everything to a file).
+The new version takes the place of the old one, and your favourites and settings stay. Don't press **Remove** to update: removing the extension deletes its data (favourites are also kept in the bookmarks folder *Code Scout favourites*, and Settings can save everything to a file).
 
 ## Features
 
@@ -164,4 +165,4 @@ gh release create v0.2.0 release/code-scout-v0.2.0.zip --title "Code Scout 0.2.0
 
 The notice reads the releases of `RELEASES_REPO` in `src/shared/update.ts`.
 
-The release build goes to `release/`, not `dist/`, and its manifest carries a fixed `key`, so everyone's copy has the same extension ID wherever the folder is (and keeps its data when the folder moves). `dist/` has no key on purpose: adding one to a folder already loaded in Chrome changes its ID and empties its storage.
+The release build goes to `release/`, not `dist/`, and its manifest carries a fixed `key`, so everyone's copy has the same extension ID wherever it is loaded from: a newer copy from another folder replaces the old one and keeps its data. `manifest.json` is at the top level of the zip, which is what Chrome needs to take a dropped zip. `dist/` has no key on purpose: adding one to a folder already loaded in Chrome changes its ID and empties its storage.

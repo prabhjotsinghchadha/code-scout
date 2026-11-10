@@ -1,6 +1,6 @@
 // Builds the copy of Code Scout that is shared with other people: release/code-scout-v<version>.zip,
-// to attach to a GitHub release. It unzips to one folder, code-scout/, which people pick with
-// "Load unpacked"; unzipping a later version over it and pressing reload updates the extension.
+// to attach to a GitHub release. People drop the zip on chrome://extensions (Developer mode on), and
+// drop a later version the same way to update; or unzip it and pick the folder with "Load unpacked".
 // Built in release mode (the manifest then carries the fixed key: see manifest.config.ts) and into
 // release/, so dist/ (the folder a developer has loaded in Chrome) is left alone.
 import { execFileSync } from 'node:child_process';
@@ -26,8 +26,9 @@ const manifest = JSON.parse(readFileSync(join(out, FOLDER, 'manifest.json'), 'ut
 if (!manifest.key) throw new Error('The release manifest has no "key": people would lose their data when they move the folder.');
 if (manifest.version !== version) throw new Error(`The manifest says ${manifest.version}, package.json says ${version}.`);
 
-// -X: no macOS extras in the archive; the folder itself is the top level of the zip.
-run('zip', ['-r', '-q', '-X', zip, FOLDER, '-x', '*.DS_Store'], out);
+// manifest.json at the top level of the zip (no folder around it): that is what Chrome wants when the
+// zip is dropped on chrome://extensions. -X: no macOS extras in the archive.
+run('zip', ['-r', '-q', '-X', join(out, zip), '.', '-x', '*.DS_Store'], join(out, FOLDER));
 
 const mb = (statSync(join(out, zip)).size / 1e6).toFixed(1);
 console.log(`\nrelease/${zip} (${mb} MB)`);
