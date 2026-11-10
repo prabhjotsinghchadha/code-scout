@@ -1,24 +1,30 @@
 /* Injected by Chrome via the manifest (not a <style> tag), so page CSP can't block it. */
 
-/* ▶ button next to codes on pages */
-.javtr-open-btn {
+/* Marks on pages: ▶ next to a code (★ a favourite, ✓ already seen), ♥ after a favourite actress's name,
+   # at the end of a link to a favourite tag's page. One shape, the popup's colours. The white ring keeps
+   them apart from dark pictures and coloured backgrounds. */
+.javtr-open-btn,
+.javtr-actress,
+.javtr-tag {
   all: unset;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  width: 1.35em;
-  height: 1.35em;
-  margin: 0 0.15em 0 0.3em;
+  width: 1.4em;
+  height: 1.4em;
+  margin: 0 0.2em 0 0.35em;
   border-radius: 50%;
   background: #e11d48 !important;
   color: #fff !important;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
-  font: 600 0.65em/1 system-ui, sans-serif !important;
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.92), 0 1px 3px 1px rgb(0 0 0 / 0.22);
+  font: 700 0.62em/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  text-decoration: none !important;
+  text-indent: 0;
+  letter-spacing: 0;
   vertical-align: middle;
   cursor: pointer !important;
   user-select: none;
-  opacity: 0.85;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: transform 0.12s, box-shadow 0.12s;
 }
 .javtr-open-btn.javtr-fav {
   background: #d97706 !important;
@@ -26,78 +32,47 @@
 /* ✓ for a code already seen: grey, so the ones still to watch stand out (a favourite keeps its ★) */
 .javtr-open-btn.javtr-seen:not(.javtr-fav) {
   background: #71717a !important;
-  font-weight: 700 !important;
-  opacity: 0.7;
+  opacity: 0.8;
+}
+.javtr-actress {
+  background: #7c3aed !important;
+}
+.javtr-tag {
+  margin-right: 0.1em;
+  background: #0d9488 !important;
 }
 .javtr-open-btn:hover,
-.javtr-open-btn:focus-visible {
-  opacity: 1;
-  transform: scale(1.15);
-  outline: 2px solid #fda4af;
-}
-
-/* ♥ after a favourite actress's name on pages (violet, apart from a starred code's amber ★) */
-.javtr-actress {
-  all: unset;
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 1.35em;
-  height: 1.35em;
-  margin: 0 0.15em 0 0.3em;
-  border-radius: 50%;
-  background: #7c3aed !important;
-  color: #fff !important;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
-  font: 600 0.7em/1 system-ui, sans-serif !important;
-  vertical-align: middle;
-  cursor: pointer !important;
-  user-select: none;
-  opacity: 0.9;
-  transition: opacity 0.15s, transform 0.15s;
-}
+.javtr-open-btn:focus-visible,
 .javtr-actress:hover,
 .javtr-actress:focus-visible {
   opacity: 1;
-  transform: scale(1.15);
-  outline: 2px solid #c4b5fd;
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(225 29 72 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.javtr-open-btn.javtr-fav:hover,
+.javtr-open-btn.javtr-fav:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(217 119 6 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.javtr-actress:hover,
+.javtr-actress:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(124 58 237 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);
 }
 
-/* # at the end of a link to a favourite tag's page (teal); part of the link, so it follows it */
-.javtr-tag {
-  all: unset;
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 1.35em;
-  height: 1.35em;
-  margin: 0 0.1em 0 0.3em;
-  border-radius: 50%;
-  background: #0d9488 !important;
-  color: #fff !important;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
-  font: 700 0.7em/1 system-ui, sans-serif !important;
-  text-decoration: none !important;
-  vertical-align: middle;
-  cursor: pointer !important;
-  user-select: none;
-}
-
-/* Chip shown under a text field when a code is typed */
+/* Chip shown under a text field when a code is typed: the code, then Open, Search, ☆, Sites, × */
 #javtr-chip {
   all: initial;
   position: fixed !important;
   z-index: 2147483647 !important;
   display: flex !important;
   align-items: center;
-  gap: 3px;
-  padding: 4px 4px 4px 12px;
-  border: 1px solid rgb(255 255 255 / 0.08) !important;
-  border-radius: 999px;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 0.1) !important;
+  border-radius: 12px;
   background: #18181b !important;
   color: #f4f4f5 !important;
-  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 8px 24px rgb(0 0 0 / 0.28);
-  font: 500 12px/1 system-ui, -apple-system, sans-serif !important;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 10px 28px rgb(0 0 0 / 0.3);
+  font: 500 12px/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
   animation: javtr-in 0.12s ease-out;
 }
 #javtr-chip[hidden] {
@@ -105,99 +80,125 @@
 }
 #javtr-chip .javtr-code {
   all: unset;
-  margin-right: 5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  margin: 0 8px 0 7px;
+  color: #f4f4f5 !important;
+  font: 600 12px/1 ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace !important;
 }
 #javtr-chip button {
   all: unset;
-  padding: 6px 11px;
-  border-radius: 999px;
-  font: 600 12px/1 system-ui, -apple-system, sans-serif !important;
+  padding: 7px 9px;
+  border-radius: 8px;
+  color: #d4d4d8 !important;
+  font: 600 12px/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  white-space: nowrap;
   cursor: pointer !important;
-  color: #f4f4f5 !important;
   transition: background 0.12s, color 0.12s;
-}
-#javtr-chip button.javtr-primary {
-  background: #e11d48 !important;
-  color: #fff !important;
-}
-#javtr-chip button.javtr-secondary {
-  background: #27272a !important;
-}
-#javtr-chip button.javtr-star {
-  padding: 6px 8px;
-  font-size: 13px !important;
-}
-#javtr-chip button.javtr-star.javtr-on {
-  color: #fbbf24 !important;
-}
-#javtr-chip button.javtr-close {
-  padding: 6px 8px;
-  color: #a1a1aa !important;
 }
 #javtr-chip button:hover,
 #javtr-chip button:focus-visible {
-  background: #3f3f46 !important;
+  background: #2e2e33 !important;
+  color: #fff !important;
+}
+#javtr-chip button.javtr-primary {
+  margin-right: 2px;
+  padding: 7px 11px;
+  background: #e11d48 !important;
+  color: #fff !important;
 }
 #javtr-chip button.javtr-primary:hover,
 #javtr-chip button.javtr-primary:focus-visible {
   background: #be123c !important;
 }
-#javtr-chip button.javtr-close:hover {
-  background: transparent !important;
-  color: #f4f4f5 !important;
+#javtr-chip button.javtr-star {
+  padding: 6px 8px;
+  font-size: 14px !important;
+}
+#javtr-chip button.javtr-star.javtr-on {
+  color: #fbbf24 !important;
+}
+#javtr-chip button.javtr-close {
+  margin-left: 2px;
+  padding: 6px 8px;
+  border-left: 1px solid #2e2e33 !important;
+  border-radius: 0 8px 8px 0;
+  color: #a1a1aa !important;
+  font-size: 14px !important;
 }
 @keyframes javtr-in {
   from { opacity: 0; transform: translateY(-3px); }
 }
 
-/* "Open on" menu (chip ▾ and right-click on ▶) */
+/* "Open on" menu (the chip's Sites and right-click on ▶): what to do with the code, then the sites */
 #javtr-menu {
   all: initial;
   position: fixed !important;
   z-index: 2147483647 !important;
   display: flex !important;
   flex-direction: column;
-  min-width: 190px;
+  min-width: 200px;
   max-height: 70vh;
   overflow-y: auto;
-  padding: 6px;
-  border: 1px solid rgb(255 255 255 / 0.08) !important;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 0.1) !important;
   border-radius: 12px;
   background: #18181b !important;
   color: #f4f4f5 !important;
   box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 12px 32px rgb(0 0 0 / 0.35);
-  font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
+  font: 500 13px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
   animation: javtr-in 0.12s ease-out;
 }
 #javtr-menu .javtr-menu-title {
   all: unset;
-  display: block;
-  padding: 4px 10px 6px;
-  font: 700 11px/1 system-ui, -apple-system, sans-serif !important;
-  letter-spacing: 0.04em;
-  color: #a1a1aa !important;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px 8px 30px;
+  color: #f4f4f5 !important;
+  font: 600 12.5px/1 ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace !important;
 }
 #javtr-menu .javtr-menu-seen {
   all: unset;
-  margin-left: 8px;
-  font: 500 11px/1 system-ui, -apple-system, sans-serif !important;
-  letter-spacing: 0;
+  color: #a1a1aa !important;
+  font: 500 11px/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+}
+#javtr-menu .javtr-menu-label {
+  all: unset;
+  display: block;
+  padding: 4px 10px 3px 30px;
+  color: #a1a1aa !important;
+  font: 600 10.5px/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 #javtr-menu button {
   all: unset;
-  display: block;
+  display: flex;
+  align-items: center;
   padding: 7px 10px;
   border-radius: 7px;
   cursor: pointer !important;
   color: #f4f4f5 !important;
-  font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
+  font: 500 13px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  white-space: nowrap;
+}
+/* The sign before an action (▶, ★), in a column so the labels line up */
+#javtr-menu button[data-glyph]::before {
+  content: attr(data-glyph);
+  flex: none;
+  width: 20px;
+  color: #a1a1aa;
+  font-size: 12px;
+}
+#javtr-menu button.javtr-menu-on::before {
+  color: #fbbf24;
+}
+#javtr-menu button.javtr-menu-go::before {
+  color: #fb7185;
 }
 #javtr-menu button:hover,
 #javtr-menu button:focus-visible {
-  background: #27272a !important;
+  background: #2e2e33 !important;
 }
 #javtr-menu button.javtr-menu-all {
   color: #fda4af !important;
@@ -210,8 +211,8 @@
   all: unset;
   display: block;
   height: 1px;
-  margin: 4px 6px;
-  background: #27272a !important;
+  margin: 5px 4px;
+  background: #2e2e33 !important;
 }
 
 /* Video tools: toolbar over videos (video-tools.ts) and English subtitles (subs.ts) */
@@ -226,13 +227,19 @@
 .javtr-video-layer[hidden] {
   display: none !important;
 }
+/* One bar: the buttons sit side by side in a single dark strip */
 .javtr-video-bar {
   position: absolute;
   top: 10px;
   right: 10px;
   display: flex;
-  gap: 4px;
+  gap: 1px;
   align-items: center;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 0.12) !important;
+  border-radius: 11px;
+  background: rgb(24 24 27 / 0.9) !important;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s, visibility 0.15s;
@@ -253,15 +260,13 @@
 .javtr-video-bar > button,
 .javtr-video-bar > .javtr-ahead {
   all: unset;
-  padding: 7px 11px;
-  border: 1px solid rgb(255 255 255 / 0.1) !important;
-  border-radius: 999px;
-  background: rgb(24 24 27 / 0.86) !important;
-  color: #f4f4f5 !important;
-  font: 600 12px/1 system-ui, -apple-system, sans-serif !important;
+  padding: 6px 9px;
+  border-radius: 8px;
+  color: #e4e4e7 !important;
+  font: 600 12px/1 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
-  transition: background 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
 .javtr-video-bar > button {
   cursor: pointer !important;
@@ -269,6 +274,7 @@
 .javtr-video-bar > button:hover,
 .javtr-video-bar > button:focus-visible {
   background: #3f3f46 !important;
+  color: #fff !important;
 }
 .javtr-video-bar > .javtr-ahead {
   color: #fda4af !important;
@@ -276,8 +282,8 @@
 .javtr-video-bar > button.javtr-subs-btn.javtr-on,
 .javtr-video-bar > button.javtr-pip-btn.javtr-on,
 .javtr-video-bar > button.javtr-cc-btn.javtr-on {
-  border-color: transparent !important;
   background: #e11d48 !important;
+  color: #fff !important;
 }
 .javtr-video-bar > button.javtr-subs-btn.javtr-on:hover,
 .javtr-video-bar > button.javtr-pip-btn.javtr-on:hover,
@@ -285,20 +291,39 @@
   background: #be123c !important;
 }
 .javtr-video-bar > button.javtr-cancel {
-  padding: 6px 8px;
+  padding: 6px 7px;
+  color: #a1a1aa !important;
+}
+/* Speed: « 1.00 » — a step slower, the speed (click: back to 1.00), a step faster */
+.javtr-video-bar > button.javtr-speed-step {
+  padding: 6px 6px;
+  color: #a1a1aa !important;
+}
+.javtr-video-bar > button.javtr-speed-btn {
+  min-width: 4ch;
+  padding: 6px 5px;
+  background: rgb(0 0 0 / 0.45) !important;
+  text-align: center;
+}
+.javtr-video-bar > button.javtr-speed-btn:hover,
+.javtr-video-bar > button.javtr-speed-btn:focus-visible {
+  background: #3f3f46 !important;
+}
+.javtr-video-bar > button.javtr-speed-btn.javtr-changed {
+  color: #fda4af !important;
 }
 .javtr-video-bar [hidden] {
   display: none !important;
 }
 .javtr-video-menu {
   position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  top: calc(100% + 6px);
+  right: -1px;
   display: flex;
   flex-direction: column;
   min-width: 130px;
-  padding: 4px;
-  border: 1px solid rgb(255 255 255 / 0.08) !important;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 0.1) !important;
   border-radius: 12px;
   background: #18181b !important;
   box-shadow: 0 2px 4px rgb(0 0 0 / 0.2), 0 12px 32px rgb(0 0 0 / 0.35);
@@ -306,14 +331,14 @@
 .javtr-video-menu button {
   all: unset;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 7px;
   color: #f4f4f5 !important;
-  font: 500 13px/1.2 system-ui, -apple-system, sans-serif !important;
+  font: 500 13px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif !important;
   cursor: pointer !important;
 }
 .javtr-video-menu button:hover,
 .javtr-video-menu button:focus-visible {
-  background: #27272a !important;
+  background: #2e2e33 !important;
 }
 /* The CC menu: subtitle files for the video (cc-menu.ts). */
 .javtr-video-menu.javtr-cc-menu {
@@ -339,7 +364,7 @@
   border-radius: 6px;
   background: #09090b !important;
   color: #f4f4f5 !important;
-  font: 600 12px/1.2 ui-monospace, Menlo, monospace !important;
+  font: 600 12px/1.2 ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace !important;
   text-transform: uppercase;
   cursor: text !important;
 }
@@ -351,7 +376,7 @@
   flex-direction: column;
   margin-bottom: 4px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #27272a !important;
+  border-bottom: 1px solid #2e2e33 !important;
 }
 .javtr-menu-note {
   padding: 6px 10px;
@@ -389,12 +414,12 @@
 }
 .javtr-video-status {
   position: absolute;
-  top: 46px;
+  top: 50px;
   right: 10px;
   max-width: min(420px, 80%);
   padding: 8px 12px;
-  border: 1px solid rgb(255 255 255 / 0.08) !important;
-  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 0.12) !important;
+  border-radius: 11px;
   background: rgb(24 24 27 / 0.9) !important;
   color: #f4f4f5 !important;
   font: 500 12px/1.35 system-ui, -apple-system, sans-serif !important;

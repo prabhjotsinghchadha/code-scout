@@ -51,7 +51,8 @@ function createButton(code: VideoCode): HTMLElement {
 function paint(btn: HTMLElement, code: VideoCode) {
   const starred = isStarred(code);
   const seen = seenEntryFor(code);
-  btn.textContent = starred ? '★' : seen ? '✓' : '▶';
+  // ▶ with U+FE0E: as text, never the emoji some systems would draw for it.
+  btn.textContent = starred ? '★' : seen ? '✓' : '▶\uFE0E';
   btn.classList.toggle('javtr-fav', starred);
   btn.classList.toggle('javtr-seen', !!seen);
   const notes = [starred && 'In your favourites', seen && `Seen ${seenAgo(seen.at, Date.now())}`].filter(Boolean);

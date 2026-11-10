@@ -367,32 +367,58 @@ function setupBackup() {
 }
 setupBackup();
 
-// Highlight the section being read in the side nav.
-function trackSections() {
-  const links = new Map(
-    [...document.querySelectorAll<HTMLAnchorElement>('.side a')].map((a) => [a.hash.slice(1), a]),
-  );
-  const visible = new Set<string>();
-  const mark = () => {
-    const current = [...links.keys()].find((id) => visible.has(id));
-    for (const [id, a] of links) a.setAttribute('aria-current', String(id === current));
+/**
+ * One section on show at a time: the one in the address (#video), picked in the side nav. Text in the
+ * search box shows instead every section that mentions it, one under the other.
+ */
+function setupSections() {
+  const links = new Map([...document.querySelectorAll<HTMLAnchorElement>('.side nav a')].map((a) => [a.hash.slice(1), a]));
+  const sections = [...links.keys()].flatMap((id) => document.getElementById(id) ?? []);
+  const search = $<HTMLInputElement>('settings-search');
+  const noMatch = $<HTMLParagraphElement>('no-match');
+  /** Lower case, without spaces and dashes, so "popup" finds "Pop-up blocker". */
+  const squash = (s: string) => s.toLowerCase().replace(/[\s-]/g, '');
+
+  const show = () => {
+    const query = squash(search.value);
+    const current = links.has(location.hash.slice(1)) ? location.hash.slice(1) : sections[0]?.id;
+    let shown = 0;
+    for (const section of sections) {
+      // textContent: sections that aren't on show have no innerText.
+      const on = query ? squash(section.textContent ?? '').includes(query) : section.id === current;
+      section.hidden = !on;
+      if (on) shown++;
+    }
+    for (const [id, a] of links) a.setAttribute('aria-current', String(!query && id === current));
+    document.body.classList.toggle('searching', !!query);
+    noMatch.hidden = shown > 0;
+    noMatch.textContent = `No setting mentions “${search.value.trim()}”.`;
   };
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) visible.add(e.target.id);
-        else visible.delete(e.target.id);
-      }
-      mark();
-    },
-    { rootMargin: '-90px 0px -55% 0px' },
-  );
-  for (const id of links.keys()) {
-    const section = document.getElementById(id);
-    if (section) observer.observe(section);
+
+  search.addEventListener('input', show);
+  search.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && search.value) {
+      search.value = '';
+      show();
+    }
+  });
+  // Picking a section leaves the search.
+  for (const a of links.values()) {
+    a.addEventListener('click', () => {
+      search.value = '';
+      show(); // the address may not change (the section picked is the one in it)
+    });
   }
+  window.addEventListener('hashchange', () => {
+    show();
+    window.scrollTo(0, 0);
+  });
+  show();
+  // Opened at a section (#video): the browser scrolls to where it was in the whole page. Back to the top.
+  history.scrollRestoration = 'manual';
+  window.addEventListener('load', () => window.scrollTo(0, 0));
 }
 
 void init();
 void showShortcuts();
-trackSections();
+setupSections();

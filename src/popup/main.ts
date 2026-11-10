@@ -11,15 +11,16 @@ import {
   type FavouritePage,
 } from '../shared/favourites';
 import { siteKey } from '../shared/hosts';
-import { hydrateIcons, icon, type IconName } from '../shared/icons';
+import { hydrateIcons, icon } from '../shared/icons';
 import { sendToBackground, sendToTab } from '../shared/messages';
 import { fillTemplate, type OpenOnSite } from '../shared/open-on';
-import { seenAgo, type Seen } from '../shared/seen';
+import { recentSeen, seenAgo, type Seen } from '../shared/seen';
 import { getSettings, setSettings, type Settings } from '../shared/storage';
-import { setupActresses } from './actresses';
-import { setupLinks } from './links';
+import { actressRows, setupActresses } from './actresses';
+import { findLinks, renderLinks, setupLinks } from './links';
 import { setupRecent } from './recent';
-import { setupTags } from './tags';
+import { iconButton, rowActions, rowMain } from './rows';
+import { setupTags, tagRows } from './tags';
 
 hydrateIcons();
 
@@ -37,45 +38,43 @@ async function open(code: VideoCode, mode?: OpenMode) {
   window.close();
 }
 
+/** Enter in the box: opens the code in it; with other text, the first thing it found. */
 function openTyped(mode?: OpenMode) {
   const code = parseCode(input.value);
-  error.hidden = !!code;
-  if (!code) {
-    error.textContent = 'That doesn’t look like a code. Try one like NSFS-484.';
-    return;
-  }
-  void open(code, mode);
+  if (code) void open(code, mode);
+  else navItems()[0]?.click();
 }
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   openTyped();
 });
+$('go-open').addEventListener('click', () => openTyped());
 $('search-btn').addEventListener('click', () => openTyped('search'));
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.shiftKey) {
     e.preventDefault(); // not a form submit (Open)
     openTyped('search');
+  } else if (e.key === 'Escape' && input.value) {
+    e.preventDefault(); // clear the box, don't close the popup
+    clearBox();
   }
 });
+$('clear-btn').addEventListener('click', () => {
+  clearBox();
+  input.focus();
+});
+
+function clearBox() {
+  input.value = '';
+  input.dispatchEvent(new Event('input'));
+}
 
 function textButton(text: string, className: string, onClick: () => void) {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = text;
   b.className = className;
-  b.addEventListener('click', onClick);
-  return b;
-}
-
-/** A square icon button; `label` is its tooltip and accessible name. */
-function iconButton(name: IconName, label: string, className: string, onClick: () => void) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `icon-btn ${className}`.trim();
-  b.title = label;
-  b.setAttribute('aria-label', label);
-  b.append(icon(name));
   b.addEventListener('click', onClick);
   return b;
 }
@@ -99,13 +98,52 @@ function storedTab(): Tab | null {
   }
 }
 
-function showTab(tab: Tab) {
+/** The tab on show (none until the page's codes are in, see init). */
+let currentTab: Tab | null = null;
+/** The box holds text: what it finds is shown instead of the tabs. */
+let searching = false;
+
+function applyView() {
+  $('tabs').hidden = searching;
+  $('panel-find').hidden = !searching;
   for (const t of TABS) {
     const button = $<HTMLButtonElement>(`tab-${t}`);
-    button.setAttribute('aria-selected', String(t === tab));
-    button.tabIndex = t === tab ? 0 : -1;
-    $(`panel-${t}`).hidden = t !== tab;
+    button.setAttribute('aria-selected', String(t === currentTab));
+    button.tabIndex = t === currentTab ? 0 : -1;
+    $(`panel-${t}`).hidden = searching || t !== currentTab;
   }
+  if (!searching && currentTab === 'links') renderLinks(); // drawn when first shown
+}
+
+function showTab(tab: Tab) {
+  currentTab = tab;
+  applyView();
+}
+
+/** What the arrow keys move between: the rows and tiles of the list on show. */
+function navItems(): HTMLElement[] {
+  const panel = searching ? $('panel-find') : currentTab && $(`panel-${currentTab}`);
+  return panel ? [...panel.querySelectorAll<HTMLElement>('.row-main, .tile-link')] : [];
+}
+
+/** ↓ from the box goes into the list, ↑ from its first row back to the box; typing anywhere goes to the box. */
+function setupKeys() {
+  document.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement;
+    if (document.querySelector('.menu')) return; // an open menu has the arrow keys
+    const items = navItems();
+    const at = items.indexOf(target);
+    if (target !== input && at < 0) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const next = at + (e.key === 'ArrowDown' ? 1 : -1); // from the box, at is -1
+      if (target === input && e.key === 'ArrowUp') return;
+      e.preventDefault();
+      if (next < 0) input.focus();
+      else items[next]?.focus();
+    } else if (at >= 0 && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      input.focus(); // the key is typed into the box
+    }
+  });
 }
 
 function pickTab(tab: Tab) {
@@ -121,7 +159,7 @@ function pickTab(tab: Tab) {
 function setupTabs() {
   for (const t of TABS) $(`tab-${t}`).addEventListener('click', () => pickTab(t));
   // Arrow keys move between tabs, as in any tab list.
-  document.querySelector('.tabs')!.addEventListener('keydown', (e) => {
+  $('tabs').addEventListener('keydown', (e) => {
     const { key } = e as KeyboardEvent;
     if (key !== 'ArrowLeft' && key !== 'ArrowRight') return;
     const tabs = shownTabs();
@@ -195,9 +233,6 @@ let onPage = new Set<string>();
 let favs: Favourite[] = [];
 /** Codes the user starred ("NSFS-484"). */
 let starred = new Set<string>();
-/** The favourites filter shows from this many favourites up. */
-const FILTER_FROM = 8;
-const favsFilter = $<HTMLInputElement>('favs-filter');
 
 /** Makes a favourites change, showing why if it couldn't be saved. */
 async function saving(change: () => Promise<unknown>) {
@@ -223,7 +258,7 @@ function paintStar(b: HTMLButtonElement) {
 }
 
 function starButton(code: VideoCode, page: FavouritePage | null) {
-  const b = iconButton('star', 'Add to favourites', 'star', () => void toggleStar(code, page));
+  const b = iconButton('star', 'Add to favourites', 'star quiet', () => void toggleStar(code, page));
   b.dataset.code = formatCode(code);
   paintStar(b);
   return b;
@@ -263,7 +298,7 @@ function onSeenCodes(seen: Seen) {
 
 /** The code's name; `markSeen`: with a ✓ once it has been seen. */
 function codeLabel(code: VideoCode, markSeen = true) {
-  const label = Object.assign(document.createElement('span'), { className: 'code', textContent: formatCode(code) });
+  const label = Object.assign(document.createElement('span'), { className: 'code id', textContent: formatCode(code) });
   if (markSeen) {
     label.dataset.code = formatCode(code);
     paintSeen(label);
@@ -287,8 +322,8 @@ function pageLink(url: string, title?: string) {
 }
 
 /**
- * A favourite's row with its page as a full-width link underneath: a code gets Open, Search, Sites and ★;
- * a page starred on its own gets its site's name and ★.
+ * A favourite's row with its page as a link underneath: a code opens its trailer and has Search, Sites and
+ * ★; a page starred on its own opens that page.
  */
 function favRow(fav: Favourite) {
   let li: HTMLLIElement;
@@ -298,9 +333,8 @@ function favRow(fav: Favourite) {
     li = document.createElement('li');
     const site = Object.assign(document.createElement('span'), { className: 'code host', textContent: siteKey(fav.url) });
     const remove = iconButton('starFilled', 'Remove from favourites', 'star on', () => void saving(() => removeFavouriteEntry(fav)));
-    li.append(site, remove);
+    li.append(rowMain([icon('link', 12)], site, `Open ${fav.url}`, () => void openLinks([fav.url]), 'plain'), rowActions(remove));
   }
-  li.classList.add('fav');
   if (fav.url) li.append(pageLink(fav.url, fav.title));
   return li;
 }
@@ -318,7 +352,7 @@ function setupStarPage() {
 function paintStarPage() {
   const btn = $<HTMLButtonElement>('fav-page');
   const on = !!tabPage && !!favouriteFor(favs, tabPage.url);
-  btn.replaceChildren(icon(on ? 'starFilled' : 'star', 14), on ? 'Starred' : 'Star this page');
+  btn.replaceChildren(icon(on ? 'starFilled' : 'star', 14), on ? 'Page starred' : 'Star this page');
   btn.classList.toggle('on', on);
   btn.title = on ? 'Remove this page from favourites' : 'Add the page you’re on to favourites';
 }
@@ -326,37 +360,27 @@ function paintStarPage() {
 /** Lower case, without spaces and dashes, so "nsfs484" finds "NSFS-484". */
 const squash = (s: string) => s.toLowerCase().replace(/[\s-]/g, '');
 
-function paintFavList() {
-  const query = squash(favsFilter.value);
-  const shown = query
-    ? favs.filter((f) => [f.code ? formatCode(f.code) : '', f.title ?? '', f.url ?? ''].some((s) => squash(s).includes(query)))
-    : favs;
-  favsFilter.hidden = favs.length < FILTER_FROM && !favsFilter.value;
-  $('favs').replaceChildren(...shown.map(favRow));
-  $('favs-none').hidden = !favs.length || shown.length > 0;
-}
-
 async function renderFavourites() {
   favs = await getFavourites();
   starred = new Set(favs.flatMap((f) => (f.code ? [formatCode(f.code)] : [])));
   paintFavsCounts();
   $('favs-empty').hidden = favs.length > 0;
-  paintFavList();
+  $('favs').replaceChildren(...favs.map(favRow));
   document.querySelectorAll<HTMLButtonElement>('button.star[data-code]').forEach(paintStar);
   paintStarPage();
 }
 
-/** A row for a code: Open, Search, Sites (toggles a row of site buttons below it) and ☆. */
+/**
+ * A row for a code: click it to open the trailer (▶; a grey ✓ once seen). After it, shown while the row is
+ * pointed at or has the focus: Search, Sites (toggles a row of site buttons below it) and ☆.
+ */
 function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null): HTMLLIElement {
   const li = document.createElement('li');
-  li.append(
-    label,
-    iconButton('play', 'Open trailer', 'accent', () => void open(code)),
-    iconButton('search', 'Search javtrailers.com', '', () => void open(code, 'search')),
-  );
+  const name = formatCode(code);
+  const actions = rowActions(iconButton('search', `Search javtrailers.com for ${name}`, 'quiet', () => void open(code, 'search')));
   let sitesRow: HTMLLIElement | null = null;
   if (sites.length) {
-    const toggle = iconButton('globe', 'Open on other sites', '', () => {
+    const toggle = iconButton('globe', `Open ${name} on other sites`, 'quiet', () => {
       if (sitesRow) {
         sitesRow.remove();
         sitesRow = null;
@@ -368,9 +392,10 @@ function codeRow(code: VideoCode, label: HTMLElement, page: FavouritePage | null
       toggle.setAttribute('aria-expanded', String(!!sitesRow));
     });
     toggle.setAttribute('aria-expanded', 'false');
-    li.append(toggle);
+    actions.append(toggle);
   }
-  li.append(starButton(code, page));
+  actions.append(starButton(code, page));
+  li.append(rowMain([icon('play', 10), icon('check', 12)], label, `Open ${name}`, () => void open(code)), actions);
   return li;
 }
 
@@ -424,9 +449,104 @@ function noContentScript(tab: chrome.tabs.Tab | undefined) {
 
 function renderPageCodes(codes: VideoCode[]) {
   empty.hidden = codes.length > 0;
+  pageCodeList = codes;
   onPage = new Set(codes.map(formatCode));
   $('codes-count').textContent = codes.length ? String(codes.length) : '';
   list.replaceChildren(...codes.map((code) => codeRow(code, codeLabel(code), tabPage)));
+  if (searching) paintFind(); // the page's codes came in after the first keys
+}
+
+// --- The box: a code to open, or text to find in every list ---
+/** Codes on the current tab, in page order. */
+let pageCodeList: VideoCode[] = [];
+/** Video rows shown at most for one search. */
+const FIND_MAX = 40;
+
+function findSection(title: string, body: HTMLElement, count: number) {
+  const box = Object.assign(document.createElement('section'), { className: 'find-section' });
+  const head = Object.assign(document.createElement('div'), { className: 'section-head' });
+  head.append(
+    Object.assign(document.createElement('span'), { className: 'section-title', textContent: title }),
+    Object.assign(document.createElement('span'), { className: 'count', textContent: String(count) }),
+  );
+  box.append(head, body);
+  return box;
+}
+
+function rowList(rows: HTMLLIElement[]) {
+  const ul = Object.assign(document.createElement('ul'), { className: 'list' });
+  ul.append(...rows);
+  return ul;
+}
+
+/** Codes matching `has`, each once: the page's first, then favourites, then seen ones (newest first). */
+function findVideos(has: (...texts: (string | undefined)[]) => boolean): HTMLLIElement[] {
+  const rows = new Map<string, HTMLLIElement>();
+  const add = (code: VideoCode, page: FavouritePage | null) => {
+    const key = formatCode(code);
+    if (rows.has(key) || rows.size >= FIND_MAX) return;
+    const li = codeRow(code, codeLabel(code), page);
+    const fav = favs.find((f) => f.code && formatCode(f.code) === key);
+    const seen = seenCodes[key];
+    if (fav?.url) {
+      li.append(pageLink(fav.url, fav.title));
+    } else if (seen) {
+      const meta = Object.assign(document.createElement('div'), { className: 'seen-meta' });
+      meta.append(Object.assign(document.createElement('span'), { className: 'when', textContent: seenAgo(seen.at, Date.now()) }));
+      if (seen.url) meta.append(pageLink(seen.url, seen.title));
+      li.append(meta);
+    }
+    rows.set(key, li);
+  };
+  // By code first, then by the title of the page it was starred or seen on (not its address: "mi" would
+  // find every video from missav).
+  const recent = recentSeen(seenCodes);
+  const seenPage = (s: (typeof recent)[number]) => (s.url ? { url: s.url, title: s.title } : null);
+  for (const code of pageCodeList) if (has(formatCode(code))) add(code, tabPage);
+  for (const f of favs) if (f.code && has(formatCode(f.code))) add(f.code, null);
+  for (const s of recent) if (has(formatCode(s.code))) add(s.code, seenPage(s));
+  for (const f of favs) if (f.code && has(f.title)) add(f.code, null);
+  for (const s of recent) if (has(s.title)) add(s.code, seenPage(s));
+  return [...rows.values()];
+}
+
+/** Shows what the box's text finds (and, for a code, the buttons that open it), or the tabs when it's empty. */
+function paintFind() {
+  const raw = input.value.trim();
+  const code = parseCode(raw);
+  $('go').hidden = !code;
+  if (code) $('go-code').textContent = formatCode(code);
+  $('clear-btn').hidden = !input.value;
+  error.hidden = true;
+  searching = !!raw;
+  applyView();
+  const box = $('find');
+  if (!raw) {
+    box.replaceChildren();
+    return;
+  }
+  // "nsfs00484" finds NSFS-484 too.
+  const needles = [...new Set([squash(raw), code ? squash(formatCode(code)) : ''])].filter(Boolean);
+  const has = (...texts: (string | undefined)[]) => texts.some((t) => !!t && needles.some((n) => squash(t).includes(n)));
+
+  const out: HTMLElement[] = [];
+  const videos = findVideos(has);
+  if (videos.length) out.push(findSection('Videos', rowList(videos), videos.length));
+  const pages = favs.filter((f) => !f.code && has(f.title, f.url)).map(favRow);
+  if (pages.length) out.push(findSection('Starred pages', rowList(pages), pages.length));
+  const actresses = actressRows(raw);
+  if (actresses.length) out.push(findSection('Actresses', rowList(actresses), actresses.length));
+  const tags = tagRows(raw);
+  if (tags.length) out.push(findSection('Tags', rowList(tags), tags.length));
+  const links = findLinks(raw);
+  if (links) out.push(findSection('Links', links.grid, links.count));
+  box.replaceChildren(...out);
+  $('panel-find').scrollTop = 0;
+
+  $('find-empty').hidden = out.length > 0;
+  $('find-empty-text').textContent = code
+    ? `${formatCode(code)} isn’t in your lists yet. Press Enter to open it.`
+    : `Nothing in your lists matches “${raw}”. To open a video, type its code, like NSFS-484.`;
 }
 
 let sites: OpenOnSite[] = [];
@@ -448,7 +568,7 @@ function siteRow(getCode: () => VideoCode | null, label?: string): HTMLDivElemen
 function setupTypedSites() {
   const row = $('typed-sites');
   if (!sites.length) return;
-  row.replaceChildren(...siteRow(() => parseCode(input.value), 'Open on').childNodes);
+  row.replaceChildren(...siteRow(() => parseCode(input.value), 'On').childNodes);
   const update = () => (row.hidden = !parseCode(input.value));
   input.addEventListener('input', update);
   update();
@@ -510,6 +630,8 @@ const CODES_WAIT_MS = 400;
 
 async function init() {
   setupTabs();
+  setupKeys();
+  input.addEventListener('input', paintFind);
   const [settings, [tab]] = await Promise.all([
     getSettings(),
     chrome.tabs.query({ active: true, currentWindow: true }),
@@ -531,7 +653,6 @@ async function init() {
   // Favourites before the page's codes, so their stars are right.
   await Promise.all([renderFavourites(), setupActresses(openLinks, countActresses), setupTags(openLinks, countTags)]);
   onFavouritesChanged(() => void renderFavourites());
-  favsFilter.addEventListener('input', paintFavList);
   setupStarPage();
   setupTypedStar();
   setupSiteToggles(settings, tab);
@@ -541,7 +662,8 @@ async function init() {
     $('tab-recent').hidden = true;
   }
 
-  void setupLinks(settings, tab, openLinks);
+  await setupLinks(settings, tab, openLinks);
+  if (input.value) paintFind(); // typed while the lists were loading
 
   for (const id of ['open-options', 'add-links']) {
     $(id).addEventListener('click', (e) => {

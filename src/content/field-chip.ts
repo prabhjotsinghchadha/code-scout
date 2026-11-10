@@ -41,7 +41,7 @@ function build(): HTMLDivElement {
   });
   el.append(
     label,
-    button('▶ Open', 'javtr-primary', () => {
+    button('▶\uFE0E Open', 'javtr-primary', () => {
       closeSiteMenu();
       if (current) void sendToBackground({ type: 'OPEN_CODE', code: current.code });
     }),

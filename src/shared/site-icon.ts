@@ -38,6 +38,34 @@ async function fingerprint(src: string): Promise<string | null> {
 let noIcon: Promise<string | null> | null = null;
 const found = new Map<string, Promise<string | null>>();
 
+// Sites known to have an icon, remembered between openings of the popup (localStorage), so their tiles
+// show it at once instead of comparing pixels again. Sites without one are checked every time: Chrome
+// gets their icon once they're visited.
+const KNOWN_KEY = 'sitesWithIcon';
+let known: Set<string> | null = null;
+
+function knownSites(): Set<string> {
+  if (!known) {
+    try {
+      known = new Set(JSON.parse(localStorage.getItem(KNOWN_KEY) ?? '[]') as string[]);
+    } catch {
+      known = new Set();
+    }
+  }
+  return known;
+}
+
+function rememberSite(origin: string) {
+  const sites = knownSites();
+  if (sites.has(origin)) return;
+  sites.add(origin);
+  try {
+    localStorage.setItem(KNOWN_KEY, JSON.stringify([...sites]));
+  } catch {
+    // Not remembered: it's checked again next time.
+  }
+}
+
 /** The favicon's address for this page's site, or null if Chrome only has its default icon. */
 function siteFavicon(pageUrl: string): Promise<string | null> {
   const src = faviconUrl(pageUrl);
@@ -45,9 +73,17 @@ function siteFavicon(pageUrl: string): Promise<string | null> {
   const origin = new URL(pageUrl).origin;
   let result = found.get(origin);
   if (!result) {
-    const noIconSrc = faviconUrl(NO_ICON_PAGE)!;
-    noIcon ??= fingerprint(noIconSrc);
-    result = Promise.all([fingerprint(src), noIcon]).then(([icon, none]) => (icon && icon !== none ? src : null));
+    if (knownSites().has(origin)) {
+      result = Promise.resolve(src);
+    } else {
+      const noIconSrc = faviconUrl(NO_ICON_PAGE)!;
+      noIcon ??= fingerprint(noIconSrc);
+      result = Promise.all([fingerprint(src), noIcon]).then(([icon, none]) => {
+        if (!icon || icon === none) return null;
+        rememberSite(origin);
+        return src;
+      });
+    }
     found.set(origin, result);
   }
   return result;

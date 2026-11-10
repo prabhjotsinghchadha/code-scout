@@ -8,37 +8,43 @@
   </head>
   <body>
     <main class="popup">
-      <header class="top">
-        <span class="logo" aria-hidden="true"><i data-icon="play" data-size="12"></i></span>
-        <h1>Code Scout</h1>
+      <header class="bar">
+        <form id="search" class="field find">
+          <i data-icon="search"></i>
+          <input
+            id="code-input"
+            type="text"
+            placeholder="Code, or search your lists"
+            aria-label="A video code, or text to find in your lists"
+            autocomplete="off"
+            spellcheck="false"
+            autofocus
+          />
+          <button type="button" id="clear-btn" class="icon-btn" title="Clear (Esc)" aria-label="Clear" hidden>
+            <i data-icon="x" data-size="14"></i>
+          </button>
+        </form>
         <button type="button" id="open-options" class="icon-btn" title="Settings" aria-label="Settings">
           <i data-icon="settings"></i>
         </button>
       </header>
 
-      <form id="search" class="search">
-        <div class="field">
-          <input
-            id="code-input"
-            type="text"
-            placeholder="Code, like NSFS-484"
-            aria-label="Video code"
-            autocomplete="off"
-            spellcheck="false"
-            autofocus
-          />
-          <button type="button" id="star-btn" class="icon-btn star" title="Add to favourites" aria-label="Add to favourites" disabled></button>
-          <button type="button" id="search-btn" class="icon-btn" title="Search javtrailers.com (Shift+Enter)" aria-label="Search javtrailers.com">
-            <i data-icon="search"></i>
+      <!-- Shown while the box holds a code: open it, search for it, star it, or open it on another site. -->
+      <section id="go" class="go" aria-label="The code you typed" hidden>
+        <div class="go-main">
+          <button type="button" id="go-open" class="btn primary" title="Open the video page (Enter)">
+            <i data-icon="play" data-size="12"></i><span>Open <span id="go-code" class="code id"></span></span><kbd>↵</kbd>
           </button>
+          <button type="button" id="search-btn" class="btn" title="Search javtrailers.com (Shift+Enter)">
+            <i data-icon="search" data-size="14"></i>Search
+          </button>
+          <button type="button" id="star-btn" class="icon-btn star" title="Add to favourites" aria-label="Add to favourites" disabled></button>
         </div>
-        <button type="submit" class="btn primary go" title="Open the video page (Enter)"><i data-icon="play" data-size="12"></i>Open</button>
-      </form>
-      <p id="error" class="error" hidden></p>
-      <div id="typed-sites" class="site-row typed" hidden></div>
-      <p class="hint">Enter opens · Shift+Enter searches</p>
+        <div id="typed-sites" class="site-row" hidden></div>
+      </section>
+      <p id="error" class="error" role="alert" hidden></p>
 
-      <nav class="tabs" role="tablist" aria-label="Lists">
+      <nav id="tabs" class="tabs" role="tablist" aria-label="Lists">
         <button type="button" class="tab" role="tab" id="tab-page" data-tab="page" aria-controls="panel-page" aria-selected="false">
           This page <span id="codes-count" class="count"></span>
         </button>
@@ -53,11 +59,20 @@
         </button>
       </nav>
 
+      <!-- Shown instead of the tabs while the box holds text: what matches it in every list. -->
+      <section id="panel-find" class="panel" aria-label="Matches" hidden>
+        <div id="find"></div>
+        <div id="find-empty" class="empty" hidden>
+          <i data-icon="search" data-size="28"></i>
+          <p id="find-empty-text"></p>
+        </div>
+      </section>
+
       <section id="panel-page" class="panel" role="tabpanel" aria-labelledby="tab-page" hidden>
         <ul id="codes" class="list"></ul>
         <div id="empty" class="empty" hidden>
           <i data-icon="search" data-size="28"></i>
-          <p>No codes on this page.<br />Type one above.</p>
+          <p>No codes on this page.<br />Type one in the box above.</p>
         </div>
       </section>
 
@@ -66,15 +81,11 @@
           <button type="button" id="favs-kind-videos" class="gpill" aria-pressed="true">Videos <span id="favs-videos-count" class="count"></span></button>
           <button type="button" id="favs-kind-actresses" class="gpill" aria-pressed="false">Actresses <span id="favs-actresses-count" class="count"></span></button>
           <button type="button" id="favs-kind-tags" class="gpill" aria-pressed="false">Tags <span id="favs-tags-count" class="count"></span></button>
+          <button type="button" id="fav-page" class="link-btn" hidden></button>
         </div>
 
         <div id="favs-videos">
-          <div class="panel-head">
-            <input id="favs-filter" type="search" placeholder="Filter favourites" aria-label="Filter favourites" hidden />
-            <button type="button" id="fav-page" class="link-btn" hidden></button>
-          </div>
           <ul id="favs" class="list"></ul>
-          <p id="favs-none" class="none" hidden>No favourites match.</p>
           <div id="favs-empty" class="empty" hidden>
             <i data-icon="star" data-size="28"></i>
             <p>Star a code, or this page, to keep it here.</p>
@@ -82,12 +93,12 @@
         </div>
 
         <div id="favs-actresses" hidden>
-          <form id="actress-form" class="links-bar">
+          <form id="actress-form" class="add-bar">
             <div class="field sm">
-              <i data-icon="search" data-size="14"></i>
-              <input id="actress-input" type="search" placeholder="Find or add an actress" aria-label="Find or add an actress" maxlength="60" autocomplete="off" spellcheck="false" />
+              <i data-icon="plus" data-size="14"></i>
+              <input id="actress-input" type="search" placeholder="Add an actress" aria-label="Find or add an actress" maxlength="60" autocomplete="off" spellcheck="false" />
             </div>
-            <button type="submit" id="actress-add" class="btn sm" title="Add this name to your favourite actresses" disabled><i data-icon="plus" data-size="14"></i>Add</button>
+            <button type="submit" id="actress-add" class="btn sm" title="Add this name to your favourite actresses" disabled>Add</button>
           </form>
           <p id="actress-error" class="error pad" hidden></p>
           <ul id="actresses" class="list"></ul>
@@ -99,12 +110,12 @@
         </div>
 
         <div id="favs-tags" hidden>
-          <form id="tag-form" class="links-bar">
+          <form id="tag-form" class="add-bar">
             <div class="field sm">
-              <i data-icon="search" data-size="14"></i>
-              <input id="tag-input" type="search" placeholder="Find or add a tag, like NTR" aria-label="Find or add a tag" maxlength="60" autocomplete="off" spellcheck="false" />
+              <i data-icon="plus" data-size="14"></i>
+              <input id="tag-input" type="search" placeholder="Add a tag, like NTR" aria-label="Find or add a tag" maxlength="60" autocomplete="off" spellcheck="false" />
             </div>
-            <button type="submit" id="tag-add" class="btn sm" title="Add this tag to your favourites" disabled><i data-icon="plus" data-size="14"></i>Add</button>
+            <button type="submit" id="tag-add" class="btn sm" title="Add this tag to your favourites" disabled>Add</button>
           </form>
           <p id="tag-error" class="error pad" hidden></p>
           <ul id="tags" class="list"></ul>
@@ -117,11 +128,7 @@
       </section>
 
       <section id="panel-recent" class="panel" role="tabpanel" aria-labelledby="tab-recent" hidden>
-        <div class="panel-head">
-          <input id="recent-filter" type="search" placeholder="Filter seen codes" aria-label="Filter seen codes" hidden />
-        </div>
         <ul id="recent" class="list"></ul>
-        <p id="recent-none" class="none" hidden>No seen code matches.</p>
         <p id="recent-more" class="none" hidden></p>
         <div id="recent-empty" class="empty" hidden>
           <i data-icon="clock" data-size="28"></i>
@@ -131,10 +138,7 @@
 
       <section id="panel-links" class="panel" role="tabpanel" aria-labelledby="tab-links" hidden>
         <div class="links-bar">
-          <div class="field sm">
-            <i data-icon="search" data-size="14"></i>
-            <input id="links-search" type="search" placeholder="Find a link" aria-label="Find a link" autocomplete="off" spellcheck="false" />
-          </div>
+          <div id="group-pills" class="group-pills" role="toolbar" aria-label="Groups" hidden></div>
           <button type="button" id="add-page" class="btn sm"></button>
         </div>
         <form id="add-page-form" class="add-page" hidden>
@@ -144,9 +148,7 @@
           <button type="button" id="add-page-cancel" class="btn ghost sm">Cancel</button>
         </form>
         <p id="add-page-error" class="error pad" hidden></p>
-        <div id="group-pills" class="group-pills" role="toolbar" aria-label="Groups" hidden></div>
         <div id="links"></div>
-        <p id="links-none" class="none" hidden>No links match.</p>
         <div id="links-empty" class="empty" hidden>
           <i data-icon="link" data-size="28"></i>
           <p>No quick links yet.</p>
@@ -155,10 +157,7 @@
       </section>
 
       <footer id="site-bar" class="site-bar" hidden>
-        <div class="site-name">
-          <i data-icon="globe" data-size="14"></i>
-          <strong class="site-host"></strong>
-        </div>
+        <div class="site-name">On <strong class="site-host"></strong></div>
         <div class="pills">
           <label class="pill" title="▶ buttons next to codes, and the chip when you type a code">
             <input type="checkbox" id="site-buttons" /><i data-icon="play" data-size="12"></i>Buttons

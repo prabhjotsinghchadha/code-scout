@@ -3,66 +3,65 @@
 :root {
   font-size: 14px;
 }
-body {
-  background: var(--surface);
-}
-
-/* Top bar */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-.topbar-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 940px;
-  margin: 0 auto;
-  padding: 12px 24px;
-}
-.logo {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding-left: 2px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: var(--on-accent);
-}
-.topbar h1 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-.topbar .sub {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-/* Two columns: section nav and cards */
+/* Two columns: the sections on the left, the one picked on the right */
 .layout {
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr);
-  gap: 28px;
-  max-width: 940px;
-  margin: 0 auto;
-  padding: 24px 24px 80px;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100vh;
 }
 .side {
   position: sticky;
-  top: 82px;
+  top: 0;
   align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100vh;
+  padding: 20px 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+}
+.logo {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding-left: 1px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.brand h1 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.brand h1 span {
+  color: var(--muted);
+  font-weight: 500;
+}
+.side-search {
+  height: 34px;
+  background: var(--bg);
+}
+.side-search input[type='search'] {
+  font-size: 13px;
+}
+.side nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.side a {
+.side nav a {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -73,35 +72,45 @@ body {
   text-decoration: none;
   transition: background 0.12s, color 0.12s;
 }
-.side a .ico {
+.side nav a .ico {
   width: 16px;
   color: var(--muted);
 }
-.side a:hover {
+.side nav a:hover {
   background: var(--surface-2);
   color: var(--text);
 }
-.side a[aria-current='true'] {
-  background: var(--bg);
+.side nav a[aria-current='true'] {
+  background: var(--accent-tint);
   color: var(--accent-text);
-  box-shadow: 0 0 0 1px var(--border);
 }
-.side a[aria-current='true'] .ico {
+.side nav a[aria-current='true'] .ico {
   color: var(--accent-text);
 }
 
 main {
   min-width: 0;
+  max-width: 760px;
+  padding: 36px 48px 96px;
 }
+/* A section: plain on the page, no box around it */
 .card {
-  margin-bottom: 16px;
-  padding: 22px 24px;
-  scroll-margin-top: 82px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  scroll-margin-top: 36px;
 }
 .card h2 {
-  margin: 0 0 4px;
-  font-size: 16px;
+  margin: 0 0 6px;
+  font-size: 22px;
   font-weight: 650;
+  letter-spacing: -0.015em;
+}
+/* Several on show (what the search found): a line between them */
+.searching .card:not([hidden]) ~ .card:not([hidden]) {
+  margin-top: 36px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
 }
 .card h3 {
   margin: 22px 0 2px;
@@ -434,36 +443,38 @@ small {
   min-width: 104px;
 }
 
-/* Narrow windows: one column, the section nav becomes a strip under the top bar */
+/* Narrow windows: one column, the sections become a strip along the top */
 @media (max-width: 760px) {
-  .topbar-inner {
-    padding: 10px 16px;
-  }
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-    padding: 0 16px 64px;
+    min-height: 0;
   }
   .side {
-    top: 57px;
     z-index: 4;
+    gap: 10px;
+    height: auto;
+    padding: 12px 16px 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    padding: 0;
+  }
+  .side nav {
     flex-direction: row;
     margin: 0 -16px;
-    padding: 8px 16px;
+    padding: 0 16px;
     overflow-x: auto;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
     scrollbar-width: none;
   }
-  .side a {
+  .side nav a {
     flex-shrink: 0;
     gap: 6px;
     padding: 6px 10px;
     white-space: nowrap;
   }
-  .card {
-    padding: 18px 16px;
-    scroll-margin-top: 120px;
+  main {
+    padding: 24px 16px 64px;
   }
 }
 
@@ -492,7 +503,7 @@ small {
   transition: border-color 0.12s, box-shadow 0.12s, opacity 0.12s;
 }
 .lgroup.other {
-  background: var(--surface);
+  border-style: dashed;
 }
 .lgroup-head {
   display: flex;

@@ -1,5 +1,6 @@
-// The popup's Links tab: search, group pills, "Most visited", and the quick links as tiles. Right-click a
-// tile (or use its ⋯) to rename it, move it to another group or remove it.
+// The popup's Links tab: group pills, "Most visited", and the quick links as tiles. Right-click a tile (or
+// use its ⋯) to rename it, move it to another group or remove it. The box at the top of the popup finds
+// links by name, address or group (findLinks).
 import { icon, type IconName } from '../shared/icons';
 import { openMenu } from '../shared/menu';
 import {
@@ -58,7 +59,6 @@ function setPill(group: string) {
 
 /** Lower case, without spaces and dashes, so "english sub" finds "English subtitle". */
 const squash = (s: string) => s.toLowerCase().replace(/[\s\-·]/g, '');
-const query = () => squash($<HTMLInputElement>('links-search').value);
 
 function matches(link: QuickLink, q: string) {
   return [link.name, link.url, groupOf(state, link) ?? OTHER].some((s) => squash(s).includes(q));
@@ -136,8 +136,6 @@ function renameTile(tile: HTMLElement, link: QuickLink, pageOnly = false) {
 
 /** After "Add page": shows the new link's tile and opens its name to edit, so it can say what the page is. */
 function renameAdded(link: QuickLink) {
-  const search = $<HTMLInputElement>('links-search');
-  search.value = '';
   const group = groupOf(state, link) ?? ALL; // links without a group show under All
   if (pill !== ALL && pill !== group) setPill(group);
   else render();
@@ -250,16 +248,28 @@ function pillInView() {
   if (left < pills.scrollLeft || left + active.offsetWidth > pills.scrollLeft + pills.clientWidth) pills.scrollLeft = left - 24;
 }
 
-export function render() {
+/** The links matching `text` as a grid of tiles, for the popup's search box. Null if none do. */
+export function findLinks(text: string): { grid: HTMLElement; count: number } | null {
+  const q = squash(text);
+  const found = q ? state.quickLinks.filter((l) => matches(l, q)) : [];
+  return found.length ? { grid: grid(found), count: found.length } : null;
+}
+
+/** Draws the Links tab. Left until the tab is on show: the tiles read each site's icon. */
+export function renderLinks() {
+  render();
+}
+
+function render() {
+  if ($('panel-links').hidden) return;
   const sections = groupLinks(state).filter((s) => s.links.length);
   const named = sections.filter((s) => s.group !== null);
   const other = sections.find((s) => s.group === null);
-  const q = query();
   if (pill !== ALL && !named.some((s) => s.group === pill)) pill = ALL;
 
   $('links-empty').hidden = state.quickLinks.length > 0;
   const pills = $('group-pills');
-  pills.hidden = !!q || named.length === 0;
+  pills.hidden = named.length === 0;
   pills.replaceChildren(
     pillButton('All', state.quickLinks.length, ALL),
     ...named.map((s) => pillButton(s.group!, s.links.length, s.group!)),
@@ -267,21 +277,14 @@ export function render() {
   pillInView();
 
   const out: HTMLElement[] = [];
-  if (q) {
-    const found = state.quickLinks.filter((l) => matches(l, q));
-    if (found.length) out.push(grid(found));
-    $('links-none').hidden = found.length > 0;
+  if (pill !== ALL) {
+    const s = named.find((x) => x.group === pill)!;
+    out.push(section(s.group!, s.links));
   } else {
-    $('links-none').hidden = true;
-    if (pill !== ALL) {
-      const s = named.find((x) => x.group === pill)!;
-      out.push(section(s.group!, s.links));
-    } else {
-      const top = showMostVisited ? mostVisitedLinks(state.quickLinks, visits, Date.now()) : [];
-      if (top.length) out.push(section('Most visited', top, { icon: 'trending', openAll: false, bySite: true }));
-      for (const s of named) out.push(section(s.group!, s.links));
-      if (other) out.push(named.length || top.length ? section(OTHER, other.links) : grid(other.links));
-    }
+    const top = showMostVisited ? mostVisitedLinks(state.quickLinks, visits, Date.now()) : [];
+    if (top.length) out.push(section('Most visited', top, { icon: 'trending', openAll: false, bySite: true }));
+    for (const s of named) out.push(section(s.group!, s.links));
+    if (other) out.push(named.length || top.length ? section(OTHER, other.links) : grid(other.links));
   }
   $('links').replaceChildren(...out);
 }
@@ -383,18 +386,6 @@ export async function setupLinks(settings: Settings, tab: chrome.tabs.Tab | unde
     { passive: false },
   );
 
-  const search = $<HTMLInputElement>('links-search');
-  search.addEventListener('input', render);
-  search.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const first = state.quickLinks.find((l) => matches(l, query()));
-      if (first && query()) void openLinks([first.url]);
-    } else if (e.key === 'Escape' && search.value) {
-      e.preventDefault(); // clear the search, don't close the popup
-      search.value = '';
-      render();
-    }
-  });
   setupAddPage(tab);
   render();
 }

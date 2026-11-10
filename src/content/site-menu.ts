@@ -14,11 +14,13 @@ let onClose: (() => void) | null = null;
 /** The element that opened the menu; clicks on it toggle instead of counting as "outside". */
 let anchorEl: Element | null = null;
 
-function item(label: string, onClick: () => void, className = '') {
+/** A menu line. `glyph`: the sign in the column before the label (▶, ★), if it has one. */
+function item(label: string, onClick: () => void, className = '', glyph = '') {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = label;
   if (className) b.className = className;
+  b.dataset.glyph = glyph;
   onUi(b, 'click', ({ button }) => {
     if (button !== 0) return;
     onClick();
@@ -78,20 +80,21 @@ export async function openSiteMenu(
   if (seen) {
     const note = Object.assign(document.createElement('span'), {
       className: 'javtr-menu-seen',
-      textContent: `✓ Seen ${seenAgo(seen.at, Date.now())}`,
+      textContent: `✓ seen ${seenAgo(seen.at, Date.now())}`,
     });
     title.append(note);
   }
   el.append(
     title,
-    item('▶ Open trailer', () => void sendToBackground({ type: 'OPEN_CODE', code })),
+    item('Open trailer', () => void sendToBackground({ type: 'OPEN_CODE', code }), 'javtr-menu-go', '▶\uFE0E'),
     item('Search JavTrailers', () => void sendToBackground({ type: 'OPEN_CODE', code, mode: 'search' })),
     isStarred(code)
-      ? item('★ Remove from favourites', () => void toggleStar(code, null))
-      : item('☆ Add to favourites', () => void toggleStar(code, (opts.page ?? thisPage)())),
+      ? item('Remove from favourites', () => void toggleStar(code, null), 'javtr-menu-on', '★')
+      : item('Add to favourites', () => void toggleStar(code, (opts.page ?? thisPage)()), '', '☆'),
     Object.assign(document.createElement('hr'), { className: 'javtr-menu-sep' }),
   );
   if (openOnSites.length) {
+    el.append(Object.assign(document.createElement('div'), { className: 'javtr-menu-label', textContent: 'Open on' }));
     for (const site of openOnSites) {
       el.append(item(site.name, () => void sendToBackground({ type: 'OPEN_URLS', urls: [fillTemplate(site.template, code)], code })));
     }

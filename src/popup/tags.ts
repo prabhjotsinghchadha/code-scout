@@ -1,11 +1,11 @@
-// The popup's favourite tags (Favourites tab → Tags): one box to find or add a tag, then each tag with
-// "Open all" (its pages on every site it was saved from), ★ to remove it, and a chip per site underneath
-// (click to open that page; right-click to take it off the tag).
+// The popup's favourite tags (Favourites tab → Tags): one box to add a tag (it filters the list as you
+// type), then each tag: click it to open its pages on every site it was saved from, with ★ to remove it and
+// a chip per site underneath (click to open that page; right-click to take it off the tag).
 import { favouriteError } from '../shared/favourites';
 import { siteKey } from '../shared/hosts';
-import { icon, type IconName } from '../shared/icons';
 import { openMenu } from '../shared/menu';
 import { capitalized, cleanName } from '../shared/names';
+import { iconButton, rowActions, rowMain } from './rows';
 import { addTag, getTags, onTagsChanged, removeTag, removeTagPage, tagLinks, tagNameKey, type Tag } from '../shared/tags';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -18,17 +18,6 @@ let openLinks: (urls: string[]) => unknown = () => {};
 let onCount: (n: number) => void = () => {};
 
 const input = () => $<HTMLInputElement>('tag-input');
-
-function iconButton(name: IconName, label: string, className: string, onClick: () => void) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `icon-btn ${className}`.trim();
-  b.title = label;
-  b.setAttribute('aria-label', label);
-  b.append(icon(name));
-  b.addEventListener('click', onClick);
-  return b;
-}
 
 /** Makes a change, showing why if it couldn't be saved. */
 async function saving(change: () => Promise<unknown>) {
@@ -74,8 +63,8 @@ function pageChip(tag: Tag, page: string) {
 }
 
 function row(tag: Tag) {
-  const li = Object.assign(document.createElement('li'), { className: 'fav tag' });
-  const name = Object.assign(document.createElement('span'), { className: 'code', textContent: tag.name, title: tag.name });
+  const li = Object.assign(document.createElement('li'), { className: 'tag' });
+  const name = Object.assign(document.createElement('span'), { className: 'code', textContent: tag.name });
   const many = tag.pages.length > 1;
   const openLabel = tag.pages.length
     ? many
@@ -83,9 +72,8 @@ function row(tag: Tag) {
       : `Open ${tag.name}`
     : `Search javtrailers.com for ${tag.name}`;
   li.append(
-    name,
-    iconButton(tag.pages.length ? 'external' : 'search', openLabel, 'accent', () => openAll(tag)),
-    iconButton('starFilled', 'Remove from favourite tags', 'star on', () => void saving(() => removeTag(tag.name))),
+    rowMain(['#'], name, openLabel, () => openAll(tag), 'hash'),
+    rowActions(iconButton('starFilled', 'Remove from favourite tags', 'star on', () => void saving(() => removeTag(tag.name)))),
   );
   if (tag.pages.length) {
     const chips = Object.assign(document.createElement('div'), { className: 'tag-pages' });
@@ -97,6 +85,12 @@ function row(tag: Tag) {
 
 /** Lower case without spaces or dashes, so "cheatingwife" finds "Cheating Wife". */
 const squash = (s: string) => tagNameKey(s).replace(/\s/g, '');
+
+/** Rows for the saved tags whose name has `text` in it (for the popup's search box). */
+export function tagRows(text: string): HTMLLIElement[] {
+  const query = squash(text);
+  return query ? tags.filter((t) => squash(t.name).includes(query)).map(row) : [];
+}
 
 function paint() {
   const typed = input().value;

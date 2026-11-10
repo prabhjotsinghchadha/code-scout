@@ -1,5 +1,6 @@
-// The popup's favourite actresses (Favourites tab → Actresses): one box to find or add a name, then each
-// actress with a javtrailers search, ★ to remove her, and the page she was saved from underneath.
+// The popup's favourite actresses (Favourites tab → Actresses): one box to add a name (it filters the list
+// as you type), then each actress: click her to open the page she was saved from (or a javtrailers search
+// for her name), with Search and ★ to remove her after it.
 import {
   addActress,
   capitalized,
@@ -12,7 +13,8 @@ import {
 } from '../shared/actresses';
 import { rawSearchUrl } from '../shared/codes';
 import { favouriteError } from '../shared/favourites';
-import { icon, type IconName } from '../shared/icons';
+import { icon } from '../shared/icons';
+import { iconButton, rowActions, rowMain } from './rows';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -21,17 +23,6 @@ let openLinks: (urls: string[]) => unknown = () => {};
 let onCount: (n: number) => void = () => {};
 
 const input = () => $<HTMLInputElement>('actress-input');
-
-function iconButton(name: IconName, label: string, className: string, onClick: () => void) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `icon-btn ${className}`.trim();
-  b.title = label;
-  b.setAttribute('aria-label', label);
-  b.append(icon(name));
-  b.addEventListener('click', onClick);
-  return b;
-}
 
 /** Makes a change, showing why if it couldn't be saved. */
 async function saving(change: () => Promise<unknown>) {
@@ -61,15 +52,26 @@ function pageLink(url: string) {
 }
 
 function row(actress: Actress) {
-  const li = Object.assign(document.createElement('li'), { className: 'fav' });
-  const name = Object.assign(document.createElement('span'), { className: 'code', textContent: actress.name, title: actress.name });
-  li.append(
-    name,
-    iconButton('search', `Search javtrailers.com for ${actress.name}`, '', () => void openLinks([rawSearchUrl(actress.name)])),
-    iconButton('starFilled', 'Remove from favourite actresses', 'star on', () => void saving(() => removeActress(actress.name))),
-  );
-  if (actress.url) li.append(pageLink(actress.url));
+  const li = document.createElement('li');
+  const name = Object.assign(document.createElement('span'), { className: 'code', textContent: actress.name });
+  const search = () => void openLinks([rawSearchUrl(actress.name)]);
+  const { url } = actress;
+  const main = url
+    ? rowMain([icon('heart', 11)], name, `Open ${actress.name}’s page`, () => void openLinks([url]), 'heart')
+    : rowMain([icon('heart', 11)], name, `Search javtrailers.com for ${actress.name}`, search, 'heart');
+  const remove = iconButton('starFilled', 'Remove from favourite actresses', 'star on', () => void saving(() => removeActress(actress.name)));
+  const actions = url
+    ? rowActions(iconButton('search', `Search javtrailers.com for ${actress.name}`, 'quiet', search), remove)
+    : rowActions(remove);
+  li.append(main, actions);
+  if (url) li.append(pageLink(url));
   return li;
+}
+
+/** Rows for the saved actresses whose name has `text` in it (for the popup's search box). */
+export function actressRows(text: string): HTMLLIElement[] {
+  const query = squash(text);
+  return query ? actresses.filter((a) => squash(a.name).includes(query)).map(row) : [];
 }
 
 /** Lower case without spaces, so "yuamikami" finds "Yua Mikami". */

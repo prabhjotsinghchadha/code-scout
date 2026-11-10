@@ -7,29 +7,31 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="topbar-inner">
-        <span class="logo" aria-hidden="true"><i data-icon="play" data-size="14"></i></span>
-        <div>
-          <h1>Settings</h1>
-          <p class="sub">Code Scout</p>
-        </div>
-      </div>
-    </header>
-
     <div class="layout">
-      <nav class="side" aria-label="Sections">
-        <a href="#general"><i data-icon="settings"></i>General</a>
-        <a href="#pages"><i data-icon="play" data-size="14"></i>On pages</a>
-        <a href="#open-on"><i data-icon="globe"></i>Open on sites</a>
-        <a href="#quick-links"><i data-icon="link"></i>Quick links</a>
-        <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
-        <a href="#video"><i data-icon="film"></i>Video tools</a>
-        <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
-        <a href="#backup"><i data-icon="download"></i>Backup</a>
-      </nav>
+      <!-- One section on show at a time, picked here; the box finds a setting in any of them. -->
+      <aside class="side">
+        <div class="brand">
+          <span class="logo" aria-hidden="true"><i data-icon="play" data-size="12"></i></span>
+          <h1>Code Scout <span>Settings</span></h1>
+        </div>
+        <div class="field side-search">
+          <i data-icon="search" data-size="14"></i>
+          <input id="settings-search" type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
+        </div>
+        <nav aria-label="Sections">
+          <a href="#general"><i data-icon="settings"></i>General</a>
+          <a href="#pages"><i data-icon="play" data-size="14"></i>On pages</a>
+          <a href="#open-on"><i data-icon="globe"></i>Open on sites</a>
+          <a href="#quick-links"><i data-icon="link"></i>Quick links</a>
+          <a href="#popups"><i data-icon="shield"></i>Pop-up blocker</a>
+          <a href="#video"><i data-icon="film"></i>Video tools</a>
+          <a href="#shortcuts"><i data-icon="keyboard"></i>Shortcuts</a>
+          <a href="#backup"><i data-icon="download"></i>Backup</a>
+        </nav>
+      </aside>
 
       <main>
+        <p id="no-match" class="none" hidden></p>
         <section class="card" id="general">
           <h2>General</h2>
           <p class="desc">What Open does with a code.</p>
@@ -156,7 +158,7 @@
             <li><strong>⚡ Faster loading</strong><span>Downloads several pieces of the video at once, for servers that send each piece slowly.</span></li>
             <li><strong>Quality</strong><span>A menu, when the video has more than one.</span></li>
             <li><strong>⬇ Download</strong><span>Saves an MP4. Keep the tab open while it runs.</span></li>
-            <li><strong>Speed and PiP</strong><span>A speed menu, 0.25× to 3×, and picture-in-picture: the video in its own small window.</span></li>
+            <li><strong>Speed and PiP</strong><span><em>« 1.00 »</em> steps the speed down or up by 0.10 (click the number to go back to 1.00), and picture-in-picture: the video in its own small window.</span></li>
             <li><strong>EN subs</strong><span>Reads burned-in Chinese or Japanese subtitles on this computer and covers them with English. Size and background are below.</span></li>
           </ul>
           <label class="setting">
