@@ -13,13 +13,16 @@
 // in the project (Code Scout Extension/Resources) are replaced on every run: never edit them there.
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { userInfo } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = 'Code Scout';
 // The extension's identifier has to begin with the app's: <BUNDLE_ID>.Extension.
-const BUNDLE_ID = process.env.IOS_BUNDLE_ID || 'dev.codescout.app';
+// Apple gives an identifier to one developer only, so each person building this needs their own:
+// by default it ends in the Mac's user name.
+const BUNDLE_ID = process.env.IOS_BUNDLE_ID || `dev.codescout.${userInfo().username.toLowerCase().replace(/[^a-z0-9]/g, '') || 'me'}`;
 const ios = join(root, 'ios');
 const staging = join(ios, '.staging');
 const project = join(ios, APP);
