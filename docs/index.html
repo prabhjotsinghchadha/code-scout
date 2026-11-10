@@ -128,7 +128,7 @@ section .sub { margin-top: 12px; color: var(--text-2); max-width: 40em; }
 .steps .act { margin-top: auto; padding-top: 8px; }
 .addr { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); }
 .addr code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.notes { margin-top: 20px; color: var(--muted); font-size: 14px; max-width: 52em; }
+.notes { margin-top: 16px; color: var(--muted); font-size: 14px; max-width: 52em; }
 @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
 
 /* Features */
@@ -214,11 +214,11 @@ footer span:first-child { margin-right: auto; }
   <section id="install">
     <div class="wrap">
       <h2>Install it in about a minute</h2>
-      <p class="sub">Code Scout isn't on the Chrome Web Store, so there's no "Add to Chrome" button. You download it and point your browser at the folder.</p>
+      <p class="sub">Code Scout isn't on the Chrome Web Store, so there's no "Add to Chrome" button. You download a zip and drop it on your browser's extensions page.</p>
       <ol class="steps">
         <li>
-          <h3>Download and unzip</h3>
-          <p>Unzip the file and move the folder somewhere it can stay, such as Documents. Your browser runs the extension from that folder, so don't leave it in Downloads.</p>
+          <h3>Download the zip</h3>
+          <p>Save it anywhere, such as Downloads. Don't unzip it: the browser takes the zip as it is.</p>
           <div class="act"><a class="btn ghost small" data-download href="https://github.com/prabhjotsinghchadha/code-scout/releases/latest">Download the zip</a></div>
         </li>
         <li>
@@ -227,10 +227,11 @@ footer span:first-child { margin-right: auto; }
           <div class="act addr"><code>chrome://extensions</code><button class="btn ghost small" type="button" data-copy="chrome://extensions">Copy</button></div>
         </li>
         <li>
-          <h3>Load the folder</h3>
-          <p>Click <strong>Load unpacked</strong> and pick the unzipped folder, the one with <code>manifest.json</code> inside. Code Scout appears in the list. Pin it from the puzzle-piece menu to keep its button in the toolbar.</p>
+          <h3>Drop the zip on the page</h3>
+          <p>Drag the zip from your downloads onto the extensions page and let go. Code Scout appears in the list. Pin it from the puzzle-piece menu to keep its button in the toolbar.</p>
         </li>
       </ol>
+      <p class="notes"><strong>If the page doesn't take the zip:</strong> unzip it, move the folder somewhere it can stay (not Downloads, the browser runs the extension from it), click <strong>Load unpacked</strong> and pick that folder, the one with <code>manifest.json</code> inside.</p>
       <p class="notes">The browser may now and then ask whether to keep developer-mode extensions on. Choose to keep them. A web page can't open <code>chrome://extensions</code> for you, which is why you paste it.</p>
     </div>
   </section>
@@ -288,9 +289,9 @@ footer span:first-child { margin-right: auto; }
       <div>
         <ol>
           <li>Download the new zip, from the popup's <strong>Get it</strong> button or from this page.</li>
-          <li>Unzip it and put its files over the ones in the folder you installed from, replacing them.</li>
-          <li>On <code>chrome://extensions</code>, press the reload arrow on Code Scout.</li>
+          <li>Drop it on <code>chrome://extensions</code>, the same way you installed it.</li>
         </ol>
+        <p class="notes">If you installed with Load unpacked: unzip the new zip over the folder you picked, replacing the files, then press the reload arrow on Code Scout.</p>
         <p class="notes">Your favourites and settings stay. Don't press <strong>Remove</strong> to update: removing the extension deletes what it has saved.</p>
       </div>
     </div>
@@ -316,11 +317,11 @@ footer span:first-child { margin-right: auto; }
         </details>
         <details>
           <summary>The extension disappeared, or shows an error after I moved a folder.</summary>
-          <p>The browser runs it from the folder you picked. If that folder is moved or deleted, press <strong>Load unpacked</strong> again and pick it in its new place. Your favourites and settings come back with it.</p>
+          <p>This happens when it was installed with Load unpacked: the browser runs it from the folder you picked. If that folder is moved or deleted, press <strong>Load unpacked</strong> again and pick it in its new place. Your favourites and settings come back with it.</p>
         </details>
         <details>
           <summary>How do I remove it?</summary>
-          <p>On <code>chrome://extensions</code>, press <strong>Remove</strong> on Code Scout, then delete the folder. To keep your lists, save them first with Settings → Backup → Export to a file.</p>
+          <p>On <code>chrome://extensions</code>, press <strong>Remove</strong> on Code Scout, then delete the zip or folder you installed from. To keep your lists, save them first with Settings → Backup → Export to a file.</p>
         </details>
       </div>
     </div>
