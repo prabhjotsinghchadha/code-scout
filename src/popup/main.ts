@@ -837,6 +837,24 @@ function setupSiteToggles(settings: Settings, tab: chrome.tabs.Tab | undefined) 
     if (tab?.id !== undefined) await chrome.tabs.reload(tab.id);
     window.close();
   });
+
+  if (host === 'xchina.tube' && tab?.id !== undefined) {
+    const resetBtn = $<HTMLButtonElement>('xchina-reset');
+    resetBtn.hidden = false;
+    const tabId = tab.id;
+    resetBtn.addEventListener('click', async () => {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: () => {
+          try { localStorage.removeItem('CapacitorStorage.history'); } catch {}
+          location.reload();
+        },
+      });
+      window.close();
+    });
+  }
+
   void setupSiteProxy(host);
 }
 

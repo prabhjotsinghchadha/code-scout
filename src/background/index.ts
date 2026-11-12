@@ -1,5 +1,6 @@
 import popupBlockScript from '../content/popup-block.iife.ts?script&iife';
 import videoBoostScript from '../content/video-boost.iife.ts?script&iife';
+import xchinaBypassScript from '../content/xchina-bypass.iife.ts?script&iife';
 import { codeForLink, formatCode, parseCode, rawSearchUrl, searchUrl, trailerUrl, videoUrlIn, type OpenMode, type VideoCode } from '../shared/codes';
 import { ACTRESS_LINK_PATTERNS, addActress, capitalized, cleanName, isActressKey, looksLikeActressUrl, nameFromUrl } from '../shared/actresses';
 import { getDetailsCache, pageCode, parseDetails, saveDetails } from '../shared/details';
@@ -132,6 +133,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // off, so it's already in place when a page loads (it has to be there before the site's player starts).
 const POPUP_BLOCK_ID = 'javtr-popup-block';
 const VIDEO_BOOST_ID = 'javtr-video-boost';
+const XCHINA_BYPASS_ID = 'javtr-xchina-bypass';
 let pageScriptSync = Promise.resolve();
 function syncPageScripts() {
   // Serialized: two quick changes must not register the same id twice.
@@ -139,7 +141,7 @@ function syncPageScripts() {
     .then(async () => {
       const { popupBlockSites, videoTools, videoOffSites } = await getSettings();
       // One at a time: unregistering several ids fails as a whole if one of them isn't registered.
-      for (const id of [POPUP_BLOCK_ID, VIDEO_BOOST_ID]) {
+      for (const id of [POPUP_BLOCK_ID, VIDEO_BOOST_ID, XCHINA_BYPASS_ID]) {
         await chrome.scripting.unregisterContentScripts({ ids: [id] }).catch(() => {});
       }
       const scripts: chrome.scripting.RegisteredContentScript[] = [];
@@ -154,6 +156,13 @@ function syncPageScripts() {
           matchOriginAsFallback: true, // also about:blank frames the page creates
         });
       }
+      scripts.push({
+        id: XCHINA_BYPASS_ID,
+        js: [xchinaBypassScript],
+        matches: sitePatterns(['xchina.tube']),
+        runAt: 'document_start',
+        world: 'MAIN',
+      });
       if (videoTools) {
         scripts.push({
           id: VIDEO_BOOST_ID,
