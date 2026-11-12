@@ -106,6 +106,28 @@ test('finds outlined text pixels and notices when the line changes', () => {
   assert.equal(isEmptyMask(textMask(strip(w, h, { x: 2, w: 20 }), w, h)), true);
 });
 
+test('finds text with a soft grey shadow on a bright scene, but not the scene itself', () => {
+  // White letters (245) with a grey shadow to the right and below (130), on a white dress (215): no black
+  // outline anywhere. Measured on 18JAV's MD0302, whose subtitles were never read.
+  const w = 200;
+  const h = 50;
+  const scene = (text: boolean) => {
+    const px = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = 215 + (x % 40 < 20 ? 0 : 25); // folds of the dress: bright, 25 apart
+        const stroke = (sx: number, sy: number) => sx >= 40 && sx < 160 && sy >= 20 && sy < 30 && sx % 8 < 3;
+        if (text && stroke(x - 1, y - 1)) v = 130; // shadow
+        if (text && stroke(x, y)) v = 245;
+        px.set([v, v, v, 255], (y * w + x) * 4);
+      }
+    }
+    return px;
+  };
+  assert.equal(isEmptyMask(textMask(scene(true), w, h)), false);
+  assert.equal(maskCount(textMask(scene(false), w, h)), 0);
+});
+
 test('follows one line by the text pixels inside its box', () => {
   const w = 200;
   const h = 50;

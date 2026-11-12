@@ -1,7 +1,7 @@
 // Video tools: "EN subs". Reads the Chinese or Japanese subtitle burned into the video picture and
 // covers it with an English box, all on this computer:
 //  1. About every 0.4 s, the bottom of the current frame is drawn into a small canvas.
-//  2. A quick check of the text-like pixels (white or yellow with a dark outline) tells whether there's
+//  2. A quick check of the text-like pixels (white or yellow with an outline or a shadow) tells whether there's
 //     anything new to read. While an English line is shown, only the pixels inside its box are compared,
 //     so a moving background doesn't cause re-reads; otherwise reads back off while scenes keep
 //     turning out to have no subtitle. Only then is the strip sent to the OCR model (offscreen

@@ -87,9 +87,17 @@ export function stripBoxToScreen(box: Box, picture: Box, stripWidth: number, str
 }
 
 /**
- * Where subtitle text probably is: white or yellow pixels next to a dark outline (subtitles are drawn
- * with a black border), in the middle 70% of the width where subtitles sit. Sampled every `step` pixels;
- * returns 1 per sampled pixel that qualifies (`Math.floor(width / step)` per row).
+ * How much darker than a bright pixel something next to it must be to count as the edge of a letter.
+ * A black outline is far darker; the soft grey shadow some subtitles have instead (white letters at
+ * about 245 over a shadow of 100–160, on a scene that may itself be nearly white) is 85 or more darker,
+ * while the folds of a white dress or a bright wall stay under 50.
+ */
+const EDGE_DROP = 70;
+
+/**
+ * Where subtitle text probably is: white or yellow pixels next to something clearly darker (subtitles are
+ * drawn with a black border or a grey shadow), in the middle 70% of the width where subtitles sit. Sampled
+ * every `step` pixels; returns 1 per sampled pixel that qualifies (`Math.floor(width / step)` per row).
  */
 export function textMask(rgba: Uint8ClampedArray, width: number, height: number, step = 2): Uint8Array {
   const cols = Math.floor(width / step);
@@ -106,19 +114,21 @@ export function textMask(rgba: Uint8ClampedArray, width: number, height: number,
     const y = r * step;
     for (let c = 0; c < cols; c++) {
       const x = c * step;
-      if (x < left || x > right || luma(x, y) < 190) continue;
+      const own = luma(x, y);
+      if (x < left || x > right || own < 190) continue;
       const i = (y * width + x) * 4;
       const [red, green, blue] = [rgba[i], rgba[i + 1], rgba[i + 2]];
       const white = Math.max(red, green, blue) - Math.min(red, green, blue) <= 45;
       const yellow = red > 190 && green > 170 && blue < 140;
       if (!white && !yellow) continue;
+      const edge = own - EDGE_DROP;
       let dark = false;
       for (let d = 1; d <= reach && !dark; d++) {
         dark =
-          (x - d >= 0 && luma(x - d, y) < 60) ||
-          (x + d < width && luma(x + d, y) < 60) ||
-          (y - d >= 0 && luma(x, y - d) < 60) ||
-          (y + d < height && luma(x, y + d) < 60);
+          (x - d >= 0 && luma(x - d, y) < edge) ||
+          (x + d < width && luma(x + d, y) < edge) ||
+          (y - d >= 0 && luma(x, y - d) < edge) ||
+          (y + d < height && luma(x, y + d) < edge);
       }
       if (dark) mask[r * cols + c] = 1;
     }
@@ -239,8 +249,8 @@ export function subtitleLookVars(backgroundPercent: number): Record<'--javtr-sub
 
 /**
  * Share of `box` (strip pixels) covered by subtitle-style text pixels (textMask). Burned-in subtitles are
- * outlined white or yellow, so their boxes are well covered; other text the OCR finds (a sign in the scene,
- * an ad printed on a prop) has next to none.
+ * white or yellow with an outline or a shadow, so their boxes are well covered; other text the OCR finds
+ * (a sign in the scene, an ad printed on a prop) has next to none.
  */
 export function maskDensity(mask: Uint8Array, width: number, box: Box, step = 2): number {
   const region = maskRegion(mask, width, box, step, 0);
