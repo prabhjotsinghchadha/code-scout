@@ -124,6 +124,82 @@
       );
     });
   }
+
+  // ─── xchina.tube: bypass the "buy membership" paywall and the 5-videos-per-day limit ───
+  const host = location.hostname.toLowerCase().replace(/^www\./, '');
+  if (host === 'xchina.tube' || host.endsWith('.xchina.tube')) {
+    const PAYWALL_TEXT = /premium|membership|purchase|per day|videos per day|120万/i;
+
+    /** Remove any overlay/modal that looks like the paywall. */
+    const killPaywall = () => {
+      const candidates = document.querySelectorAll<HTMLElement>(
+        'div, section, aside, dialog, [role="dialog"], [role="alertdialog"]',
+      );
+      for (const el of candidates) {
+        const style = getComputedStyle(el);
+        const isOverlay =
+          (style.position === 'fixed' || style.position === 'absolute') &&
+          parseInt(style.zIndex, 10) >= 1000 &&
+          style.display !== 'none' &&
+          style.visibility !== 'hidden';
+        if (!isOverlay) continue;
+        const text = el.textContent ?? '';
+        if (PAYWALL_TEXT.test(text) && el.querySelector('video') === null) {
+          el.remove();
+        }
+      }
+      // Also nuke full-screen semi-transparent backdrops that sit behind the modal.
+      for (const el of document.querySelectorAll<HTMLElement>('.modal-backdrop, .overlay, .backdrop')) {
+        const style = getComputedStyle(el);
+        if (style.position === 'fixed' && parseFloat(style.opacity) > 0) el.remove();
+      }
+    };
+
+    /** Clear localStorage keys that track the daily view counter. */
+    const clearDailyCount = () => {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && /daily|count|watch|free|limit|video.?num|per.?day/i.test(k)) keys.push(k);
+      }
+      for (const k of keys) localStorage.removeItem(k);
+    };
+
+    /** Unpause the main video if the paywall paused it. */
+    const unpauseVideo = () => {
+      const video = document.querySelector('video');
+      if (video && video.paused && !video.ended) {
+        video.play().catch(() => {});
+      }
+    };
+
+    /** Intercept alert/confirm that show the limit message. */
+    const nativeAlert = window.alert;
+    const nativeConfirm = window.confirm;
+    window.alert = (msg?: string) => {
+      if (msg && PAYWALL_TEXT.test(msg)) return;
+      return nativeAlert.call(window, msg);
+    };
+    window.confirm = (msg?: string) => {
+      if (msg && PAYWALL_TEXT.test(msg)) return true; // auto-accept so the site doesn't block
+      return nativeConfirm.call(window, msg);
+    };
+
+    // Run once on load, then watch for dynamically-inserted paywalls.
+    clearDailyCount();
+    killPaywall();
+    unpauseVideo();
+
+    const observer = new MutationObserver(() => {
+      killPaywall();
+      unpauseVideo();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+
+    // Re-clear the counter periodically in case the site re-writes it.
+    const interval = setInterval(clearDailyCount, 10_000);
+    window.addEventListener('pagehide', () => clearInterval(interval), { once: true });
+  }
 })();
 
 export {};
