@@ -125,7 +125,7 @@
     });
   }
 
-  // ─── xchina.tube: bypass the "buy membership" paywall and the 5-videos-per-day limit ───
+  // ─── xchina.tube ───
   const host = location.hostname.toLowerCase().replace(/^www\./, '');
   if (host === 'xchina.tube' || host.endsWith('.xchina.tube')) {
     const PAYWALL_TEXT = /premium|membership|purchase|per day|videos per day|at most|120万|purchase now/i;
