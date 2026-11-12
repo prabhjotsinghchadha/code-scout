@@ -29,6 +29,15 @@
         <button type="button" id="hide-btn" class="icon-btn" title="Hide what you’re watching" aria-label="Hide what you’re watching">
           <i data-icon="eyeOff"></i>
         </button>
+        <button
+          type="button"
+          id="wipe-btn"
+          class="icon-btn"
+          title="Close your video sites’ tabs and remove those sites from the browser’s history"
+          aria-label="Close your video sites’ tabs and remove those sites from the browser’s history"
+        >
+          <i data-icon="trash"></i>
+        </button>
         <button type="button" id="open-guide" class="icon-btn" title="Guide: what things mean and how Code Scout works" aria-label="Guide">
           <i data-icon="help"></i>
         </button>
@@ -81,6 +90,8 @@
         <div id="typed-sites" class="site-row" hidden></div>
       </section>
       <p id="error" class="error" role="alert" hidden></p>
+      <!-- What the bin button did (a tooltip is no use on a phone). -->
+      <p id="wipe-done" class="done-note" role="status" hidden></p>
 
       <nav id="tabs" class="tabs" role="tablist" aria-label="Lists">
         <button type="button" class="tab" role="tab" id="tab-page" data-tab="page" aria-controls="panel-page" aria-selected="false">

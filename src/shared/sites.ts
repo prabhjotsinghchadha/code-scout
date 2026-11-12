@@ -32,7 +32,7 @@ export interface Site {
 }
 
 /** Built-in quick-link groups, in display order. A group may have no built-in links (NTR). */
-export const GROUPS = ['Start here', 'Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
+export const GROUPS = ['Start here', 'Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'Chinese', 'More sites'];
 
 /**
  * Who a group (and the links in it) is offered to. "Start here" is for a new install: plain places to
@@ -134,7 +134,10 @@ export const SITES: Site[] = [
     name: 'Jable',
     origin: 'https://jable.tv',
     openOn: '/videos/{code_lower}/',
-    pages: [{ id: 'home', label: 'Home (English)', path: '/?lang=en', group: 'More sites' }],
+    pages: [
+      { id: 'home', label: 'Home (English)', path: '/?lang=en', group: 'More sites' },
+      { id: 'chinese-subtitle', label: 'Chinese subtitle', path: '/categories/chinese-subtitle/?lang=en', group: 'Chinese' },
+    ],
   },
   {
     id: 'supjav',
@@ -171,6 +174,23 @@ export const SITES: Site[] = [
     name: 'ThePornDude',
     origin: 'https://theporndude.com',
     pages: [{ id: 'home', label: 'All sites', path: '/', group: 'More sites' }],
+  },
+  // Chinese: sites in Chinese or of Chinese videos. Each link is the site's English version where it has
+  // one (Jable's is above); XChina and Rou Video are in Chinese only.
+  { id: 'xchina', name: 'XChina', origin: 'https://xchina.tube', pages: [{ id: 'home', path: '/', group: 'Chinese' }] },
+  {
+    id: '91porn',
+    name: '91Porn',
+    origin: 'https://91porn.com',
+    pages: [{ id: 'home', label: 'Home (English)', path: '/index.php?session_language=en_US', group: 'Chinese' }],
+  },
+  { id: 'rouvideo', name: 'Rou Video', origin: 'https://rou.video', pages: [{ id: 'home', path: '/', group: 'Chinese' }] },
+  {
+    // English is the default language here; /zh/ and /ja/ are the others.
+    id: 'avjiali',
+    name: 'AV Jiali',
+    origin: 'https://avjiali.com',
+    pages: [{ id: 'home', label: 'Home (English)', path: '/', group: 'Chinese' }],
   },
 ];
 

@@ -13,6 +13,7 @@ import { sendToTab, type ContextLink, type DetailsResult, type Message, type Ocr
 import { fillTemplate, isWebUrl, type OpenOnSite } from '../shared/open-on';
 import { getSettings, seedBuiltIns } from '../shared/storage';
 import { toggleHidden } from './hide';
+import { closeWatching, wipeWatching } from './wipe';
 import { applyProxy } from './proxy';
 import { findSubtitles, getSubtitleFile } from './subtitle-search';
 import { webSearch } from './web-search';
@@ -483,6 +484,7 @@ chrome.contextMenus?.onClicked.addListener((info, tab) => {
 chrome.commands?.onCommand.addListener(async (command, tab) => {
   // Works on any tab, the ones no content script runs on too.
   if (command === 'hide-watching') return toggleHidden();
+  if (command === 'close-watching') return void (await closeWatching().catch((err) => console.warn('Close:', err)));
   if (tab?.id === undefined) return;
   try {
     const { code, text } = await sendToTab(tab.id, { type: 'GET_ACTIVE_CODE' });
@@ -574,6 +576,11 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
       return true;
     case 'TOGGLE_HIDDEN':
       return reply(toggleHidden());
+    case 'WIPE_WATCHING':
+      void wipeWatching()
+        .catch(() => ({ tabs: 0, pages: 0 }))
+        .then(sendResponse);
+      return true;
     case 'ALLOW_NEW_TAB':
       if (sender.tab?.id !== undefined) {
         const id = sender.tab.id;

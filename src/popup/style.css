@@ -216,6 +216,12 @@ body {
   background: var(--accent-tint);
   color: var(--accent-text);
 }
+.done-note {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--muted);
+  text-align: center;
+}
 .none {
   margin: 0;
   padding: 16px 8px;

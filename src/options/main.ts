@@ -312,6 +312,7 @@ async function showShortcuts() {
     ['search-trailer', 'key-search'],
     ['open-on-all', 'key-all'],
     ['hide-watching', 'key-hide'],
+    ['close-watching', 'key-close'],
   ]) {
     const shortcut = commands.find((c) => c.name === name)?.shortcut;
     document.getElementById(id)!.textContent = shortcut || 'Not set';

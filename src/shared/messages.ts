@@ -32,6 +32,8 @@ export type Message =
   | { type: 'WEB_SEARCH'; source: SearchSource; text: string }
   /** Hide what's being watched (pause, mute, tabs out of sight), or bring it back: background/hide.ts. */
   | { type: 'TOGGLE_HIDDEN' }
+  /** Close the tabs on the user's sites and remove those sites from the browser's history: background/wipe.ts. */
+  | { type: 'WIPE_WATCHING' }
   /** Pop-up blocker: the user is about to open a new tab themselves (Ctrl/middle-click, a same-site link). */
   | { type: 'ALLOW_NEW_TAB'; ms: number }
   /** Pop-up blocker: something was blocked on the sender's page (counted on the toolbar badge). */
@@ -69,6 +71,7 @@ export interface MessageResponses {
   PAGE_DETAILS: { ok: true };
   WEB_SEARCH: WebSearchResult;
   TOGGLE_HIDDEN: { ok: true };
+  WIPE_WATCHING: { tabs: number; pages: number };
   ALLOW_NEW_TAB: { ok: true };
   POPUP_BLOCKED: { ok: true };
   OCR_STRIP: OcrResult;

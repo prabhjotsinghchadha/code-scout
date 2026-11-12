@@ -63,6 +63,7 @@ export default defineManifest(({ mode }) => ({
   // bookmarks: favourites are backed up to a bookmarks folder, which survives removing the extension.
   // proxy: the sites picked in Settings → Proxy go through the user's own proxy server (a PAC script).
   // webRequest + webRequestAuthProvider: answering that server's sign-in challenge, nothing else.
+  // history: the popup's bin button removes the user's video sites' pages from it. Never read otherwise.
   permissions: [
     'storage',
     'contextMenus',
@@ -70,6 +71,7 @@ export default defineManifest(({ mode }) => ({
     'scripting',
     'offscreen',
     'bookmarks',
+    'history',
     'favicon',
     'proxy',
     'webRequest',
@@ -85,8 +87,8 @@ export default defineManifest(({ mode }) => ({
       suggested_key: { default: 'Alt+Shift+J' },
       description: 'Open trailer for the selected or typed code',
     },
+    // No key suggested: Chrome allows an extension four. Set one at chrome://extensions/shortcuts.
     'search-trailer': {
-      suggested_key: { default: 'Alt+Shift+K' },
       description: 'Search trailers for the selected or typed code',
     },
     'hide-watching': {
@@ -96,6 +98,10 @@ export default defineManifest(({ mode }) => ({
     'open-on-all': {
       suggested_key: { default: 'Alt+Shift+L' },
       description: 'Open the selected or typed code on all your "Open on" sites',
+    },
+    'close-watching': {
+      suggested_key: { default: 'Alt+Shift+X' },
+      description: 'Close every tab on your video sites',
     },
   },
 }));

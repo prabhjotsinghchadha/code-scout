@@ -37,12 +37,29 @@ test('a new install gets the starting points, not the groups by taste', () => {
   assert.equal(seed(first.state, first.offered, BUILT_INS, false), null);
 });
 
+/** Added after v10, for every install: the Chinese group and its links. */
+const SINCE_V10 = [
+  'group:Chinese',
+  ...['jable/chinese-subtitle', 'xchina/home', '91porn/home', 'rouvideo/home', 'avjiali/home'].flatMap((l) => [`link:${l}`, `link:${l}@Chinese`]),
+];
+
 test('an install from before the starting points keeps its lists: they are only noted as offered', () => {
   const state = { ...empty, quickLinks: [{ name: 'Mine', url: 'https://mine.example/' }], linkGroups: ['Mine'] };
-  const result = seed(state, offeredByVersion(10))!;
+  const result = seed(state, [...offeredByVersion(10), ...SINCE_V10])!;
   assert.deepEqual(result.state, state);
   assert.deepEqual(new Set(result.offered), new Set(ALL));
   for (const key of FOR_NEW) assert.ok(result.offered.includes(key), key);
+});
+
+test('an earlier install gets the Chinese group on its next update, after its own groups', () => {
+  const state = { ...empty, linkGroups: ['Mine', 'More sites'] };
+  const result = seed(state, [...offeredByVersion(10), ...FOR_NEW])!;
+  assert.deepEqual(result.state.linkGroups, ['Mine', 'More sites', 'Chinese']);
+  assert.deepEqual(
+    result.state.quickLinks.map((l) => `${l.name} [${l.group}]`),
+    ['Jable · Chinese subtitle', 'XChina', '91Porn · Home (English)', 'Rou Video', 'AV Jiali · Home (English)'].map((n) => `${n} [Chinese]`),
+  );
+  assert.deepEqual(result.state.openOnSites, []);
 });
 
 test('a site added to the registry is offered once, with its pages and "Open on" pattern', () => {
@@ -106,6 +123,6 @@ test('old seed versions map to what they had offered', () => {
   assert.ok(!offeredByVersion(1).includes('link:javmost/cuckold@Cuckold'));
   assert.ok(offeredByVersion(6).includes('site:missav'));
   assert.ok(!offeredByVersion(9).includes('site:supjav'));
-  // Everything since is for new installs only.
-  assert.deepEqual(new Set([...offeredByVersion(10), ...FOR_NEW]), new Set(ALL));
+  // Everything since: the starting points (new installs only) and the Chinese group.
+  assert.deepEqual(new Set([...offeredByVersion(10), ...FOR_NEW, ...SINCE_V10]), new Set(ALL));
 });

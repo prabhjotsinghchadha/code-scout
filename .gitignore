@@ -9,3 +9,4 @@ public/ocr/
 
 # iOS (npm run ios): the Xcode project it makes around the built extension, and Xcode's own output
 ios/
+.aider*

@@ -29,7 +29,7 @@ const project = join(ios, APP);
 const xcodeproj = join(project, `${APP}.xcodeproj`);
 const resources = join(project, `${APP} Extension`, 'Resources');
 /** Permissions Safari doesn't know (it warns about each, and they do nothing there). */
-const NOT_IN_SAFARI = ['proxy', 'bookmarks', 'favicon', 'offscreen', 'webRequestAuthProvider'];
+const NOT_IN_SAFARI = ['proxy', 'bookmarks', 'favicon', 'offscreen', 'webRequestAuthProvider', 'history'];
 
 const run = (command, args, options = {}) => execFileSync(command, args, { cwd: root, stdio: 'inherit', ...options });
 const read = (command, args) => execFileSync(command, args, { cwd: root, encoding: 'utf8' });

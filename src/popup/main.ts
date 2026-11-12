@@ -38,7 +38,12 @@ hydrateIcons();
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 // Hide what's being watched (background/hide.ts); an open eye while tabs are hidden, to bring them back.
-{
+// Not on iPhone or iPad: Safari there has no windows to minimise, so there's nowhere to hide tabs (an
+// iPad says it's a Mac, but a Mac has no touch screen). The bin button next to it closes them instead.
+const onIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (onIOS) {
+  $('hide-btn').hidden = true;
+} else {
   const hideBtn = $<HTMLButtonElement>('hide-btn');
   const KEY = 'hiddenTabs'; // HIDDEN_KEY in background/hide.ts
   void Promise.all([chrome.storage.session.get(KEY), chrome.commands.getAll()]).then(([stored, commands]) => {
@@ -53,6 +58,35 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
   hideBtn.addEventListener('click', () => {
     void sendToBackground({ type: 'TOGGLE_HIDDEN' }).catch(() => {});
     window.close();
+  });
+}
+
+// One click: the tabs on the user's sites are closed and those sites leave the browser's history
+// (background/wipe.ts). The popup stays open to say what was done, unless its own tab was one of them.
+// Where the browser has no history API (Safari on iPhone, which has no shortcuts either), the button
+// closes the tabs and says so.
+{
+  const wipeBtn = $<HTMLButtonElement>('wipe-btn');
+  const withHistory = !!chrome.history;
+  if (!withHistory) {
+    wipeBtn.title = 'Close your video sites’ tabs';
+    wipeBtn.setAttribute('aria-label', wipeBtn.title);
+  }
+  wipeBtn.addEventListener('click', async () => {
+    wipeBtn.disabled = true;
+    const done = await sendToBackground({ type: 'WIPE_WATCHING' }).catch(() => null);
+    wipeBtn.disabled = false;
+    if (!done) return;
+    const count = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+    const closed = `Closed ${count(done.tabs, 'tab', 'tabs')}`;
+    const label = withHistory ? `${closed}, removed ${count(done.pages, 'page', 'pages')} from history` : closed;
+    wipeBtn.replaceChildren(icon('check'));
+    wipeBtn.classList.add('accent');
+    wipeBtn.title = label;
+    wipeBtn.setAttribute('aria-label', label);
+    const note = $('wipe-done');
+    note.textContent = `${label}.`;
+    note.hidden = false;
   });
 }
 

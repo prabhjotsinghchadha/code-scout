@@ -82,7 +82,23 @@ const V10_LINKS = [
   `Korean Porn Movie ${MORE}`,
   `ThePornDude · All sites ${MORE}`,
 ];
-const ALL_GROUPS = ['Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'More sites'];
+/** The Chinese group, added after v10: every install gets it, on install or on its next update. */
+const CHINESE = [
+  { name: 'Jable · Chinese subtitle', url: 'https://jable.tv/categories/chinese-subtitle/?lang=en', group: 'Chinese' },
+  { name: 'XChina', url: 'https://xchina.tube/', group: 'Chinese' },
+  { name: '91Porn · Home (English)', url: 'https://91porn.com/index.php?session_language=en_US', group: 'Chinese' },
+  { name: 'Rou Video', url: 'https://rou.video/', group: 'Chinese' },
+  { name: 'AV Jiali · Home (English)', url: 'https://avjiali.com/', group: 'Chinese' },
+];
+const [JABLE_CHINESE, ...CHINESE_SITES] = CHINESE.map((l) => `${l.name} [Chinese]`);
+/** EDITED after an update that brought the Chinese group. */
+const EDITED_PLUS = {
+  ...EDITED,
+  quickLinks: [...EDITED.quickLinks, ...CHINESE],
+  linkGroups: [...EDITED.linkGroups, 'Chinese'],
+};
+const LISTS_WRITE = 'sync:linkGroups,quickLinks,seededBuiltIns';
+const ALL_GROUPS = ['Cheating', 'Cuckold', 'NTR', 'All Japanese', 'Subtitles', 'Chinese', 'More sites'];
 const ALL_SITES = ['MissAV', 'JavLibrary', 'JavMost', 'Javtiful', 'Jav Guru', 'Jable', 'SupJav', 'BestJavPorn', 'SexTB'];
 
 test('seeds a fresh install with the starting points, writing only the seeded lists and the record', async () => {
@@ -91,7 +107,7 @@ test('seeds a fresh install with the starting points, writing only the seeded li
   assert.deepEqual(Object.keys(sync).sort(), ['linkGroups', 'openOnSites', 'quickLinks', 'seededBuiltIns']);
   assert.deepEqual(writes, [SEED_WRITE, 'local:seededBuiltIns']);
   // A new install: "Start here", and none of the groups by taste (those were the first user's own).
-  assert.deepEqual(sync.linkGroups, ['Start here', 'All Japanese', 'Subtitles', 'More sites']);
+  assert.deepEqual(sync.linkGroups, ['Start here', 'All Japanese', 'Subtitles', 'Chinese', 'More sites']);
   assert.deepEqual(names(sync), [
     `MissAV · English subtitle ${SUBS}`,
     'JavLibrary · Most wanted',
@@ -107,13 +123,15 @@ test('seeds a fresh install with the starting points, writing only the seeded li
     `Jav Guru · English subbed ${SUBS}`,
     `18JAV · Chinese subtitle ${SUBS}`,
     `Jable · Home (English) ${MORE}`,
+    JABLE_CHINESE,
     ...V10_LINKS,
+    ...CHINESE_SITES,
   ]);
   assert.deepEqual(new Set(sync.seededBuiltIns), new Set(ALL));
   assert.deepEqual(new Set(local.seededBuiltIns as string[]), new Set(ALL));
   assert.deepEqual(sync.openOnSites!.map((x) => x.name), ALL_SITES);
   await seedBuiltIns(); // nothing new: no further writes
-  assert.equal(sync.quickLinks!.length, 20);
+  assert.equal(sync.quickLinks!.length, 25);
   assert.equal(writes.length, 2);
 });
 
@@ -144,7 +162,9 @@ test('upgrades a v1 install: groups existing built-ins, keeps removals and own l
     `Jav Guru · English subbed ${SUBS}`,
     `18JAV · Chinese subtitle ${SUBS}`,
     `Jable · Home (English) ${MORE}`,
+    JABLE_CHINESE,
     ...V10_LINKS,
+    ...CHINESE_SITES,
   ]);
   assert.deepEqual(sync.linkGroups, ALL_GROUPS);
 });
@@ -164,10 +184,12 @@ test('upgrades a v3 install: adds newer links and groups, keeps deleted groups d
     `Jav Guru · English subbed ${SUBS}`,
     `18JAV · Chinese subtitle ${SUBS}`,
     `Jable · Home (English) ${MORE}`,
+    JABLE_CHINESE,
     ...V10_LINKS,
+    ...CHINESE_SITES,
   ]);
   // A user who deleted NTR before v3 doesn't get it back.
-  assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese', 'Subtitles', 'More sites']);
+  assert.deepEqual(sync.linkGroups, ['Cuckold', 'All Japanese', 'Subtitles', 'Chinese', 'More sites']);
 });
 
 test('upgrades a v5 install: adds Open-on sites, keeps a site the user already added', async () => {
@@ -196,20 +218,22 @@ test('upgrades a v9 install: groups ungrouped built-ins, leaves the user\'s grou
     'Jav Guru [NTR]',
     `Jable · Home (English) ${MORE}`,
     'JavLibrary · Most wanted',
+    JABLE_CHINESE,
     ...V10_LINKS,
+    ...CHINESE_SITES,
   ]);
-  assert.deepEqual(sync.linkGroups, ['NTR', 'Subtitles', 'More sites']);
+  assert.deepEqual(sync.linkGroups, ['NTR', 'Subtitles', 'Chinese', 'More sites']);
   assert.deepEqual(sync.openOnSites!.map((x) => x.name), ['SupJav', 'BestJavPorn', 'SexTB']);
 });
 
-test('upgrades a v10 install: lists untouched, record copied to sync once', async () => {
+test('upgrades a v10 install: only what is new since is added, record copied to sync once', async () => {
   const { sync, writes } = fakeChrome(structuredClone(EDITED), { quickLinksSeedVersion: 10 });
   await seedBuiltIns();
   const { seededBuiltIns, ...lists } = sync;
-  assert.deepEqual(lists, EDITED);
+  assert.deepEqual(lists, EDITED_PLUS);
   // The record also notes the starting points for new installs as offered: they're never added here.
   assert.deepEqual(new Set(seededBuiltIns), new Set(ALL));
-  assert.deepEqual(writes, ['sync:seededBuiltIns', 'local:seededBuiltIns']);
+  assert.deepEqual(writes, [LISTS_WRITE, 'local:seededBuiltIns']);
   await seedBuiltIns();
   assert.equal(writes.length, 2);
 });
@@ -222,22 +246,22 @@ test('a second device whose sync already has the lists and record writes nothing
   assert.deepEqual(writes, ['local:seededBuiltIns']);
 });
 
-test('a second device before the first device updated: adopts the synced lists as they are', async () => {
+test('a second device before the first device updated: adopts the synced lists, adding only what is new since', async () => {
   const { sync, writes } = fakeChrome(structuredClone(EDITED), {}); // lists from an older build, no record
   await seedBuiltIns();
   const { seededBuiltIns, ...lists } = sync;
-  assert.deepEqual(lists, EDITED);
+  assert.deepEqual(lists, EDITED_PLUS); // nothing an older build had offered comes back
   assert.ok(LEGACY_KEYS.every((k) => seededBuiltIns!.includes(k)));
-  assert.deepEqual(writes, ['sync:seededBuiltIns', 'local:seededBuiltIns']);
+  assert.deepEqual(writes, [LISTS_WRITE, 'local:seededBuiltIns']);
 });
 
 test('adopted lists still get built-ins added after the record moved to sync', async () => {
   const example = { id: 'example', name: 'Example', origin: 'https://example.com', openOn: '/v/{code}', pages: [{ id: 'home', path: '/' }] };
   const { sync } = fakeChrome(structuredClone(EDITED), {});
   await seedBuiltIns(builtInsFrom([...SITES, example], GROUPS));
-  assert.deepEqual(sync.quickLinks, [...EDITED.quickLinks, { name: 'Example', url: 'https://example.com/' }]);
+  assert.deepEqual(sync.quickLinks, [...EDITED_PLUS.quickLinks, { name: 'Example', url: 'https://example.com/' }]);
   assert.deepEqual(sync.openOnSites!.map((s) => s.id), ['missav', 'example']);
-  assert.deepEqual(sync.linkGroups, EDITED.linkGroups);
+  assert.deepEqual(sync.linkGroups, EDITED_PLUS.linkGroups);
 });
 
 test('a new profile seeded before its sync data arrived keeps the account data after the merge', async () => {
@@ -271,7 +295,7 @@ test('built-ins removed after seeding stay removed on later updates', async () =
   sync.openOnSites = sync.openOnSites!.filter((s) => s.id !== 'sextb');
   sync.linkGroups = sync.linkGroups!.filter((g) => g !== 'All Japanese');
   await seedBuiltIns();
-  assert.equal(sync.quickLinks!.length, 19);
+  assert.equal(sync.quickLinks!.length, 24);
   assert.ok(!sync.openOnSites!.some((s) => s.id === 'sextb'));
   assert.ok(!sync.linkGroups!.includes('All Japanese'));
 });
