@@ -128,28 +128,55 @@
   // ─── xchina.tube: bypass the "buy membership" paywall and the 5-videos-per-day limit ───
   const host = location.hostname.toLowerCase().replace(/^www\./, '');
   if (host === 'xchina.tube' || host.endsWith('.xchina.tube')) {
-    const PAYWALL_TEXT = /premium|membership|purchase|per day|videos per day|120万/i;
+    const PAYWALL_TEXT = /premium|membership|purchase|per day|videos per day|at most|120万|purchase now/i;
+
+    /** Check if an element is a full-viewport or near-full-viewport overlay. */
+    const isFullOverlay = (el: HTMLElement): boolean => {
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+      if (style.position !== 'fixed' && style.position !== 'absolute') return false;
+      const zIndex = parseInt(style.zIndex, 10);
+      if (isNaN(zIndex) || zIndex < 100) return false;
+      // Must cover a significant portion of the viewport.
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      return rect.width >= vw * 0.5 && rect.height >= vh * 0.5;
+    };
 
     /** Remove any overlay/modal that looks like the paywall. */
     const killPaywall = () => {
-      const candidates = document.querySelectorAll<HTMLElement>(
-        'div, section, aside, dialog, [role="dialog"], [role="alertdialog"]',
-      );
-      for (const el of candidates) {
-        const style = getComputedStyle(el);
-        const isOverlay =
-          (style.position === 'fixed' || style.position === 'absolute') &&
-          parseInt(style.zIndex, 10) >= 1000 &&
-          style.display !== 'none' &&
-          style.visibility !== 'hidden';
-        if (!isOverlay) continue;
+      // Strategy 1: find elements whose text matches the paywall message and remove their overlay ancestor.
+      const all = document.querySelectorAll<HTMLElement>('div, section, aside, dialog, [role="dialog"], [role="alertdialog"], [class*="modal"], [class*="overlay"], [class*="popup"], [class*="mask"], [class*="paywall"], [class*="premium"]');
+      for (const el of all) {
         const text = el.textContent ?? '';
-        if (PAYWALL_TEXT.test(text) && el.querySelector('video') === null) {
+        if (!PAYWALL_TEXT.test(text)) continue;
+        // Walk up to find the overlay container (fixed/absolute, high z-index, full-viewport).
+        let target: HTMLElement | null = el;
+        for (let i = 0; i < 6 && target; i++) {
+          if (isFullOverlay(target)) break;
+          target = target.parentElement;
+        }
+        if (target && isFullOverlay(target)) {
+          target.remove();
+          continue;
+        }
+        // If no full overlay ancestor found, remove the element itself if it's positioned.
+        const style = getComputedStyle(el);
+        if ((style.position === 'fixed' || style.position === 'absolute') && parseInt(style.zIndex, 10) >= 100) {
           el.remove();
         }
       }
-      // Also nuke full-screen semi-transparent backdrops that sit behind the modal.
-      for (const el of document.querySelectorAll<HTMLElement>('.modal-backdrop, .overlay, .backdrop')) {
+
+      // Strategy 2: nuke any full-viewport fixed element with high z-index that has paywall-ish text.
+      for (const el of document.querySelectorAll<HTMLElement>('body > div, body > section, body > aside')) {
+        if (!isFullOverlay(el)) continue;
+        const text = el.textContent ?? '';
+        if (PAYWALL_TEXT.test(text)) el.remove();
+      }
+
+      // Strategy 3: remove common backdrop/mask elements.
+      for (const el of document.querySelectorAll<HTMLElement>('.modal-backdrop, .overlay, .backdrop, .mask, [class*="backdrop"], [class*="mask"]')) {
         const style = getComputedStyle(el);
         if (style.position === 'fixed' && parseFloat(style.opacity) > 0) el.remove();
       }
@@ -160,7 +187,7 @@
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && /daily|count|watch|free|limit|video.?num|per.?day/i.test(k)) keys.push(k);
+        if (k && /daily|count|watch|free|limit|video.?num|per.?day|view.?count|today/i.test(k)) keys.push(k);
       }
       for (const k of keys) localStorage.removeItem(k);
     };
@@ -173,9 +200,10 @@
       }
     };
 
-    /** Intercept alert/confirm that show the limit message. */
+    /** Intercept alert/confirm/prompt that show the limit message. */
     const nativeAlert = window.alert;
     const nativeConfirm = window.confirm;
+    const nativePrompt = window.prompt;
     window.alert = (msg?: string) => {
       if (msg && PAYWALL_TEXT.test(msg)) return;
       return nativeAlert.call(window, msg);
@@ -184,6 +212,37 @@
       if (msg && PAYWALL_TEXT.test(msg)) return true; // auto-accept so the site doesn't block
       return nativeConfirm.call(window, msg);
     };
+    window.prompt = (msg?: string) => {
+      if (msg && PAYWALL_TEXT.test(msg)) return '';
+      return nativePrompt.call(window, msg);
+    };
+
+    // Also patch on window.top in case the site calls top.confirm / top.alert.
+    try {
+      const top = window.top;
+      if (top && top !== window) {
+        if (!top.__javtrXchinaPatched) {
+          top.__javtrXchinaPatched = true;
+          const tAlert = top.alert;
+          const tConfirm = top.confirm;
+          const tPrompt = top.prompt;
+          top.alert = (msg?: string) => {
+            if (msg && PAYWALL_TEXT.test(msg)) return;
+            return tAlert.call(top, msg);
+          };
+          top.confirm = (msg?: string) => {
+            if (msg && PAYWALL_TEXT.test(msg)) return true;
+            return tConfirm.call(top, msg);
+          };
+          top.prompt = (msg?: string) => {
+            if (msg && PAYWALL_TEXT.test(msg)) return '';
+            return tPrompt.call(top, msg);
+          };
+        }
+      }
+    } catch {
+      // Cross-origin top: can't patch.
+    }
 
     // Run once on load, then watch for dynamically-inserted paywalls.
     clearDailyCount();
